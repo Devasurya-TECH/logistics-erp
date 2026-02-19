@@ -1,9 +1,10 @@
 "use client";
 
-import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Trip } from '@/lib/types';
 import L from 'leaflet';
+import { useEffect } from 'react';
 
 const icon = new L.Icon({
     iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
@@ -29,6 +30,22 @@ interface RouteMapProps {
     trip: Trip;
 }
 
+// Auto-fit map to show all markers
+function FitBounds({ positions }: { positions: [number, number][] }) {
+    const map = useMap();
+
+    useEffect(() => {
+        if (positions.length >= 2) {
+            const bounds = L.latLngBounds(positions.map(p => L.latLng(p[0], p[1])));
+            map.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
+        } else if (positions.length === 1) {
+            map.setView(positions[0], 13);
+        }
+    }, [positions, map]);
+
+    return null;
+}
+
 const RouteMapContent = ({ trip }: RouteMapProps) => {
     // Construct path: Start -> Drop 1 -> Drop 2 ...
     const positions: [number, number][] = [
@@ -44,6 +61,9 @@ const RouteMapContent = ({ trip }: RouteMapProps) => {
                 attribution='&copy; CARTO'
                 url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
             />
+
+            {/* Auto-fit to all positions */}
+            <FitBounds positions={positions} />
 
             {/* Start Marker */}
             <Marker position={positions[0]} icon={startIcon}>

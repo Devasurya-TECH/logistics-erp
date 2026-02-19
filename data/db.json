@@ -157,8 +157,9 @@
           "lat": 8.3988,
           "lng": 76.982,
           "customerName": "Leela Raviz",
-          "status": "pending",
-          "estimatedArrival": "2026-02-17T09:00:00Z"
+          "status": "delivered",
+          "estimatedArrival": "2026-02-17T09:00:00Z",
+          "actualArrival": "2026-02-19T09:52:07.257Z"
         }
       ],
       "estimatedDistance": 22
@@ -193,10 +194,10 @@
     },
     {
       "id": "TRIP-535",
-      "status": "in-progress",
+      "status": "completed",
       "startLocation": {
-        "lat": 34.05,
-        "lng": -118.24,
+        "lat": 9.9312,
+        "lng": 76.2673,
         "address": "kochi hub"
       },
       "drops": [
@@ -204,40 +205,169 @@
           "id": "d-1771148652469",
           "orderId": "ORD-349",
           "address": "kakanad",
-          "lat": 34.03477114023163,
-          "lng": -118.25176203063073,
+          "lat": 10.0165,
+          "lng": 76.3427,
           "customerName": "anadhu ",
-          "status": "pending",
+          "status": "delivered",
           "priority": "medium",
-          "deadline": "2026-02-16"
+          "deadline": "2026-02-16",
+          "actualArrival": "2026-02-19T09:53:06.100Z"
         },
         {
           "id": "d-1771148661199",
           "orderId": "ORD-113",
           "address": "panampally nagar",
-          "lat": 34.018899852656084,
-          "lng": -118.28207754135626,
+          "lat": 9.9601,
+          "lng": 76.2987,
           "customerName": "idrees",
-          "status": "pending",
+          "status": "delivered",
           "priority": "medium",
-          "deadline": "2026-02-16"
+          "deadline": "2026-02-16",
+          "actualArrival": "2026-02-19T09:53:06.850Z"
         },
         {
           "id": "d-1771148640153",
           "orderId": "ORD-341",
           "address": "alapuzha",
-          "lat": 34.0247127900508,
-          "lng": -118.28757958200566,
+          "lat": 9.4981,
+          "lng": 76.3388,
           "customerName": "linshad",
-          "status": "pending",
+          "status": "delivered",
           "priority": "medium",
-          "deadline": "2026-02-16"
+          "deadline": "2026-02-16",
+          "actualArrival": "2026-02-19T09:53:07.532Z"
         }
       ],
       "estimatedDistance": 6.1,
       "vehicleId": "v1",
       "driverId": "u3",
       "startTime": "2026-02-15T09:44:47.247Z"
+    },
+    {
+      "id": "TRIP-6157",
+      "status": "in-progress",
+      "startLocation": {
+        "lat": 9.9312,
+        "lng": 76.2673,
+        "address": "KOCHIHUB"
+      },
+      "drops": [
+        {
+          "id": "d-1771152438444",
+          "orderId": "ORD-324",
+          "address": "BROTOTYPE KOCHI",
+          "lat": 10.0159,
+          "lng": 76.3419,
+          "customerName": "LINSHAD",
+          "status": "delivered",
+          "priority": "medium",
+          "deadline": "2026-02-16",
+          "actualArrival": "2026-02-19T10:05:25.642Z"
+        }
+      ],
+      "estimatedDistance": 4.3,
+      "vehicleId": "v1",
+      "driverId": "u3",
+      "startTime": "2026-02-15T10:47:34.015Z"
+    },
+    {
+      "id": "TRIP-5052",
+      "status": "assigned",
+      "startLocation": {
+        "lat": 9.9648247,
+        "lng": 76.2721278,
+        "address": "Kochi Port, Kochi, Kerala"
+      },
+      "drops": [
+        {
+          "id": "d-1771494640526",
+          "orderId": "ORD-331",
+          "address": "Kakkanad, Ernakulam, Kerala",
+          "lat": 10.01657,
+          "lng": 76.34275,
+          "customerName": "idrees",
+          "status": "failed",
+          "priority": "medium",
+          "deadline": "2026-02-20",
+          "actualArrival": "2026-02-19T10:27:25.838Z"
+        },
+        {
+          "id": "d-1771494562863",
+          "orderId": "ORD-55",
+          "address": "Maradu, Thrippunithura, Kerala",
+          "lat": 9.9334363,
+          "lng": 76.317802,
+          "customerName": "linshhad",
+          "status": "delivered",
+          "priority": "medium",
+          "deadline": "2026-02-20",
+          "actualArrival": "2026-02-19T10:27:29.286Z"
+        },
+        {
+          "id": "d-1771494663818",
+          "orderId": "ORD-502",
+          "address": "Kottarakkara, Kerala",
+          "lat": 9.0054869,
+          "lng": 76.7831987,
+          "customerName": "deva",
+          "status": "delivered",
+          "priority": "medium",
+          "deadline": "2026-02-20",
+          "actualArrival": "2026-02-19T10:27:30.416Z"
+        }
+      ],
+      "estimatedDistance": 134.4,
+      "vehicleId": "v2",
+      "driverId": "u3",
+      "startTime": "2026-02-19T09:51:23.822Z"
+    },
+    {
+      "id": "TRIP-2644",
+      "status": "assigned",
+      "startLocation": {
+        "lat": 9.9648247,
+        "lng": 76.2721278,
+        "address": "Kochi Port, Kochi, Kerala"
+      },
+      "drops": [
+        {
+          "id": "d-1771495394875",
+          "orderId": "ORD-392",
+          "address": "Kundanoor Junction, Ernakulam, Maradu",
+          "lat": 9.9368099,
+          "lng": 76.3180441,
+          "customerName": "idrees",
+          "status": "pending",
+          "priority": "medium",
+          "deadline": "2026-02-20"
+        },
+        {
+          "id": "d-1771495332715",
+          "orderId": "ORD-166",
+          "address": "Maradu, Thrippunithura, Kerala",
+          "lat": 9.9334363,
+          "lng": 76.317802,
+          "customerName": "linshad",
+          "status": "pending",
+          "priority": "medium",
+          "deadline": "2026-02-20"
+        },
+        {
+          "id": "d-1771495421021",
+          "orderId": "ORD-108",
+          "address": "Pattazhy Vadakkekkara, Kerala",
+          "lat": 9.0969438,
+          "lng": 76.8065967,
+          "customerName": "devasurya",
+          "status": "pending",
+          "priority": "medium",
+          "deadline": "2026-02-20"
+        }
+      ],
+      "estimatedDistance": 113.6,
+      "vehicleId": "v2",
+      "driverId": "u3",
+      "startTime": "2026-02-19T10:04:08.600Z"
     }
   ],
   "fuelEntries": [

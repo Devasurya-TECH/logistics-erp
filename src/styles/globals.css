@@ -29,6 +29,16 @@
   .modal-overlay {
     @apply bg-slate-900/20 backdrop-blur-sm;
   }
+
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 :root {
@@ -42,4 +52,329 @@ body {
   background-color: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Prevent horizontal scroll on mobile */
+  overflow-x: hidden;
+  /* Improve touch experience */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Mobile viewport height fix (for iOS address bar) */
+@supports (height: 100dvh) {
+  .min-h-screen {
+    min-height: 100dvh;
+  }
+}
+
+/* ==============================
+   SMOOTH ANIMATIONS
+   ============================== */
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in-down {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes pulse-soft {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.4s ease-out;
+}
+
+.animate-fade-in-down {
+  animation: fade-in-down 0.3s ease-out;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.animate-scale-in {
+  animation: scale-in 0.2s ease-out;
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 2s ease-in-out infinite;
+}
+
+/* Staggered animation children */
+.stagger-children>* {
+  animation: fade-in-up 0.4s ease-out both;
+}
+
+.stagger-children>*:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.stagger-children>*:nth-child(2) {
+  animation-delay: 0.05s;
+}
+
+.stagger-children>*:nth-child(3) {
+  animation-delay: 0.1s;
+}
+
+.stagger-children>*:nth-child(4) {
+  animation-delay: 0.15s;
+}
+
+.stagger-children>*:nth-child(5) {
+  animation-delay: 0.2s;
+}
+
+.stagger-children>*:nth-child(6) {
+  animation-delay: 0.25s;
+}
+
+/* ==============================
+   CUSTOM SCROLLBAR
+   ============================== */
+
+@media (min-width: 768px) {
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+  }
+}
+
+/* ==============================
+   MOBILE TOUCH OPTIMIZATION
+   ============================== */
+
+@media (max-width: 767px) {
+
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+    /* Prevent iOS zoom on focus */
+  }
+
+  button {
+    min-height: 44px;
+    /* Apple touch target minimum */
+  }
+
+  /* Better tap targets for links */
+  a {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+}
+
+/* ==============================
+   PREMIUM CARD EFFECTS
+   ============================== */
+
+.card-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.08),
+    0 10px 10px -5px rgba(0, 0, 0, 0.02);
+}
+
+.card-hover:active {
+  transform: translateY(0);
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, #3b82f6, #6366f1);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ==============================
+   RESPONSIVE MAP CONTAINERS
+   ============================== */
+
+.map-container {
+  min-height: 280px;
+}
+
+@media (min-width: 768px) {
+  .map-container {
+    min-height: 400px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .map-container {
+    min-height: 500px;
+  }
+}
+
+/* ==============================
+   BOTTOM SHEET (mobile modals)
+   ============================== */
+
+@media (max-width: 767px) {
+  .bottom-sheet {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    max-height: 92vh;
+    border-radius: 1.5rem 1.5rem 0 0;
+    animation: slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+}
+
+/* ==============================
+   SAFE AREA PADDING (notch)
+   ============================== */
+
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .safe-bottom {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 1rem);
+  }
+}
+
+/* ==============================
+   FOCUS RING STYLES
+   ============================== */
+
+*:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* ==============================
+   LEAFLET MAP OVERRIDES
+   ============================== */
+
+.leaflet-control-zoom {
+  border: none !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1) !important;
+  border-radius: 12px !important;
+  overflow: hidden;
+}
+
+.leaflet-control-zoom a {
+  border-radius: 0 !important;
+  border: none !important;
+  color: #334155 !important;
+  width: 36px !important;
+  height: 36px !important;
+  line-height: 36px !important;
+  font-size: 16px !important;
+}
+
+.leaflet-control-zoom a:hover {
+  background: #f1f5f9 !important;
+  color: #2563eb !important;
 }

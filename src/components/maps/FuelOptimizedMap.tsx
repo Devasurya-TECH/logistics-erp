@@ -3,51 +3,68 @@
 import dynamic from 'next/dynamic';
 import { useState } from 'react';
 import {
-    MapPinIcon,
     TruckIcon,
-    BoltIcon, // Using BoltIcon as a proxy for "Fuel/Energy"
+    BoltIcon,
     ClockIcon,
     ArrowPathIcon,
     AdjustmentsHorizontalIcon
 } from '@heroicons/react/24/outline';
+import AddressInput from '@/components/common/AddressInput';
 
 const MapContent = dynamic(() => import('./FuelOptimizedMapContent'), {
     ssr: false,
     loading: () => <div className="h-full w-full bg-slate-50 animate-pulse rounded-2xl flex items-center justify-center text-slate-400 font-medium">Loading Map Engine...</div>
 });
 
-const DEFAULT_LOCATIONS = {
-    "Kochin Port": [9.9312, 76.2673] as [number, number],
-    "Trivandrum Hub": [8.5241, 76.9366] as [number, number],
-    "Kozhikode Center": [11.2588, 75.7804] as [number, number],
-    "Bangalore HQ": [12.9716, 77.5946] as [number, number],
-    "Chennai Port": [13.0827, 80.2707] as [number, number]
-};
-
 export default function FuelOptimizedMap() {
-    const [start, setStart] = useState<keyof typeof DEFAULT_LOCATIONS>("Kochin Port");
-    const [end, setEnd] = useState<keyof typeof DEFAULT_LOCATIONS>("Trivandrum Hub");
+    const [startLabel, setStartLabel] = useState('');
+    const [endLabel, setEndLabel] = useState('');
+    const [startCoords, setStartCoords] = useState<[number, number]>([9.9312, 76.2673]); // Kochi default
+    const [endCoords, setEndCoords] = useState<[number, number]>([8.5241, 76.9366]); // Trivandrum default
     const [isOptimizing, setIsOptimizing] = useState(false);
+    const [hasStart, setHasStart] = useState(false);
+    const [hasEnd, setHasEnd] = useState(false);
     const [stats, setStats] = useState({
-        distance: "210 km",
-        time: "4h 30m",
-        fuelSaved: "12.5 L",
-        co2Saved: "32 kg"
+        distance: "---",
+        time: "---",
+        fuelSaved: "---",
+        co2Saved: "---"
     });
 
+    const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number) => {
+        const R = 6371;
+        const dLat = (lat2 - lat1) * (Math.PI / 180);
+        const dLng = (lng2 - lng1) * (Math.PI / 180);
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+            Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+    };
+
     const handleOptimize = () => {
+        if (!hasStart || !hasEnd) {
+            return;
+        }
         setIsOptimizing(true);
-        // Simulate API call delay
         setTimeout(() => {
-            // Mock new stats based on selections (randomized slightly for effect)
+            const dist = calculateDistance(startCoords[0], startCoords[1], endCoords[0], endCoords[1]);
+            const roadDist = dist * 1.3; // Rough road-distance multiplier
+            const timeHrs = roadDist / 45; // Avg 45 km/h
+            const timeMins = Math.round(timeHrs * 60);
+            const h = Math.floor(timeMins / 60);
+            const m = timeMins % 60;
+            const fuelSaved = (roadDist * 0.05).toFixed(1); // ~5% savings via eco-route
+            const co2Saved = Math.round(parseFloat(fuelSaved) * 2.6); // ~2.6 kg CO2 per liter
+
             setStats({
-                distance: `${Math.floor(Math.random() * 100 + 150)} km`,
-                time: `${Math.floor(Math.random() * 3 + 2)}h ${Math.floor(Math.random() * 59)}m`,
-                fuelSaved: `${(Math.random() * 5 + 5).toFixed(1)} L`,
-                co2Saved: `${Math.floor(Math.random() * 20 + 20)} kg`
+                distance: `${Math.round(roadDist)} km`,
+                time: `${h}h ${m}m`,
+                fuelSaved: `${fuelSaved} L`,
+                co2Saved: `${co2Saved} kg`
             });
             setIsOptimizing(false);
-        }, 1500);
+        }, 1200);
     };
 
     return (
@@ -60,7 +77,7 @@ export default function FuelOptimizedMap() {
                             <TruckIcon className="w-5 h-5 text-blue-600" />
                             Route Optimizer AI
                         </h3>
-                        <p className="text-sm text-slate-500 mt-1">AI-powered route planning for maximum fuel efficiency.</p>
+                        <p className="text-sm text-slate-500 mt-1">Type any place name — AI finds it & optimizes the route.</p>
                     </div>
                     <button className="p-2 hover:bg-white rounded-full transition-colors text-slate-400 hover:text-slate-600">
                         <AdjustmentsHorizontalIcon className="w-6 h-6" />
@@ -70,41 +87,41 @@ export default function FuelOptimizedMap() {
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
                     <div className="md:col-span-4 space-y-1">
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Origin</label>
-                        <div className="relative">
-                            <MapPinIcon className="w-5 h-5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                            <select
-                                value={start}
-                                onChange={(e) => setStart(e.target.value as any)}
-                                className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-slate-700 font-medium focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none appearance-none transition-all"
-                            >
-                                {Object.keys(DEFAULT_LOCATIONS).map(loc => (
-                                    <option key={loc} value={loc}>{loc}</option>
-                                ))}
-                            </select>
-                        </div>
+                        <AddressInput
+                            value={startLabel}
+                            onChange={(address, lat, lng) => {
+                                setStartLabel(address);
+                                setStartCoords([lat, lng]);
+                                setHasStart(true);
+                            }}
+                            placeholder="e.g. Kochi Port, Ernakulam..."
+                        />
+                        {hasStart && (
+                            <p className="text-[10px] text-emerald-500 font-medium ml-1">✓ Located on map</p>
+                        )}
                     </div>
 
                     <div className="md:col-span-4 space-y-1">
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Destination</label>
-                        <div className="relative">
-                            <MapPinIcon className="w-5 h-5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                            <select
-                                value={end}
-                                onChange={(e) => setEnd(e.target.value as any)}
-                                className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-slate-700 font-medium focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none appearance-none transition-all"
-                            >
-                                {Object.keys(DEFAULT_LOCATIONS).map(loc => (
-                                    <option key={loc} value={loc}>{loc}</option>
-                                ))}
-                            </select>
-                        </div>
+                        <AddressInput
+                            value={endLabel}
+                            onChange={(address, lat, lng) => {
+                                setEndLabel(address);
+                                setEndCoords([lat, lng]);
+                                setHasEnd(true);
+                            }}
+                            placeholder="e.g. Trivandrum, Thrissur..."
+                        />
+                        {hasEnd && (
+                            <p className="text-[10px] text-emerald-500 font-medium ml-1">✓ Located on map</p>
+                        )}
                     </div>
 
                     <div className="md:col-span-4">
                         <button
                             onClick={handleOptimize}
-                            disabled={isOptimizing}
-                            className={`w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-lg shadow-emerald-200 flex items-center justify-center gap-2 transition-all active:scale-95 ${isOptimizing ? 'opacity-75 cursor-wait' : ''}`}
+                            disabled={isOptimizing || !hasStart || !hasEnd}
+                            className={`w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-lg shadow-emerald-200 flex items-center justify-center gap-2 transition-all active:scale-95 ${isOptimizing ? 'opacity-75 cursor-wait' : ''} ${!hasStart || !hasEnd ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
                             {isOptimizing ? (
                                 <>Processing...</>
@@ -119,8 +136,8 @@ export default function FuelOptimizedMap() {
             {/* Map Area */}
             <div className="flex-1 relative bg-slate-100">
                 <MapContent
-                    start={DEFAULT_LOCATIONS[start]}
-                    end={DEFAULT_LOCATIONS[end]}
+                    start={startCoords}
+                    end={endCoords}
                 />
 
                 {/* Stats Overlay */}
@@ -163,7 +180,7 @@ export default function FuelOptimizedMap() {
                 {/* Google Maps Link */}
                 <div className="absolute bottom-4 left-4 z-[400]">
                     <a
-                        href={`https://www.google.com/maps/dir/?api=1&origin=${DEFAULT_LOCATIONS[start][0]},${DEFAULT_LOCATIONS[start][1]}&destination=${DEFAULT_LOCATIONS[end][0]},${DEFAULT_LOCATIONS[end][1]}`}
+                        href={`https://www.google.com/maps/dir/?api=1&origin=${startCoords[0]},${startCoords[1]}&destination=${endCoords[0]},${endCoords[1]}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="px-4 py-2 bg-white hover:bg-gray-50 text-slate-700 font-bold text-sm rounded-lg shadow-md border border-gray-200 flex items-center gap-2 transition-colors"

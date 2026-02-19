@@ -22,9 +22,9 @@ export default function SupervisorDashboard() {
 
     return (
         <>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 pb-24 md:pb-4">
                 {/* Fuel Verification Queue */}
-                <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+                <div className="bg-white p-4 md:p-6 rounded-2xl border border-gray-100 shadow-sm">
                     <h2 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
                         <span className="bg-orange-100 p-1.5 rounded-lg text-orange-600">⛽</span> Fuel Verification Queue
                     </h2>
@@ -33,7 +33,7 @@ export default function SupervisorDashboard() {
                             <p className="text-slate-400 text-sm text-center py-8 bg-gray-50 rounded-lg">No pending fuel entries to verify.</p>
                         ) : (
                             pendingFuel.map((entry) => (
-                                <div key={entry.id} className="p-5 bg-gray-50 rounded-xl border border-gray-100 hover:shadow-md transition-shadow">
+                                <div key={entry.id} className="p-4 md:p-5 bg-gray-50 rounded-2xl border border-gray-100 hover:shadow-md transition-shadow">
                                     <div className="flex justify-between items-start mb-3">
                                         <div>
                                             <h3 className="font-bold text-slate-800">Vehicle {entry.vehicleId}</h3>
@@ -53,11 +53,11 @@ export default function SupervisorDashboard() {
                                     <div className="flex gap-3">
                                         <button
                                             onClick={() => handleVerify(entry.id)}
-                                            className="flex-1 bg-green-600 hover:bg-green-700 text-white text-xs font-bold py-2.5 rounded-lg flex items-center justify-center gap-1.5 transition-all shadow-sm hover:shadow-md"
+                                            className="flex-1 bg-green-600 hover:bg-green-700 text-white text-xs font-bold py-3 md:py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-sm hover:shadow-md active:scale-[0.97]"
                                         >
                                             <CheckCircleIcon className="w-4 h-4" /> Verify
                                         </button>
-                                        <button className="flex-1 bg-white border border-red-200 hover:bg-red-50 text-red-600 text-xs font-bold py-2.5 rounded-lg flex items-center justify-center gap-1.5 transition-all shadow-sm">
+                                        <button className="flex-1 bg-white border border-red-200 hover:bg-red-50 text-red-600 text-xs font-bold py-3 md:py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-[0.97]">
                                             <XCircleIcon className="w-4 h-4" /> Reject
                                         </button>
                                     </div>
@@ -68,12 +68,12 @@ export default function SupervisorDashboard() {
                 </div>
 
                 {/* Trip Assignment Overview */}
-                <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+                <div className="bg-white p-4 md:p-6 rounded-2xl border border-gray-100 shadow-sm">
                     <h2 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
                         <span className="bg-blue-100 p-1.5 rounded-lg text-blue-600">🚚</span> Active Assignments
                     </h2>
-                    <div className="overflow-hidden rounded-lg border border-gray-100">
-                        <table className="w-full text-sm text-left text-slate-600">
+                    <div className="overflow-x-auto rounded-lg border border-gray-100 -mx-1">
+                        <table className="w-full text-sm text-left text-slate-600 min-w-[400px]">
                             <thead className="text-xs uppercase bg-gray-50 text-slate-500 font-semibold border-b border-gray-100">
                                 <tr>
                                     <th className="px-4 py-3">Trip</th>
@@ -109,7 +109,7 @@ export default function SupervisorDashboard() {
                     <div className="mt-6 pt-6 border-t border-gray-100">
                         <button
                             onClick={() => setIsCreatingTrip(true)}
-                            className="w-full py-3.5 border-2 border-dashed border-gray-200 rounded-xl text-slate-500 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50/30 transition-all flex items-center justify-center gap-2 font-bold text-sm uppercase tracking-wide"
+                            className="w-full py-3.5 md:py-3.5 border-2 border-dashed border-gray-200 rounded-2xl text-slate-500 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50/30 transition-all flex items-center justify-center gap-2 font-bold text-sm uppercase tracking-wide active:scale-[0.97]"
                         >
                             <TruckIcon className="w-5 h-5" /> Assign New Trip
                         </button>

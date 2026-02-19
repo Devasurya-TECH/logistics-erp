@@ -122,3 +122,34 @@ export const estimateTime = (distanceKm: number) => {
     const m = mins % 60;
     return `${h}h ${m}m`;
 };
+
+// Fuel economy estimates for logistics trucks in Kerala
+const AVG_MILEAGE_KM_PER_LITRE = 8; // Average for delivery trucks
+const DIESEL_PRICE_PER_LITRE = 95; // INR, ~Kerala rate
+
+export const estimateFuelCost = (distanceKm: number) => {
+    const litres = distanceKm / AVG_MILEAGE_KM_PER_LITRE;
+    const cost = litres * DIESEL_PRICE_PER_LITRE;
+    return {
+        litres: parseFloat(litres.toFixed(1)),
+        cost: Math.round(cost),
+    };
+};
+
+// Calculate savings from optimized vs unoptimized route
+export const calculateFuelSavings = (
+    start: { lat: number; lng: number },
+    originalDrops: DropPoint[],
+    optimizedDrops: DropPoint[]
+) => {
+    if (originalDrops.length <= 1) return { savedKm: 0, savedLitres: 0, savedCost: 0 };
+
+    const originalDist = calculateTotalDistance(start, originalDrops);
+    const optimizedDist = calculateTotalDistance(start, optimizedDrops);
+    const savedKm = parseFloat((originalDist - optimizedDist).toFixed(1));
+    const savedLitres = parseFloat((savedKm / AVG_MILEAGE_KM_PER_LITRE).toFixed(1));
+    const savedCost = Math.round(savedLitres * DIESEL_PRICE_PER_LITRE);
+
+    return { savedKm: Math.max(0, savedKm), savedLitres: Math.max(0, savedLitres), savedCost: Math.max(0, savedCost) };
+};
+

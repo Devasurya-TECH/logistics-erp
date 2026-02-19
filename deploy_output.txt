@@ -1,0 +1,56 @@
+Vercel CLI 50.17.1
+Retrieving projectΓÇª
+Deploying devas-projects-8191988e/logistics-erp
+Uploading [--------------------] (0.0B/15.3KB)
+Uploading [====================] (15.3KB/15.3KB)
+Inspect: https://vercel.com/devas-projects-8191988e/logistics-erp/Hg4oNS9CJtHeafwiqutrXRYkHj8b [3s]
+Production: https://logistics-ayl5hl50r-devas-projects-8191988e.vercel.app [3s]
+Building...
+Building...
+Building: Running build in Washington, D.C., USA (East) ΓÇô iad1
+Building: Build machine configuration: 2 cores, 8 GB
+Building: Retrieving list of deployment files...
+Building: Downloading 58 deployment files...
+Building: Restored build cache from previous deployment (8vU4nHN8p6Jj4cxTwYvZ4fvZB2kR)
+Building: Running "vercel build"
+Building: Vercel CLI 50.15.1
+Building: Installing dependencies...
+Building: up to date in 1s
+Building: 168 packages are looking for funding
+Building: run `npm fund` for details
+Building: Detected Next.js version: 16.1.6
+Building: Running "npm run build"
+Building: > logistics-erp@0.1.0 build
+Building: > next build
+Building: Γû▓ Next.js 16.1.6 (Turbopack)
+Building: Creating an optimized production build ...
+Building: Γ£ô Compiled successfully in 7.5s
+Building: Running TypeScript ...
+Building: Collecting page data using 1 worker ...
+Building: Generating static pages using 1 worker (0/11) ...
+Building: Generating static pages using 1 worker (2/11)
+Building: Generating static pages using 1 worker (5/11)
+Building: Generating static pages using 1 worker (8/11)
+Building: Γ£ô Generating static pages using 1 worker (11/11) in 194.1ms
+Building: Finalizing page optimization ...
+Building: Route (app)
+Building: Γöî Γùï /
+Building: Γö£ Γùï /_not-found
+Building: Γö£ ╞Æ /api/master-data
+Building: Γö£ ╞Æ /api/trips
+Building: Γö£ Γùï /driver
+Building: Γö£ Γùï /driver/routes
+Building: Γö£ Γùï /login
+Building: Γö£ Γùï /manager
+Building: Γöö Γùï /supervisor
+Building: Γùï  (Static)   prerendered as static content
+Building: ╞Æ  (Dynamic)  server-rendered on demand
+Building: Traced Next.js server files in: 36.012ms
+Building: Created all serverless functions in: 165.584ms
+Building: Collected static files (public/, static/, .next/static): 9.478ms
+Building: Build Completed in /vercel/output [17s]
+Building: Deploying outputs...
+[2K[1A[2K[GProduction: https://logistics-ayl5hl50r-devas-projects-8191988e.vercel.app [30s]
+Completing...
+Aliased: https://logistics-erp-five.vercel.app [30s]
+https://logistics-ayl5hl50r-devas-projects-8191988e.vercel.app

@@ -3,22 +3,22 @@ import { promises as fs } from 'fs';
 
 const DB_PATH = join(process.cwd(), 'data', 'db.json');
 
-// In-memory fallback for Vercel/Read-only environments (Note: Data won't persist across re-deploys or cold starts)
+// In-memory fallback for Vercel/Read-only environments
 let inMemoryCache: any = null;
+let isReadOnly = false; // Detected on first write failure
 
 export async function getDbData() {
-    if (inMemoryCache) return inMemoryCache;
+    // If we're in a read-only environment, use cache
+    if (isReadOnly && inMemoryCache) return inMemoryCache;
 
     try {
         const file = await fs.readFile(DB_PATH, 'utf8');
-        inMemoryCache = JSON.parse(file);
-        return inMemoryCache;
+        const data = JSON.parse(file);
+        inMemoryCache = data; // Update cache
+        return data;
     } catch (error) {
-        // Fallback for when file doesn't exist or can't be read
         console.warn("Using in-memory DB fallback (File read failed)");
         if (!inMemoryCache) {
-            // Initialize with default/mock data if needed, or empty
-            // Ideally we should import mock data here as fallback, but for now allow empty structure
             inMemoryCache = { trips: [], users: [], vehicles: [], fuelEntries: [], alerts: [] };
         }
         return inMemoryCache;
@@ -30,6 +30,7 @@ export async function writeDbData(data: any) {
     try {
         await fs.writeFile(DB_PATH, JSON.stringify(data, null, 2));
     } catch (error) {
+        isReadOnly = true;
         console.warn("Write to DB file failed (likely Read-Only Environment like Vercel). Data updated in memory only.");
     }
 }
