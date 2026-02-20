@@ -11,10 +11,10 @@ export function StoreInitializer() {
         // Initial fetch
         fetchInitialData();
 
-        // Poll every 5 seconds so driver sees new trips assigned by supervisor
+        // Poll every 3 seconds so driver sees new trips assigned by supervisor
         intervalRef.current = setInterval(() => {
             fetchInitialData();
-        }, 5000);
+        }, 3000);
 
         return () => {
             if (intervalRef.current) {

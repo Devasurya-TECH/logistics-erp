@@ -1,5 +1,6 @@
 import { join } from 'path';
 import { promises as fs } from 'fs';
+import * as initialData from './mock-data';
 
 const DB_PATH = join(process.cwd(), 'data', 'db.json');
 
@@ -8,19 +9,24 @@ let inMemoryCache: any = null;
 let isReadOnly = false; // Detected on first write failure
 
 export async function getDbData() {
-    // If we're in a read-only environment, use cache
-    if (isReadOnly && inMemoryCache) return inMemoryCache;
+    // If we're in a read-only environment and have cache, return it
+    if (inMemoryCache) return inMemoryCache;
 
     try {
         const file = await fs.readFile(DB_PATH, 'utf8');
         const data = JSON.parse(file);
-        inMemoryCache = data; // Update cache
+        inMemoryCache = data;
         return data;
     } catch (error) {
-        console.warn("Using in-memory DB fallback (File read failed)");
-        if (!inMemoryCache) {
-            inMemoryCache = { trips: [], users: [], vehicles: [], fuelEntries: [], alerts: [] };
-        }
+        console.warn("Using bundled mock data fallback (File read failed)");
+        // Seed with initial mock data from the code
+        inMemoryCache = {
+            trips: initialData.trips,
+            users: initialData.users,
+            vehicles: initialData.vehicles,
+            fuelEntries: initialData.fuelEntries,
+            alerts: initialData.alerts
+        };
         return inMemoryCache;
     }
 }

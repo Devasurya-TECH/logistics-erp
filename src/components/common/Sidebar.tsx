@@ -12,14 +12,22 @@ const roles = {
         { name: 'Vehicles', href: '/manager/vehicles', icon: '🚛', desc: 'Fleet status' },
     ],
     supervisor: [
-        { name: 'Dashboard', href: '/supervisor', icon: '📋', desc: 'Assign & verify' },
-        { name: 'Active Trips', href: '/supervisor/trips', icon: '🚚', desc: 'Live tracking' },
-        { name: 'Verify Fuel', href: '/supervisor/fuel', icon: '✅', desc: 'Fuel approvals' },
+        { name: 'Dashboard', href: '/supervisor', icon: '📊', desc: 'Command Center' },
+        { name: 'Drivers', href: '/supervisor/drivers', icon: '👤', desc: 'Manage drivers' },
+        { name: 'Deliveries', href: '/supervisor/deliveries', icon: '📦', desc: 'All deliveries' },
+        { name: 'Trips', href: '/supervisor/trips', icon: '🚚', desc: 'Trip management' },
+        { name: 'Tracking', href: '/supervisor/tracking', icon: '📡', desc: 'Live fleet GPS' },
+        { name: 'Fuel', href: '/supervisor/fuel', icon: '⛽', desc: 'Fuel verification' },
+        { name: 'Reports', href: '/supervisor/reports', icon: '📈', desc: 'Analytics & exports' },
+        { name: 'Activity', href: '/supervisor/activity', icon: '📋', desc: 'Audit trail' },
+        { name: 'Settings', href: '/supervisor/settings', icon: '⚙️', desc: 'Preferences' },
     ],
     driver: [
         { name: 'My Dashboard', href: '/driver', icon: '🏠', desc: 'Active trips' },
         { name: 'Route Optimizer', href: '/driver/routes', icon: '⚡', desc: 'Navigate' },
         { name: 'Log Fuel', href: '/driver?tab=fuel', icon: '⛽', desc: 'Bills & receipts' },
+        { name: 'Activity', href: '/driver/activity', icon: '📋', desc: 'Audit trail' },
+        { name: 'Settings', href: '/driver/settings', icon: '⚙️', desc: 'Preferences' },
     ]
 };
 
@@ -35,8 +43,8 @@ export default function Sidebar() {
     return (
         <>
             {/* Mobile Bottom Navigation Bar */}
-            <nav className="fixed bottom-0 left-0 right-0 z-[60] md:hidden bg-white/95 backdrop-blur-xl border-t border-gray-100 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] safe-bottom">
-                <div className="flex items-center justify-around px-2 py-1">
+            <nav className="fixed bottom-0 left-0 right-0 z-[60] md:hidden bg-white/95 backdrop-blur-xl border-t border-gray-100 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] px-safe pb-safe">
+                <div className="flex items-center justify-around px-2 py-1 mb-0.5">
                     {navigation.map((item) => {
                         const isActive = pathname === item.href ||
                             (item.href.includes('?') && pathname === item.href.split('?')[0]);
@@ -45,8 +53,8 @@ export default function Sidebar() {
                                 key={item.name}
                                 href={item.href}
                                 className={`flex flex-col items-center justify-center gap-0.5 py-2 px-3 rounded-xl transition-all min-h-[56px] ${isActive
-                                        ? 'text-blue-600'
-                                        : 'text-slate-400 active:text-slate-600'
+                                    ? 'text-blue-600'
+                                    : 'text-slate-400 active:text-slate-600'
                                     }`}
                             >
                                 <span className={`text-xl transition-transform ${isActive ? 'scale-110' : ''}`}>{item.icon}</span>

@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getDbData, writeDbData } from '@/lib/db-utils';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
     try {
         const db = await getDbData();
