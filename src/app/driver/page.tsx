@@ -83,8 +83,8 @@ function DriverDashboardContent() {
                                                 key={trip.id}
                                                 onClick={() => setSelectedTripId(trip.id)}
                                                 className={`flex-shrink-0 p-3.5 rounded-2xl border-2 transition-all text-left min-w-[170px] snap-start active:scale-[0.97] ${isSelected
-                                                        ? 'border-blue-500 bg-blue-50/80 shadow-lg shadow-blue-100'
-                                                        : 'border-gray-200 bg-white hover:border-blue-200 shadow-sm'
+                                                    ? 'border-blue-500 bg-blue-50/80 shadow-lg shadow-blue-100'
+                                                    : 'border-gray-200 bg-white hover:border-blue-200 shadow-sm'
                                                     }`}
                                             >
                                                 <div className="flex items-center justify-between mb-2">
@@ -93,8 +93,8 @@ function DriverDashboardContent() {
                                                         #{trip.id}
                                                     </span>
                                                     <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${trip.status === 'in-progress'
-                                                            ? 'bg-green-100 text-green-600'
-                                                            : 'bg-amber-100 text-amber-600'
+                                                        ? 'bg-green-100 text-green-600'
+                                                        : 'bg-amber-100 text-amber-600'
                                                         }`}>
                                                         {trip.status === 'in-progress' ? '🟢 Live' : '🟡 Queued'}
                                                     </span>
@@ -134,12 +134,12 @@ function DriverDashboardContent() {
                                                 <p className="text-blue-200 text-[10px] font-bold uppercase tracking-widest mb-1">
                                                     {activeTrips.length > 1 ? `Trip ${activeTrips.indexOf(currentTrip) + 1} of ${activeTrips.length}` : 'Current Trip'}
                                                 </p>
-                                                <h3 className="text-2xl md:text-3xl font-black tracking-tight">#{currentTrip.id}</h3>
+                                                <h3 className="text-xl md:text-3xl font-black tracking-tight tracking-tight">#{currentTrip.id}</h3>
                                             </div>
                                             <div className="flex flex-col items-end gap-1">
                                                 <span className={`text-[10px] font-bold uppercase px-2.5 py-1 rounded-full tracking-wider backdrop-blur-md border ${currentTrip.status === 'in-progress'
-                                                        ? 'bg-green-500/20 text-green-200 border-green-400/30'
-                                                        : 'bg-amber-500/20 text-amber-200 border-amber-400/30'
+                                                    ? 'bg-green-500/20 text-green-200 border-green-400/30'
+                                                    : 'bg-amber-500/20 text-amber-200 border-amber-400/30'
                                                     }`}>
                                                     {currentTrip.status === 'in-progress' ? '● In Progress' : '● Assigned'}
                                                 </span>

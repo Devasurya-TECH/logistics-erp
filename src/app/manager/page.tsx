@@ -13,7 +13,7 @@ import {
 } from '@heroicons/react/24/outline';
 
 const StatCard = ({ title, value, icon, trend }: { title: string; value: string; icon: any; trend: string }) => (
-    <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300">
+    <div className="bg-white p-4 md:p-6 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300">
         <div className="flex items-start justify-between">
             <div>
                 <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">{title}</p>
@@ -26,8 +26,8 @@ const StatCard = ({ title, value, icon, trend }: { title: string; value: string;
                     </span>
                 </div>
             </div>
-            <div className="p-3 bg-blue-50 text-blue-600 rounded-lg">
-                <icon.type className="w-6 h-6" />
+            <div className="p-2 md:p-3 bg-blue-50 text-blue-600 rounded-lg">
+                <icon.type className="w-5 h-5 md:w-6 md:h-6" />
             </div>
         </div>
     </div>
@@ -43,7 +43,7 @@ export default function ManagerDashboard() {
     return (
         <div className="space-y-8 pb-12">
             {/* KPI Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
                 <StatCard
                     title="Active Fleet"
                     value={`${activeTrips.length}/${vehicles.length}`}
