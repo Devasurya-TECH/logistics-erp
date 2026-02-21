@@ -165,11 +165,11 @@ export default function TrackingPage() {
                 </div>
             </div>
 
-            {/* Stats Row */}
-            <div className="grid grid-cols-3 gap-3">
+            {/* Stats Row - Scrollable on mobile */}
+            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0 snap-x snap-mandatory">
                 <button
                     onClick={() => setViewMode('active')}
-                    className={`p-4 rounded-2xl border text-center transition-all card-hover ${viewMode === 'active' ? 'border-emerald-200 bg-emerald-50/80 shadow-md' : 'border-gray-100 bg-white'}`}
+                    className={`flex-1 min-w-[100px] p-4 rounded-2xl border text-center transition-all card-hover snap-start ${viewMode === 'active' ? 'border-emerald-200 bg-emerald-50/80 shadow-md' : 'border-gray-100 bg-white'}`}
                 >
                     <div className="flex items-center justify-center gap-2 mb-1">
                         <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -179,7 +179,7 @@ export default function TrackingPage() {
                 </button>
                 <button
                     onClick={() => setViewMode('idle')}
-                    className={`p-4 rounded-2xl border text-center transition-all card-hover ${viewMode === 'idle' ? 'border-amber-200 bg-amber-50/80 shadow-md' : 'border-gray-100 bg-white'}`}
+                    className={`flex-1 min-w-[100px] p-4 rounded-2xl border text-center transition-all card-hover snap-start ${viewMode === 'idle' ? 'border-amber-200 bg-amber-50/80 shadow-md' : 'border-gray-100 bg-white'}`}
                 >
                     <div className="flex items-center justify-center gap-2 mb-1">
                         <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
@@ -189,7 +189,7 @@ export default function TrackingPage() {
                 </button>
                 <button
                     onClick={() => setViewMode('all')}
-                    className={`p-4 rounded-2xl border text-center transition-all card-hover ${viewMode === 'all' ? 'border-blue-200 bg-blue-50/80 shadow-md' : 'border-gray-100 bg-white'}`}
+                    className={`flex-1 min-w-[100px] p-4 rounded-2xl border text-center transition-all card-hover snap-start ${viewMode === 'all' ? 'border-blue-200 bg-blue-50/80 shadow-md' : 'border-gray-100 bg-white'}`}
                 >
                     <div className="flex items-center justify-center gap-2 mb-1">
                         <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />

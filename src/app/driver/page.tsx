@@ -131,7 +131,7 @@ function DriverDashboardContent() {
 
                                     <div className="relative">
                                         {/* Top row */}
-                                        <div className="flex items-start justify-between mb-4">
+                                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-4">
                                             <div>
                                                 <div className="flex items-center gap-2 mb-1">
                                                     <p className="text-blue-200 text-[10px] font-extrabold uppercase tracking-widest">
@@ -141,9 +141,9 @@ function DriverDashboardContent() {
                                                         <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
                                                     )}
                                                 </div>
-                                                <h3 className="text-2xl md:text-4xl font-black tracking-tighter">#{currentTrip.id}</h3>
+                                                <h3 className="text-3xl md:text-5xl font-black tracking-tighter">#{currentTrip.id}</h3>
                                             </div>
-                                            <div className="flex flex-col items-end gap-2">
+                                            <div className="flex flex-row sm:flex-col items-center sm:items-end gap-2">
                                                 <button
                                                     onClick={() => toggleLiveStatus(driver.id, !driver.isLive)}
                                                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tighter transition-all border ${driver?.isLive
@@ -340,6 +340,20 @@ function DriverDashboardContent() {
                     </div>
                 )}
             </div>
+
+            {/* Floating SOS Button for Mobile Drivers */}
+            <button
+                onClick={() => {
+                    const reason = prompt("Describe emergency (optional):") || "Emergency SOS Triggered";
+                    // triggerEmergency only takes 2 args: driverId and tripId
+                    triggerEmergency(user?.id || 'unknown', currentTrip?.id || 'unknown');
+                    alert("SOS Alert Sent! Dispatch has been notified.");
+                }}
+                className="fixed bottom-24 right-4 md:bottom-8 md:right-8 z-50 w-16 h-16 bg-red-600 text-white rounded-full shadow-[0_8px_30px_rgb(220,38,38,0.4)] flex items-center justify-center border-4 border-white active:scale-90 transition-all group lg:hover:scale-105"
+            >
+                <div className="absolute inset-0 rounded-full bg-red-600 animate-ping opacity-25"></div>
+                <ShieldExclamationIcon className="w-8 h-8 relative z-10" />
+            </button>
         </div>
     );
 }

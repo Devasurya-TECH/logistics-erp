@@ -425,7 +425,7 @@ export default function SupervisorDashboard() {
                     </div>
 
                     {/* Dashboard Mini-Map - Fleet Context */}
-                    <div ref={mapContainerRef} className="bg-slate-900 h-64 md:h-80 border-y border-slate-800 relative group">
+                    <div ref={mapContainerRef} className="bg-slate-900 h-48 md:h-80 border-y border-slate-800 relative group">
                         <LiveTrackingMapContent
                             positions={vehicles.map(v => {
                                 const activeTrip = trips.find(t => t.vehicleId === v.id && t.status === 'in-progress');
@@ -470,7 +470,7 @@ export default function SupervisorDashboard() {
                                 const progress = totalDrops > 0 ? Math.round((deliveredDrops / totalDrops) * 100) : 0;
 
                                 return (
-                                    <div key={trip.id} className="p-4 md:p-5 hover:bg-blue-50/30 transition-colors">
+                                    <div key={trip.id} className="p-5 hover:bg-blue-50/30 transition-colors">
                                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
                                             <div className="flex items-center gap-3">
                                                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm ${trip.status === 'in-progress'
