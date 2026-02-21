@@ -59,6 +59,30 @@ const createVehicleIcon = (status: 'moving' | 'idle' | 'offline', isEmergency?: 
     });
 };
 
+const createLandmarkIcon = (type: 'airport' | 'port' | 'shop' | 'industrial') => {
+    const emojis: Record<string, string> = {
+        airport: '✈️',
+        port: '⚓',
+        shop: '🏪',
+        industrial: '🏭'
+    };
+    return L.divIcon({
+        html: `<div style="font-size: 20px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));" class="landmark-hop">${emojis[type]}</div>`,
+        className: 'landmark-icon',
+        iconSize: [24, 24],
+        iconAnchor: [12, 12],
+    });
+};
+
+const LANDMARKS = [
+    { id: 'l1', name: 'Kochi Port', type: 'port', lat: 9.9658, lng: 76.2711 },
+    { id: 'l2', name: 'Lulu Mall, Kochi', type: 'shop', lat: 10.0271, lng: 76.3080 },
+    { id: 'l3', name: 'Cochin Intl Airport', type: 'airport', lat: 10.1556, lng: 76.3910 },
+    { id: 'l4', name: 'Technopark, TVM', type: 'industrial', lat: 8.5581, lng: 76.8770 },
+    { id: 'l5', name: 'Trivandrum Airport', type: 'airport', lat: 8.4821, lng: 76.9200 },
+    { id: 'l6', name: 'Kozhikode Beach', type: 'industrial', lat: 11.2588, lng: 75.7741 },
+];
+
 // Component to auto-fit bounds or fly to selected
 function MapController({ positions, selectedId }: { positions: VehiclePosition[], selectedId: string | null }) {
     const map = useMap();
@@ -133,6 +157,21 @@ export default function LiveTrackingMapContent({ positions, selectedId, onSelect
                 />
 
                 <MapController positions={positions} selectedId={selectedId} />
+
+                {/* Landmarks */}
+                {LANDMARKS.map(landmark => (
+                    <Marker
+                        key={landmark.id}
+                        position={[landmark.lat, landmark.lng]}
+                        icon={createLandmarkIcon(landmark.type as any)}
+                    >
+                        <Popup className="landmark-popup">
+                            <div className="p-1 font-bold text-slate-800 text-xs">
+                                {landmark.name}
+                            </div>
+                        </Popup>
+                    </Marker>
+                ))}
 
                 {positions.map(pos => (
                     <Marker
