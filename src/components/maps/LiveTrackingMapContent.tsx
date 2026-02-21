@@ -6,43 +6,56 @@ import * as L from 'leaflet';
 import { useEffect, useState } from 'react';
 
 // Custom icons for vehicle status
-const createVehicleIcon = (status: 'moving' | 'idle' | 'offline') => {
-    const color = status === 'moving' ? '#10b981' : status === 'idle' ? '#f59e0b' : '#94a3b8';
-    const pulseClass = status === 'moving' ? 'vehicle-pulse' : '';
+const createVehicleIcon = (status: 'moving' | 'idle' | 'offline', isEmergency?: boolean, isLive?: boolean) => {
+    const baseColor = status === 'moving' ? '#10b981' : status === 'idle' ? '#f59e0b' : '#94a3b8';
+    const color = isEmergency ? '#ef4444' : baseColor;
+    const pulseClass = (status === 'moving' || isEmergency) ? 'vehicle-pulse' : '';
+    const emergencyClass = isEmergency ? 'animate-bounce' : '';
 
     return L.divIcon({
         html: `
-            <div class="vehicle-marker ${pulseClass}" style="
+            <div class="vehicle-marker ${pulseClass} ${emergencyClass}" style="
                 background: ${color};
-                width: 32px;
-                height: 32px;
-                border-radius: 12px;
+                width: 38px;
+                height: 38px;
+                border-radius: 14px;
                 border: 3px solid white;
-                box-shadow: 0 2px 12px ${color}66;
+                box-shadow: 0 4px 15px ${color}88;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-size: 14px;
+                font-size: 18px;
                 position: relative;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             ">
-                🚛
-                ${status === 'moving' ? `<span style="
+                ${isEmergency ? '⚠️' : '🚛'}
+                ${isLive ? `<span style="
                     position: absolute;
-                    top: -4px;
-                    right: -4px;
-                    width: 10px;
-                    height: 10px;
-                    background: #10b981;
+                    top: -6px;
+                    right: -6px;
+                    width: 14px;
+                    height: 14px;
+                    background: #3b82f6;
                     border-radius: 50%;
                     border: 2px solid white;
-                    animation: pulse 2s infinite;
-                "></span>` : ''}
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                "><span style="width: 6px; height: 6px; background: white; border-radius: 50%; animation: ping 1.5s infinite;"></span></span>` : ''}
+                ${isEmergency ? `<div style="
+                    position: absolute;
+                    inset: -8px;
+                    border: 4px solid #ef4444;
+                    border-radius: 18px;
+                    animation: ping 1s infinite;
+                    opacity: 0.5;
+                "></div>` : ''}
             </div>
         `,
         className: 'vehicle-div-icon',
-        iconSize: [32, 32],
-        iconAnchor: [16, 16],
-        popupAnchor: [0, -20],
+        iconSize: [38, 38],
+        iconAnchor: [19, 19],
+        popupAnchor: [0, -25],
     });
 };
 
@@ -79,6 +92,8 @@ interface VehiclePosition {
     driverName: string;
     vehiclePlate: string;
     tripId: string | null;
+    isEmergency?: boolean;
+    isLive?: boolean;
 }
 
 interface LiveTrackingMapProps {
@@ -123,7 +138,7 @@ export default function LiveTrackingMapContent({ positions, selectedId, onSelect
                     <Marker
                         key={pos.id}
                         position={[pos.lat, pos.lng]}
-                        icon={createVehicleIcon(pos.status)}
+                        icon={createVehicleIcon(pos.status, pos.isEmergency, pos.isLive)}
                         eventHandlers={{
                             click: () => onSelect(pos.id === selectedId ? null : pos.id),
                         }}

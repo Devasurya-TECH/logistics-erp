@@ -2,7 +2,7 @@
 
 import { Driver } from "@/lib/types";
 import { useStore } from "@/lib/store";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
     XMarkIcon,
     TruckIcon,
@@ -14,7 +14,9 @@ import {
     EnvelopeIcon,
     IdentificationIcon,
     ChartBarIcon,
+    SignalIcon,
 } from "@heroicons/react/24/outline";
+import TripSelectionModal from "./TripSelectionModal";
 
 interface DriverDetailModalProps {
     driver: Driver;
@@ -22,7 +24,12 @@ interface DriverDetailModalProps {
 }
 
 export default function DriverDetailModal({ driver, onClose }: DriverDetailModalProps) {
-    const { trips, vehicles, fuelEntries } = useStore();
+    const { trips, vehicles, fuelEntries, assignDriver } = useStore();
+    const [isAssigning, setIsAssigning] = useState(false);
+    const [showTripSelection, setShowTripSelection] = useState(false);
+
+    const plannedTrips = useMemo(() => trips.filter(t => t.status === 'planned'), [trips]);
+    const availableVehicle = useMemo(() => vehicles.find(v => v.status === 'active' || v.status === 'maintenance' ? false : true) || vehicles[0], [vehicles]);
 
     const stats = useMemo(() => {
         const driverTrips = trips.filter(t => t.driverId === driver.id);
@@ -51,6 +58,17 @@ export default function DriverDetailModal({ driver, onClose }: DriverDetailModal
         };
     }, [driver, trips, vehicles, fuelEntries]);
 
+    const handleAssign = async (tripId: string) => {
+        setIsAssigning(true);
+        try {
+            await assignDriver(tripId, driver.id, availableVehicle.id);
+            setShowTripSelection(false);
+            onClose();
+        } finally {
+            setIsAssigning(false);
+        }
+    };
+
     return (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 animate-fade-in">
             <div className="bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-lg shadow-2xl relative overflow-hidden animate-fade-in-up max-h-[90vh] overflow-y-auto">
@@ -70,15 +88,20 @@ export default function DriverDetailModal({ driver, onClose }: DriverDetailModal
                             <h3 className="text-xl font-extrabold">{driver.name}</h3>
                             <p className="text-blue-200 text-sm mt-0.5 capitalize">{driver.role} · LogiTrace</p>
                             <span className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full mt-1.5 ${driver.status === 'on-trip' ? 'bg-emerald-400/20 text-emerald-200 border border-emerald-400/30' :
-                                    driver.status === 'available' ? 'bg-blue-400/20 text-blue-200 border border-blue-400/30' :
-                                        'bg-gray-400/20 text-gray-300 border border-gray-400/30'
+                                driver.status === 'available' ? 'bg-blue-400/20 text-blue-200 border border-blue-400/30' :
+                                    'bg-gray-400/20 text-gray-300 border border-gray-400/30'
                                 }`}>
                                 <div className={`w-1.5 h-1.5 rounded-full ${driver.status === 'on-trip' ? 'bg-emerald-400 animate-pulse' :
-                                        driver.status === 'available' ? 'bg-blue-400' :
-                                            'bg-gray-400'
+                                    driver.status === 'available' ? 'bg-blue-400' :
+                                        'bg-gray-400'
                                     }`} />
                                 {driver.status}
                             </span>
+                            {driver.isLive && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase px-2 py-0.5 rounded-full mt-1.5 bg-emerald-500 text-white animate-pulse ml-2 shadow-sm">
+                                    <SignalIcon className="w-3 h-3" /> Live
+                                </span>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -173,12 +196,28 @@ export default function DriverDetailModal({ driver, onClose }: DriverDetailModal
                         <button className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-200 text-sm flex items-center justify-center gap-2 transition-all active:scale-95">
                             <PhoneIcon className="w-4 h-4" /> Contact
                         </button>
-                        <button className="flex-1 py-3 bg-gray-50 hover:bg-gray-100 text-slate-600 font-bold rounded-xl border border-gray-200 text-sm flex items-center justify-center gap-2 transition-all active:scale-95">
+                        <button
+                            onClick={() => setShowTripSelection(true)}
+                            disabled={driver.status !== 'available'}
+                            className={`flex-1 py-3 font-bold rounded-xl border text-sm flex items-center justify-center gap-2 transition-all active:scale-95 ${driver.status === 'available'
+                                ? 'bg-white hover:bg-gray-50 text-slate-600 border-gray-200 shadow-sm'
+                                : 'bg-gray-50 text-slate-300 border-gray-100 cursor-not-allowed'
+                                }`}
+                        >
                             <TruckIcon className="w-4 h-4" /> Assign Trip
                         </button>
                     </div>
                 </div>
             </div>
+
+            {showTripSelection && (
+                <TripSelectionModal
+                    plannedTrips={plannedTrips}
+                    driverName={driver.name}
+                    onSelect={handleAssign}
+                    onClose={() => setShowTripSelection(false)}
+                />
+            )}
         </div>
     );
 }

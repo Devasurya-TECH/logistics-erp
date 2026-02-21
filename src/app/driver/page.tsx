@@ -9,8 +9,9 @@ import MultiDropTracker from "@/components/trips/MultiDropTracker";
 import RouteMap from "@/components/maps/RouteMap";
 import FuelTab from "@/components/common/FuelTab";
 import { useSearchParams } from "next/navigation";
-import { Trip } from "@/lib/types";
+import { Trip, Driver } from "@/lib/types";
 import { estimateFuelCost } from "@/lib/utils/optimizer";
+import { PhoneIcon, MegaphoneIcon, ShieldExclamationIcon, SignalIcon, SignalSlashIcon } from "@heroicons/react/24/solid";
 
 export default function DriverDashboard() {
     return <DriverDashboardContent />;
@@ -18,10 +19,11 @@ export default function DriverDashboard() {
 
 function DriverDashboardContent() {
     const { user } = useAuth();
-    const { trips } = useStore();
+    const { trips, acceptTrip, toggleLiveStatus, triggerEmergency, drivers } = useStore();
     const searchParams = useSearchParams();
     const tab = searchParams.get('tab') || 'overview';
 
+    const driver = drivers.find(d => d.id === user?.id) as Driver;
     const myTrips = trips.filter(t => t.driverId === user?.id);
     const activeTrips = myTrips.filter(t => t.status === 'in-progress' || t.status === 'assigned');
     const completedTrips = myTrips.filter(t => t.status === 'completed');
@@ -131,17 +133,32 @@ function DriverDashboardContent() {
                                         {/* Top row */}
                                         <div className="flex items-start justify-between mb-4">
                                             <div>
-                                                <p className="text-blue-200 text-[10px] font-bold uppercase tracking-widest mb-1">
-                                                    {activeTrips.length > 1 ? `Trip ${activeTrips.indexOf(currentTrip) + 1} of ${activeTrips.length}` : 'Current Trip'}
-                                                </p>
-                                                <h3 className="text-xl md:text-3xl font-black tracking-tight tracking-tight">#{currentTrip.id}</h3>
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <p className="text-blue-200 text-[10px] font-extrabold uppercase tracking-widest">
+                                                        {activeTrips.length > 1 ? `Trip ${activeTrips.indexOf(currentTrip) + 1} of ${activeTrips.length}` : 'Current Expedition'}
+                                                    </p>
+                                                    {driver?.isLive && (
+                                                        <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                                                    )}
+                                                </div>
+                                                <h3 className="text-2xl md:text-4xl font-black tracking-tighter">#{currentTrip.id}</h3>
                                             </div>
-                                            <div className="flex flex-col items-end gap-1">
+                                            <div className="flex flex-col items-end gap-2">
+                                                <button
+                                                    onClick={() => toggleLiveStatus(driver.id, !driver.isLive)}
+                                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tighter transition-all border ${driver?.isLive
+                                                        ? 'bg-emerald-500/20 text-emerald-200 border-emerald-400/30'
+                                                        : 'bg-slate-700/40 text-slate-300 border-slate-600/30'
+                                                        }`}
+                                                >
+                                                    {driver?.isLive ? <SignalIcon className="w-3 h-3" /> : <SignalSlashIcon className="w-3 h-3" />}
+                                                    {driver?.isLive ? 'Live Tracking On' : 'Go Live'}
+                                                </button>
                                                 <span className={`text-[10px] font-bold uppercase px-2.5 py-1 rounded-full tracking-wider backdrop-blur-md border ${currentTrip.status === 'in-progress'
                                                     ? 'bg-green-500/20 text-green-200 border-green-400/30'
                                                     : 'bg-amber-500/20 text-amber-200 border-amber-400/30'
                                                     }`}>
-                                                    {currentTrip.status === 'in-progress' ? '● In Progress' : '● Assigned'}
+                                                    {currentTrip.status === 'in-progress' ? '● Dispatch Active' : '● Assignment Pending'}
                                                 </span>
                                             </div>
                                         </div>
@@ -169,7 +186,7 @@ function DriverDashboardContent() {
                                         </div>
 
                                         {/* Google Maps CTA */}
-                                        {pendingDrops.length > 0 && (
+                                        {pendingDrops.length > 0 && currentTrip.status === 'in-progress' && (
                                             <button
                                                 onClick={() => {
                                                     const origin = `${currentTrip.startLocation.lat},${currentTrip.startLocation.lng}`;
@@ -188,6 +205,17 @@ function DriverDashboardContent() {
                                             </button>
                                         )}
 
+                                        {/* Accept & Start Flow */}
+                                        {currentTrip.status === 'assigned' && (
+                                            <button
+                                                onClick={() => acceptTrip(currentTrip.id)}
+                                                className="w-full mt-5 py-4 bg-white text-blue-700 font-black rounded-2xl flex flex-col items-center justify-center gap-0.5 transition-all active:scale-[0.97] shadow-lg hover:shadow-xl group"
+                                            >
+                                                <span className="text-base">Accept & Start Trip</span>
+                                                <span className="text-[10px] text-blue-500 font-bold uppercase tracking-widest opacity-70 group-hover:opacity-100">Ready for dispatch</span>
+                                            </button>
+                                        )}
+
                                         {/* All delivered */}
                                         {pendingDrops.length === 0 && (
                                             <div className="mt-5 py-3.5 bg-green-500/20 text-green-200 font-bold rounded-2xl flex items-center justify-center gap-2 border border-green-400/30 text-sm">
@@ -202,7 +230,12 @@ function DriverDashboardContent() {
                                     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center gap-4">
                                         <div className="flex-1">
                                             <div className="flex items-center justify-between mb-2">
-                                                <span className="text-xs font-bold text-slate-600">Delivery Progress</span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs font-bold text-slate-600">Delivery Progress</span>
+                                                    <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md uppercase tracking-tighter">
+                                                        ✨ Optimized Route
+                                                    </span>
+                                                </div>
                                                 <span className="text-xs font-extrabold text-blue-600">
                                                     {deliveredDrops.length}/{currentTrip.drops.length}
                                                 </span>
@@ -237,6 +270,73 @@ function DriverDashboardContent() {
                     <div className="animate-fade-in">
                         <h2 className="text-xl font-extrabold text-slate-800 mb-4 px-1">Fuel & Expenses</h2>
                         <FuelTab tripId={currentTrip.id} />
+                    </div>
+                )}
+
+                {tab === 'history' && (
+                    <div className="animate-fade-in space-y-4">
+                        <div className="flex items-center justify-between px-1">
+                            <h2 className="text-xl font-extrabold text-slate-800">Trip History</h2>
+                            <span className="text-[10px] font-black bg-slate-100 text-slate-500 px-2 py-1 rounded-md uppercase tracking-widest">{completedTrips.length} Total</span>
+                        </div>
+                        {completedTrips.length === 0 ? (
+                            <div className="bg-white rounded-2xl border-2 border-dashed border-gray-100 p-8 text-center text-slate-400 font-medium">
+                                No completed trips yet.
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {completedTrips.map(trip => (
+                                    <div key={trip.id} className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm border-l-4 border-l-emerald-500">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div>
+                                                <h3 className="font-bold text-slate-800">Trip #{trip.id}</h3>
+                                                <p className="text-[11px] text-slate-400">{trip.endTime ? format(new Date(trip.endTime), 'MMM d, yyyy · h:mm a') : 'Completed'}</p>
+                                            </div>
+                                            <span className="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">₹{estimateFuelCost(trip.actualDistance || trip.estimatedDistance).cost} Saved</span>
+                                        </div>
+                                        <div className="flex items-center gap-3 text-[10px] text-slate-500 font-bold uppercase tracking-tighter bg-slate-50 p-2 rounded-xl border border-slate-100">
+                                            <span>📍 {trip.drops.length} Stops</span>
+                                            <span>🛣️ {trip.actualDistance || trip.estimatedDistance} km</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {tab === 'performance' && (
+                    <div className="animate-fade-in space-y-6">
+                        <h2 className="text-xl font-extrabold text-slate-800 px-1">Performance Index</h2>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-gradient-to-br from-indigo-500 to-blue-600 p-5 rounded-3xl text-white shadow-lg shadow-blue-100">
+                                <p className="text-[10px] font-black uppercase tracking-widest opacity-80 mb-1">Career Dist</p>
+                                <p className="text-3xl font-black">{myTrips.reduce((s, t) => s + (t.actualDistance || t.estimatedDistance), 0)}<span className="text-xs opacity-60 ml-1">KM</span></p>
+                            </div>
+                            <div className="bg-white rounded-3xl border border-gray-100 p-5 shadow-sm">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Success Rate</p>
+                                <p className="text-3xl font-black text-slate-800">98<span className="text-xs text-emerald-500 ml-1">%</span></p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest px-1">Rewards & Badges</h3>
+                            <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4">
+                                <div className="flex-shrink-0 w-20 flex flex-col items-center gap-2">
+                                    <div className="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center text-3xl border-2 border-amber-200">🏆</div>
+                                    <p className="text-[9px] font-black text-center text-slate-400 uppercase">Top Gun</p>
+                                </div>
+                                <div className="flex-shrink-0 w-20 flex flex-col items-center gap-2 text-slate-300 contrast-50 opacity-50">
+                                    <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-3xl border-2 border-slate-200 grayscale">⚡</div>
+                                    <p className="text-[9px] font-black text-center uppercase">Eco-Master</p>
+                                </div>
+                                <div className="flex-shrink-0 w-20 flex flex-col items-center gap-2 text-slate-300 contrast-50 opacity-50">
+                                    <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-3xl border-2 border-slate-200 grayscale">🛡️</div>
+                                    <p className="text-[9px] font-black text-center uppercase">Safety Pro</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 )}
             </div>

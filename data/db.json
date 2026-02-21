@@ -17,6 +17,7 @@
       "name": "Rahul Krishnan",
       "email": "driver@logistics.com",
       "role": "driver",
+      "isLive": true,
       "licenseNumber": "KL-DL-2020-1234",
       "status": "on-trip"
     },
@@ -25,6 +26,7 @@
       "name": "Vishnu Das",
       "email": "driver2@logistics.com",
       "role": "driver",
+      "isLive": false,
       "licenseNumber": "KL-DL-2021-5678",
       "status": "on-trip"
     },
@@ -33,6 +35,7 @@
       "name": "Mohammed Fasil",
       "email": "driver3@logistics.com",
       "role": "driver",
+      "isLive": true,
       "licenseNumber": "KL-DL-2019-9012",
       "status": "available"
     },
@@ -41,6 +44,7 @@
       "name": "Anoop Kumar",
       "email": "driver4@logistics.com",
       "role": "driver",
+      "isLive": false,
       "licenseNumber": "KL-DL-2022-3456",
       "status": "on-trip"
     },
@@ -49,6 +53,7 @@
       "name": "Sreekanth Pillai",
       "email": "driver5@logistics.com",
       "role": "driver",
+      "isLive": false,
       "licenseNumber": "KL-DL-2020-7890",
       "status": "available"
     },
@@ -89,7 +94,8 @@
         "lat": 9.9312,
         "lng": 76.2673
       },
-      "lastServiceDate": "2025-12-01"
+      "lastServiceDate": "2025-12-01",
+      "fuelType": "diesel"
     },
     {
       "id": "v2",
@@ -102,7 +108,8 @@
         "lat": 8.5241,
         "lng": 76.9366
       },
-      "lastServiceDate": "2026-01-15"
+      "lastServiceDate": "2026-01-15",
+      "fuelType": "diesel"
     },
     {
       "id": "v3",
@@ -115,7 +122,8 @@
         "lat": 11.2588,
         "lng": 75.7804
       },
-      "lastServiceDate": "2026-02-10"
+      "lastServiceDate": "2026-02-10",
+      "fuelType": "diesel"
     },
     {
       "id": "v4",
@@ -128,7 +136,8 @@
         "lat": 10.5276,
         "lng": 76.2144
       },
-      "lastServiceDate": "2026-01-20"
+      "lastServiceDate": "2026-01-20",
+      "fuelType": "diesel"
     },
     {
       "id": "v5",
@@ -141,7 +150,8 @@
         "lat": 11.8745,
         "lng": 75.3704
       },
-      "lastServiceDate": "2025-11-05"
+      "lastServiceDate": "2025-11-05",
+      "fuelType": "diesel"
     }
   ],
   "trips": [
@@ -159,20 +169,22 @@
       "drops": [
         {
           "id": "d1",
-          "address": "Lulu Mall Logistics Dock, Edappally",
+          "address": "Lulu Mall Logistics Dock, Edappally, Kochi, 682024",
           "lat": 10.0276,
           "lng": 76.3082,
           "customerName": "Lulu Hypermarket",
+          "customerPhone": "9847012345",
           "status": "delivered",
           "estimatedArrival": "2026-02-15T10:00:00Z",
           "actualArrival": "2026-02-15T09:45:00Z"
         },
         {
           "id": "d2",
-          "address": "Infopark Phase 2, Kakkanad",
+          "address": "Infopark Phase 2, Kakkanad, Kochi, 682030",
           "lat": 10.0094,
           "lng": 76.3765,
           "customerName": "Tech Valet Services",
+          "customerPhone": "9447123456",
           "status": "delivered",
           "estimatedArrival": "2026-02-15T14:00:00Z",
           "actualArrival": "2026-02-15T13:30:00Z"
@@ -188,7 +200,7 @@
       "vehicleId": "v2",
       "driverId": "u4",
       "supervisorId": "u2",
-      "status": "in-progress",
+      "status": "completed",
       "startLocation": {
         "lat": 8.5241,
         "lng": 76.9366,
@@ -197,116 +209,41 @@
       "drops": [
         {
           "id": "d3",
-          "address": "Kovalam Beach Resort Supplies",
+          "address": "Leela Raviz, Kovalam Beach, Trivandrum",
           "lat": 8.3988,
           "lng": 76.982,
-          "customerName": "Leela Raviz",
+          "customerName": "Mr. Rajesh (Manager)",
+          "customerPhone": "9995544332",
           "status": "delivered",
           "estimatedArrival": "2026-02-19T09:00:00Z",
           "actualArrival": "2026-02-19T08:50:00Z"
         },
         {
           "id": "d4",
-          "address": "Vizhinjam Port Area",
+          "address": "Vizhinjam International Sea Port Area",
           "lat": 8.381,
           "lng": 76.96,
-          "customerName": "Port Authority",
-          "status": "pending",
-          "estimatedArrival": "2026-02-19T11:00:00Z"
+          "customerName": "Capt. Suresh Pillai",
+          "customerPhone": "9008877665",
+          "status": "delivered",
+          "estimatedArrival": "2026-02-19T11:00:00Z",
+          "actualArrival": "2026-02-21T14:34:49.608Z"
         },
         {
           "id": "d5",
-          "address": "Kazhakkoottam IT Hub",
+          "address": "UST Global, Technopark Phase 2, Trivandrum",
           "lat": 8.556,
           "lng": 76.88,
-          "customerName": "UST Global",
-          "status": "pending",
-          "estimatedArrival": "2026-02-19T14:00:00Z"
+          "customerName": "Facility Manager",
+          "customerPhone": "9846055443",
+          "status": "delivered",
+          "estimatedArrival": "2026-02-19T14:00:00Z",
+          "actualArrival": "2026-02-21T14:34:52.560Z"
         }
       ],
       "estimatedDistance": 55,
-      "startTime": "2026-02-19T07:00:00Z"
-    },
-    {
-      "id": "t3",
-      "vehicleId": "v4",
-      "driverId": "u5",
-      "supervisorId": "u2",
-      "status": "completed",
-      "startLocation": {
-        "lat": 10.5276,
-        "lng": 76.2144,
-        "address": "Thrissur Round North"
-      },
-      "drops": [
-        {
-          "id": "d6",
-          "address": "Guruvayur Temple Devaswom",
-          "lat": 10.5952,
-          "lng": 76.0369,
-          "customerName": "Temple Stores",
-          "status": "delivered",
-          "estimatedArrival": "2026-02-14T11:00:00Z",
-          "actualArrival": "2026-02-14T10:55:00Z"
-        }
-      ],
-      "estimatedDistance": 28,
-      "startTime": "2026-02-14T08:00:00Z",
-      "endTime": "2026-02-14T12:00:00Z",
-      "actualDistance": 30
-    },
-    {
-      "id": "t4",
-      "vehicleId": "v1",
-      "driverId": "u6",
-      "supervisorId": "u2",
-      "status": "in-progress",
-      "startLocation": {
-        "lat": 9.9312,
-        "lng": 76.2673,
-        "address": "Kochi Warehouse Hub"
-      },
-      "drops": [
-        {
-          "id": "d7",
-          "address": "Marine Drive Commercial Complex",
-          "lat": 9.9716,
-          "lng": 76.2792,
-          "customerName": "Kerala Traders",
-          "status": "delivered",
-          "estimatedArrival": "2026-02-19T09:30:00Z",
-          "actualArrival": "2026-02-19T09:20:00Z"
-        },
-        {
-          "id": "d8",
-          "address": "Fort Kochi Bazaar Rd",
-          "lat": 9.9638,
-          "lng": 76.242,
-          "customerName": "Heritage Crafts",
-          "status": "pending",
-          "estimatedArrival": "2026-02-19T11:30:00Z"
-        },
-        {
-          "id": "d9",
-          "address": "MG Road Ernakulam",
-          "lat": 9.9677,
-          "lng": 76.2867,
-          "customerName": "Metro Pharma",
-          "status": "pending",
-          "estimatedArrival": "2026-02-19T13:00:00Z"
-        },
-        {
-          "id": "d10",
-          "address": "Kaloor Stadium Road",
-          "lat": 9.9957,
-          "lng": 76.3002,
-          "customerName": "Sports Arena",
-          "status": "pending",
-          "estimatedArrival": "2026-02-19T15:00:00Z"
-        }
-      ],
-      "estimatedDistance": 32,
-      "startTime": "2026-02-19T08:00:00Z"
+      "startTime": "2026-02-19T07:00:00Z",
+      "endTime": "2026-02-21T14:34:52.560Z"
     },
     {
       "id": "t5",
@@ -322,110 +259,26 @@
       "drops": [
         {
           "id": "d11",
-          "address": "SM Street Market",
+          "address": "SM Street Market, Palayam, Kozhikode, 673001",
           "lat": 11.248,
           "lng": 75.7713,
-          "customerName": "Calicut Spices",
+          "customerName": "Calicut Spices (Wholesale)",
+          "customerPhone": "9846011223",
           "status": "pending",
           "estimatedArrival": "2026-02-20T10:00:00Z"
         },
         {
           "id": "d12",
-          "address": "Hilite Mall Logistics",
+          "address": "Hilite Mall Logistics Area, Kozhikode, 673016",
           "lat": 11.2336,
           "lng": 75.8264,
-          "customerName": "Reliance Retail",
+          "customerName": "Reliance Retail HUB",
+          "customerPhone": "9447055667",
           "status": "pending",
           "estimatedArrival": "2026-02-20T12:00:00Z"
         }
       ],
       "estimatedDistance": 18
-    },
-    {
-      "id": "t6",
-      "vehicleId": "v4",
-      "driverId": "u8",
-      "supervisorId": "u2",
-      "status": "completed",
-      "startLocation": {
-        "lat": 9.5916,
-        "lng": 76.5222,
-        "address": "Kottayam Bus Stand"
-      },
-      "drops": [
-        {
-          "id": "d13",
-          "address": "Kumarakom Lake Resort",
-          "lat": 9.6029,
-          "lng": 76.4239,
-          "customerName": "Lake Resort Group",
-          "status": "delivered",
-          "estimatedArrival": "2026-02-13T09:00:00Z",
-          "actualArrival": "2026-02-13T08:45:00Z"
-        },
-        {
-          "id": "d14",
-          "address": "Changanassery Market",
-          "lat": 9.4433,
-          "lng": 76.5389,
-          "customerName": "Fresh Veggies Ltd",
-          "status": "delivered",
-          "estimatedArrival": "2026-02-13T11:00:00Z",
-          "actualArrival": "2026-02-13T11:10:00Z"
-        }
-      ],
-      "estimatedDistance": 40,
-      "actualDistance": 42,
-      "startTime": "2026-02-13T07:00:00Z",
-      "endTime": "2026-02-13T12:30:00Z"
-    },
-    {
-      "id": "t7",
-      "vehicleId": "v2",
-      "driverId": "u9",
-      "supervisorId": "u2",
-      "status": "completed",
-      "startLocation": {
-        "lat": 10.7867,
-        "lng": 76.6548,
-        "address": "Palakkad Gateway"
-      },
-      "drops": [
-        {
-          "id": "d15",
-          "address": "Malampuzha Garden Area",
-          "lat": 10.8328,
-          "lng": 76.6838,
-          "customerName": "Tourism Board",
-          "status": "delivered",
-          "estimatedArrival": "2026-02-12T08:00:00Z",
-          "actualArrival": "2026-02-12T07:50:00Z"
-        },
-        {
-          "id": "d16",
-          "address": "Ottappalam Town",
-          "lat": 10.7702,
-          "lng": 76.3831,
-          "customerName": "Agri Supplies",
-          "status": "delivered",
-          "estimatedArrival": "2026-02-12T10:00:00Z",
-          "actualArrival": "2026-02-12T10:20:00Z"
-        },
-        {
-          "id": "d17",
-          "address": "Shoranur Junction",
-          "lat": 10.7618,
-          "lng": 76.2805,
-          "customerName": "Railway Canteen",
-          "status": "delivered",
-          "estimatedArrival": "2026-02-12T12:00:00Z",
-          "actualArrival": "2026-02-12T11:45:00Z"
-        }
-      ],
-      "estimatedDistance": 65,
-      "actualDistance": 63,
-      "startTime": "2026-02-12T06:30:00Z",
-      "endTime": "2026-02-12T13:00:00Z"
     },
     {
       "id": "t8",
@@ -441,19 +294,21 @@
       "drops": [
         {
           "id": "d18",
-          "address": "Aluva Industrial Area",
+          "address": "Kerala Industrial Infrastructure Development Corp, Aluva",
           "lat": 10.11,
           "lng": 76.35,
-          "customerName": "Industrial Chemicals Co",
+          "customerName": "Mr. Vinu (Logistics)",
+          "customerPhone": "9895012344",
           "status": "pending",
           "estimatedArrival": "2026-02-21T09:00:00Z"
         },
         {
           "id": "d19",
-          "address": "Angamaly Market",
+          "address": "Angamaly Produce Market, Kochi-Salem Hwy",
           "lat": 10.1964,
           "lng": 76.3869,
-          "customerName": "Angamaly Fresh",
+          "customerName": "Angamaly Fresh Co-op",
+          "customerPhone": "9400122334",
           "status": "pending",
           "estimatedArrival": "2026-02-21T11:00:00Z"
         }
@@ -461,65 +316,52 @@
       "estimatedDistance": 38
     },
     {
-      "id": "t9",
-      "vehicleId": "v5",
-      "driverId": "u3",
-      "supervisorId": "u2",
-      "status": "completed",
+      "id": "TRIP-1851",
+      "status": "in-progress",
       "startLocation": {
-        "lat": 11.8745,
-        "lng": 75.3704,
-        "address": "Kannur City Centre"
+        "lat": 9.9648247,
+        "lng": 76.2721278,
+        "address": "Kochi Port, Kochi, Kerala"
       },
       "drops": [
         {
-          "id": "d20",
-          "address": "Thalassery Pier",
-          "lat": 11.748,
-          "lng": 75.489,
-          "customerName": "Fish Exports Kerala",
-          "status": "delivered",
-          "estimatedArrival": "2026-02-11T08:00:00Z",
-          "actualArrival": "2026-02-11T07:55:00Z"
+          "id": "d-1771684513181",
+          "orderId": "ORD-583",
+          "address": "Mattancherry Wharf, Indira Gandhi Road, Kochi",
+          "lat": 9.9605209,
+          "lng": 76.2672219,
+          "customerName": "idrees",
+          "status": "pending",
+          "priority": "medium",
+          "deadline": "2026-02-22"
         },
         {
-          "id": "d21",
-          "address": "Payyanur Bus Station",
-          "lat": 12.0946,
-          "lng": 75.205,
-          "customerName": "North Kerala Traders",
-          "status": "delivered",
-          "estimatedArrival": "2026-02-11T11:00:00Z",
-          "actualArrival": "2026-02-11T11:15:00Z"
-        }
-      ],
-      "estimatedDistance": 70,
-      "actualDistance": 72,
-      "startTime": "2026-02-11T06:00:00Z",
-      "endTime": "2026-02-11T13:00:00Z"
-    },
-    {
-      "id": "t10",
-      "vehicleId": "v4",
-      "driverId": "u5",
-      "supervisorId": "u2",
-      "status": "cancelled",
-      "startLocation": {
-        "lat": 9.4981,
-        "lng": 76.3388,
-        "address": "Alappuzha Boat Jetty"
-      },
-      "drops": [
+          "id": "d-1771684529522",
+          "orderId": "ORD-627",
+          "address": "Central Orchard-Pattambi, Pattambi, Kerala",
+          "lat": 10.8068903,
+          "lng": 76.2002735,
+          "customerName": "linshad",
+          "status": "pending",
+          "priority": "medium",
+          "deadline": "2026-02-22"
+        },
         {
-          "id": "d22",
-          "address": "Houseboat Terminal",
-          "lat": 9.4897,
-          "lng": 76.3286,
-          "customerName": "Backwater Tourism",
-          "status": "skipped"
+          "id": "d-1771684545895",
+          "orderId": "ORD-37",
+          "address": "Kottarakara - Kollam road, Kollam, Kadappakkada",
+          "lat": 8.8927184,
+          "lng": 76.6050722,
+          "customerName": "deva",
+          "status": "pending",
+          "priority": "medium",
+          "deadline": "2026-02-22"
         }
       ],
-      "estimatedDistance": 5
+      "estimatedDistance": 312.5,
+      "vehicleId": "v2",
+      "driverId": "u4",
+      "startTime": "2026-02-21T14:36:22.940Z"
     }
   ],
   "fuelEntries": [
@@ -537,74 +379,6 @@
       "status": "approved",
       "verifiedBy": "u2",
       "approvedBy": "u1"
-    },
-    {
-      "id": "f2",
-      "tripId": "t1",
-      "driverId": "u3",
-      "vehicleId": "v1",
-      "amount": 60,
-      "cost": 5800,
-      "currency": "INR",
-      "odometer": 120600,
-      "location": "Bharat Petroleum, Vyttila",
-      "timestamp": "2026-02-15T08:15:00Z",
-      "status": "pending"
-    },
-    {
-      "id": "f3",
-      "tripId": "t2",
-      "driverId": "u4",
-      "vehicleId": "v2",
-      "amount": 35,
-      "cost": 3400,
-      "currency": "INR",
-      "odometer": 98200,
-      "location": "HP Petrol, Kazhakoottam",
-      "timestamp": "2026-02-19T07:30:00Z",
-      "status": "pending"
-    },
-    {
-      "id": "f4",
-      "tripId": "t4",
-      "driverId": "u6",
-      "vehicleId": "v1",
-      "amount": 50,
-      "cost": 4800,
-      "currency": "INR",
-      "odometer": 120700,
-      "location": "Indian Oil, Edappally",
-      "timestamp": "2026-02-19T08:00:00Z",
-      "status": "pending"
-    },
-    {
-      "id": "f5",
-      "tripId": "t6",
-      "driverId": "u8",
-      "vehicleId": "v4",
-      "amount": 40,
-      "cost": 3900,
-      "currency": "INR",
-      "odometer": 12200,
-      "location": "BPCL, Kottayam",
-      "timestamp": "2026-02-13T07:15:00Z",
-      "status": "verified",
-      "verifiedBy": "u2"
-    },
-    {
-      "id": "f6",
-      "tripId": "t7",
-      "driverId": "u9",
-      "vehicleId": "v2",
-      "amount": 55,
-      "cost": 5350,
-      "currency": "INR",
-      "odometer": 98400,
-      "location": "Indian Oil, Palakkad",
-      "timestamp": "2026-02-12T06:45:00Z",
-      "status": "approved",
-      "verifiedBy": "u2",
-      "approvedBy": "u1"
     }
   ],
   "alerts": [
@@ -619,24 +393,6 @@
       "resolved": false
     },
     {
-      "id": "a2",
-      "type": "maintenance",
-      "severity": "medium",
-      "message": "KL-11-BE-9012 requires brake inspection.",
-      "timestamp": "2026-02-14T10:00:00Z",
-      "vehicleId": "v3",
-      "resolved": false
-    },
-    {
-      "id": "a3",
-      "type": "delay",
-      "severity": "medium",
-      "message": "Trip T2 delivery to Port Authority delayed by 30 min.",
-      "timestamp": "2026-02-19T11:30:00Z",
-      "tripId": "t2",
-      "resolved": false
-    },
-    {
       "id": "a4",
       "type": "fuel-theft",
       "severity": "critical",
@@ -644,15 +400,6 @@
       "timestamp": "2026-02-19T10:15:00Z",
       "vehicleId": "v2",
       "resolved": false
-    },
-    {
-      "id": "a5",
-      "type": "geofence",
-      "severity": "low",
-      "message": "Vehicle KL-08-DD-3456 entered Thrissur municipal zone.",
-      "timestamp": "2026-02-19T07:00:00Z",
-      "vehicleId": "v4",
-      "resolved": true
     }
   ]
 }

@@ -4,23 +4,20 @@ import { User, Driver, Vehicle, Trip, DropPoint, FuelEntry, Expense, Alert } fro
 export const users: User[] = [
     { id: 'u1', name: 'Arjun Menon', email: 'manager@logistics.com', role: 'manager' },
     { id: 'u2', name: 'Lakshmi Nair', email: 'supervisor@logistics.com', role: 'supervisor' },
-    { id: 'u3', name: 'Rahul Krishnan', email: 'driver@logistics.com', role: 'driver' },
-    { id: 'u4', name: 'Vishnu Das', email: 'driver2@logistics.com', role: 'driver' },
-    { id: 'u5', name: 'Mohammed Fasil', email: 'driver3@logistics.com', role: 'driver' },
-    { id: 'u6', name: 'Anoop Kumar', email: 'driver4@logistics.com', role: 'driver' },
-    { id: 'u7', name: 'Sreekanth Pillai', email: 'driver5@logistics.com', role: 'driver' },
-    { id: 'u8', name: 'Deepak Raj', email: 'driver6@logistics.com', role: 'driver' },
-    { id: 'u9', name: 'Nithin Babu', email: 'driver7@logistics.com', role: 'driver' },
-    { id: 'u10', name: 'Sajith Mohan', email: 'driver8@logistics.com', role: 'driver' },
+    { id: 'u3', name: 'Rahul Krishnan', email: 'driver@logistics.com', role: 'driver', isLive: true } as Driver,
+    { id: 'u4', name: 'Vishnu Das', email: 'driver2@logistics.com', role: 'driver', isLive: false } as Driver,
+    { id: 'u5', name: 'Mohammed Fasil', email: 'driver3@logistics.com', role: 'driver', isLive: true } as Driver,
+    { id: 'u6', name: 'Anoop Kumar', email: 'driver4@logistics.com', role: 'driver', isLive: false } as Driver,
+    { id: 'u7', name: 'Sreekanth Pillai', email: 'driver5@logistics.com', role: 'driver', isLive: false } as Driver,
 ];
 
 // Vehicles
 export const vehicles: Vehicle[] = [
-    { id: 'v1', plateNumber: 'KL-07-CB-1234', model: 'Ashok Leyland Dost', status: 'active', fuelLevel: 75, mileage: 120500, location: { lat: 9.9312, lng: 76.2673 }, lastServiceDate: '2025-12-01' },
-    { id: 'v2', plateNumber: 'KL-01-AZ-5678', model: 'Tata Ace Gold', status: 'active', fuelLevel: 45, mileage: 98000, location: { lat: 8.5241, lng: 76.9366 }, lastServiceDate: '2026-01-15' },
-    { id: 'v3', plateNumber: 'KL-11-BE-9012', model: 'Mahindra Bolero Pickup', status: 'maintenance', fuelLevel: 20, mileage: 45000, location: { lat: 11.2588, lng: 75.7804 }, lastServiceDate: '2026-02-10' },
-    { id: 'v4', plateNumber: 'KL-08-DD-3456', model: 'Eicher Pro 2049', status: 'active', fuelLevel: 90, mileage: 12000, location: { lat: 10.5276, lng: 76.2144 }, lastServiceDate: '2026-01-20' },
-    { id: 'v5', plateNumber: 'KL-13-XX-7890', model: 'BharatBenz 1217C', status: 'active', fuelLevel: 60, mileage: 150000, location: { lat: 11.8745, lng: 75.3704 }, lastServiceDate: '2025-11-05' },
+    { id: 'v1', plateNumber: 'KL-07-CB-1234', model: 'Ashok Leyland Dost', status: 'active', fuelLevel: 75, mileage: 120500, location: { lat: 9.9312, lng: 76.2673 }, lastServiceDate: '2025-12-01', fuelType: 'diesel' },
+    { id: 'v2', plateNumber: 'KL-01-AZ-5678', model: 'Tata Ace Gold', status: 'active', fuelLevel: 45, mileage: 98000, location: { lat: 8.5241, lng: 76.9366 }, lastServiceDate: '2026-01-15', fuelType: 'diesel' },
+    { id: 'v3', plateNumber: 'KL-11-BE-9012', model: 'Mahindra Bolero Pickup', status: 'maintenance', fuelLevel: 20, mileage: 45000, location: { lat: 11.2588, lng: 75.7804 }, lastServiceDate: '2026-02-10', fuelType: 'diesel' },
+    { id: 'v4', plateNumber: 'KL-08-DD-3456', model: 'Eicher Pro 2049', status: 'active', fuelLevel: 90, mileage: 12000, location: { lat: 10.5276, lng: 76.2144 }, lastServiceDate: '2026-01-20', fuelType: 'diesel' },
+    { id: 'v5', plateNumber: 'KL-13-XX-7890', model: 'BharatBenz 1217C', status: 'active', fuelLevel: 60, mileage: 150000, location: { lat: 11.8745, lng: 75.3704 }, lastServiceDate: '2025-11-05', fuelType: 'diesel' },
 ];
 
 // Extended Trips — 10 trips with various statuses
@@ -33,8 +30,8 @@ export const trips: Trip[] = [
         status: 'completed',
         startLocation: { lat: 9.9312, lng: 76.2673, address: 'Cochin Port Trust, Willingdon Island' },
         drops: [
-            { id: 'd1', address: 'Lulu Mall Logistics Dock, Edappally', lat: 10.0276, lng: 76.3082, customerName: 'Lulu Hypermarket', status: 'delivered', estimatedArrival: '2026-02-15T10:00:00Z', actualArrival: '2026-02-15T09:45:00Z' },
-            { id: 'd2', address: 'Infopark Phase 2, Kakkanad', lat: 10.0094, lng: 76.3765, customerName: 'Tech Valet Services', status: 'delivered', estimatedArrival: '2026-02-15T14:00:00Z', actualArrival: '2026-02-15T13:30:00Z' }
+            { id: 'd1', address: 'Lulu Mall Logistics Dock, Edappally, Kochi, 682024', lat: 10.0276, lng: 76.3082, customerName: 'Lulu Hypermarket', customerPhone: '9847012345', status: 'delivered', estimatedArrival: '2026-02-15T10:00:00Z', actualArrival: '2026-02-15T09:45:00Z' },
+            { id: 'd2', address: 'Infopark Phase 2, Kakkanad, Kochi, 682030', lat: 10.0094, lng: 76.3765, customerName: 'Tech Valet Services', customerPhone: '9447123456', status: 'delivered', estimatedArrival: '2026-02-15T14:00:00Z', actualArrival: '2026-02-15T13:30:00Z' }
         ],
         estimatedDistance: 45,
         actualDistance: 43,
@@ -49,9 +46,9 @@ export const trips: Trip[] = [
         status: 'in-progress',
         startLocation: { lat: 8.5241, lng: 76.9366, address: 'Technopark Campus, Trivandrum' },
         drops: [
-            { id: 'd3', address: 'Kovalam Beach Resort Supplies', lat: 8.3988, lng: 76.9820, customerName: 'Leela Raviz', status: 'delivered', estimatedArrival: '2026-02-19T09:00:00Z', actualArrival: '2026-02-19T08:50:00Z' },
-            { id: 'd4', address: 'Vizhinjam Port Area', lat: 8.3810, lng: 76.9600, customerName: 'Port Authority', status: 'pending', estimatedArrival: '2026-02-19T11:00:00Z' },
-            { id: 'd5', address: 'Kazhakkoottam IT Hub', lat: 8.5560, lng: 76.8800, customerName: 'UST Global', status: 'pending', estimatedArrival: '2026-02-19T14:00:00Z' }
+            { id: 'd3', address: 'Leela Raviz, Kovalam Beach, Trivandrum', lat: 8.3988, lng: 76.9820, customerName: 'Mr. Rajesh (Manager)', customerPhone: '9995544332', status: 'delivered', estimatedArrival: '2026-02-19T09:00:00Z', actualArrival: '2026-02-19T08:50:00Z' },
+            { id: 'd4', address: 'Vizhinjam International Sea Port Area', lat: 8.3810, lng: 76.9600, customerName: 'Capt. Suresh Pillai', customerPhone: '9008877665', status: 'pending', estimatedArrival: '2026-02-19T11:00:00Z' },
+            { id: 'd5', address: 'UST Global, Technopark Phase 2, Trivandrum', lat: 8.5560, lng: 76.8800, customerName: 'Facility Manager', customerPhone: '9846055443', status: 'pending', estimatedArrival: '2026-02-19T14:00:00Z' }
         ],
         estimatedDistance: 55,
         startTime: '2026-02-19T07:00:00Z'
@@ -95,8 +92,8 @@ export const trips: Trip[] = [
         status: 'assigned',
         startLocation: { lat: 11.2588, lng: 75.7804, address: 'Kozhikode Central Warehouse' },
         drops: [
-            { id: 'd11', address: 'SM Street Market', lat: 11.2480, lng: 75.7713, customerName: 'Calicut Spices', status: 'pending', estimatedArrival: '2026-02-20T10:00:00Z' },
-            { id: 'd12', address: 'Hilite Mall Logistics', lat: 11.2336, lng: 75.8264, customerName: 'Reliance Retail', status: 'pending', estimatedArrival: '2026-02-20T12:00:00Z' }
+            { id: 'd11', address: 'SM Street Market, Palayam, Kozhikode, 673001', lat: 11.2480, lng: 75.7713, customerName: 'Calicut Spices (Wholesale)', customerPhone: '9846011223', status: 'pending', estimatedArrival: '2026-02-20T10:00:00Z' },
+            { id: 'd12', address: 'Hilite Mall Logistics Area, Kozhikode, 673016', lat: 11.2336, lng: 75.8264, customerName: 'Reliance Retail HUB', customerPhone: '9447055667', status: 'pending', estimatedArrival: '2026-02-20T12:00:00Z' }
         ],
         estimatedDistance: 18
     },
@@ -141,8 +138,8 @@ export const trips: Trip[] = [
         status: 'planned',
         startLocation: { lat: 9.9312, lng: 76.2673, address: 'Cochin Port Trust' },
         drops: [
-            { id: 'd18', address: 'Aluva Industrial Area', lat: 10.1100, lng: 76.3500, customerName: 'Industrial Chemicals Co', status: 'pending', estimatedArrival: '2026-02-21T09:00:00Z' },
-            { id: 'd19', address: 'Angamaly Market', lat: 10.1964, lng: 76.3869, customerName: 'Angamaly Fresh', status: 'pending', estimatedArrival: '2026-02-21T11:00:00Z' }
+            { id: 'd18', address: 'Kerala Industrial Infrastructure Development Corp, Aluva', lat: 10.1100, lng: 76.3500, customerName: 'Mr. Vinu (Logistics)', customerPhone: '9895012344', status: 'pending', estimatedArrival: '2026-02-21T09:00:00Z' },
+            { id: 'd19', address: 'Angamaly Produce Market, Kochi-Salem Hwy', lat: 10.1964, lng: 76.3869, customerName: 'Angamaly Fresh Co-op', customerPhone: '9400122334', status: 'pending', estimatedArrival: '2026-02-21T11:00:00Z' }
         ],
         estimatedDistance: 38
     },

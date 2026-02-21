@@ -23,11 +23,11 @@ const roles = {
         { name: 'Settings', href: '/supervisor/settings', icon: '⚙️', desc: 'Preferences' },
     ],
     driver: [
-        { name: 'My Dashboard', href: '/driver', icon: '🏠', desc: 'Active trips' },
-        { name: 'Route Optimizer', href: '/driver/routes', icon: '⚡', desc: 'Navigate' },
-        { name: 'Log Fuel', href: '/driver?tab=fuel', icon: '⛽', desc: 'Bills & receipts' },
-        { name: 'Activity', href: '/driver/activity', icon: '📋', desc: 'Audit trail' },
-        { name: 'Settings', href: '/driver/settings', icon: '⚙️', desc: 'Preferences' },
+        { name: 'Home', href: '/driver?tab=overview', icon: '🏠', desc: 'Current trip' },
+        { name: 'History', href: '/driver?tab=history', icon: '📋', desc: 'Past trips' },
+        { name: 'Fuel', href: '/driver?tab=fuel', icon: '⛽', desc: 'Log expenses' },
+        { name: 'Analytics', href: '/driver?tab=performance', icon: '📈', desc: 'Rank & stats' },
+        { name: 'Navigate', href: '/driver/routes', icon: '⚡', desc: 'Route Optimizer' },
     ]
 };
 

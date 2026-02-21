@@ -17,7 +17,10 @@ interface AppState {
     updateDropStatus: (tripId: string, dropId: string, status: 'delivered' | 'failed') => Promise<void>;
 
     // Other actions remain local for now or can be hooked up similarly
-    assignDriver: (tripId: string, driverId: string, vehicleId: string) => void;
+    assignDriver: (tripId: string, driverId: string, vehicleId: string) => Promise<void>;
+    acceptTrip: (tripId: string) => Promise<void>;
+    toggleLiveStatus: (driverId: string, isLive: boolean) => Promise<void>;
+    triggerEmergency: (driverId: string, tripId?: string) => Promise<void>;
     addFuelEntry: (entry: FuelEntry) => void;
     verifyFuelEntry: (entryId: string, supervisorId: string) => void;
     rejectFuelEntry: (entryId: string, supervisorId: string) => void;
@@ -141,15 +144,84 @@ export const useStore = create<AppState>((set, get) => ({
         });
     },
 
-    // --- Actions NOT yet hooked to API (still local/mock for now) ---
-    assignDriver: (tripId, driverId, vehicleId) => {
+    assignDriver: async (tripId, driverId, vehicleId) => {
         const driver = get().drivers.find(d => d.id === driverId);
+        const updates = { driverId, vehicleId, status: 'assigned' as const };
+
+        // Optimistic update
         set((state) => ({
-            trips: state.trips.map(t => t.id === tripId ? { ...t, driverId, vehicleId, status: 'assigned' } : t),
+            trips: state.trips.map(t => t.id === tripId ? { ...t, ...updates } : t),
             vehicles: state.vehicles.map(v => v.id === vehicleId ? { ...v, status: 'active' } : v),
             drivers: state.drivers.map(d => d.id === driverId ? { ...d, status: 'on-trip', currentVehicleId: vehicleId } : d)
         }));
+
         notify('success', 'Driver Assigned', `${driver?.name || 'Driver'} assigned to Trip #${tripId.toUpperCase()}`);
+
+        await fetch('/api/trips', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: tripId, updates })
+        });
+    },
+
+    acceptTrip: async (tripId) => {
+        const updates = {
+            status: 'in-progress' as const,
+            startTime: new Date().toISOString()
+        };
+
+        // Optimistic update
+        set((state) => ({
+            trips: state.trips.map(t => t.id === tripId ? { ...t, ...updates } : t)
+        }));
+
+        notify('success', 'Trip Started', `Trip #${tripId.toUpperCase()} is now in progress.`);
+
+        await fetch('/api/trips', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: tripId, updates })
+        });
+    },
+
+    toggleLiveStatus: async (driverId, isLive) => {
+        set((state) => ({
+            drivers: state.drivers.map(d => d.id === driverId ? { ...d, isLive } : d)
+        }));
+
+        notify(isLive ? 'success' : 'info',
+            isLive ? 'Location Live' : 'Location Hidden',
+            isLive ? 'Supervisors can now track your route.' : 'Live tracking has been disabled.'
+        );
+
+        // API call would go here to sync live status
+    },
+
+    triggerEmergency: async (driverId, tripId) => {
+        const driver = get().drivers.find(d => d.id === driverId);
+        const newAlert: Alert = {
+            id: `a-${Math.floor(Math.random() * 10000)}`,
+            type: 'fuel-theft', // Reusing type or extending
+            severity: 'critical',
+            message: `EMERGENCY SOS: Driver ${driver?.name || 'Unknown'} triggered a panic alert!`,
+            timestamp: new Date().toISOString(),
+            vehicleId: driver?.currentVehicleId || '',
+            tripId,
+            resolved: false
+        };
+
+        set((state) => ({
+            alerts: [newAlert, ...state.alerts]
+        }));
+
+        notify('error', 'SOS TRIGGERED', 'Emergency services and supervisors have been notified.');
+
+        // API call to broadcast emergency
+        await fetch('/api/alerts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newAlert)
+        });
     },
 
     addFuelEntry: (entry) => {

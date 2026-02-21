@@ -13,6 +13,8 @@ const FuelTab = ({ tripId }: { tripId: string }) => {
     const [amount, setAmount] = useState('');
     const [cost, setCost] = useState('');
     const [odometer, setOdometer] = useState('');
+    const [pumpName, setPumpName] = useState('');
+    const [fuelType, setFuelType] = useState<'diesel' | 'petrol' | 'ev' | 'cng'>('diesel');
     const [file, setFile] = useState<File | null>(null);
     const [isScanning, setIsScanning] = useState(false);
     const [scanError, setScanError] = useState('');
@@ -101,6 +103,8 @@ const FuelTab = ({ tripId }: { tripId: string }) => {
             currency: 'INR',
             odometer: Number(odometer),
             location: 'Uploaded from Bill',
+            pumpName,
+            fuelType,
             timestamp: new Date().toISOString(),
             status: 'pending',
             receiptImage: file ? URL.createObjectURL(file) : undefined
@@ -110,6 +114,7 @@ const FuelTab = ({ tripId }: { tripId: string }) => {
         setAmount('');
         setCost('');
         setOdometer('');
+        setPumpName('');
         setFile(null);
         alert("Fuel entry logged successfully!");
     };
@@ -210,13 +215,40 @@ const FuelTab = ({ tripId }: { tripId: string }) => {
                         </div>
                     </div>
 
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Pump Name / Station</label>
+                            <input
+                                type="text"
+                                value={pumpName}
+                                onChange={e => setPumpName(e.target.value)}
+                                className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-slate-800 font-bold outline-none focus:ring-2 focus:ring-orange-500 transition-all shadow-inner"
+                                placeholder="e.g. Indian Oil, Kochi"
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Fuel Type</label>
+                            <select
+                                value={fuelType}
+                                onChange={e => setFuelType(e.target.value as any)}
+                                className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-slate-800 font-bold outline-none focus:ring-2 focus:ring-orange-500 transition-all shadow-inner appearance-none"
+                            >
+                                <option value="diesel">Diesel</option>
+                                <option value="petrol">Petrol</option>
+                                <option value="cng">CNG</option>
+                                <option value="ev">Electric</option>
+                            </select>
+                        </div>
+                    </div>
+
                     <div>
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Odometer Reading (km)</label>
                         <input
                             type="number"
                             value={odometer}
                             onChange={e => setOdometer(e.target.value)}
-                            className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-slate-800 font-medium outline-none focus:ring-2 focus:ring-orange-500 transition-all"
+                            className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-slate-800 font-medium outline-none focus:ring-2 focus:ring-orange-500 transition-all shadow-inner"
                             placeholder="Current dashboard reading"
                             required
                         />

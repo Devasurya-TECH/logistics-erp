@@ -13,6 +13,7 @@ import {
     CheckCircleIcon,
     XCircleIcon,
     ArrowPathIcon,
+    PhoneIcon,
 } from "@heroicons/react/24/outline";
 
 type TripFilter = 'all' | 'planned' | 'assigned' | 'in-progress' | 'completed' | 'cancelled';
@@ -221,7 +222,13 @@ export default function TripsPage() {
                                                                 {drop.status}
                                                             </span>
                                                         </div>
-                                                        <p className="text-xs text-slate-400 truncate">{drop.address}</p>
+                                                        <p className="text-xs text-slate-400 font-medium mt-0.5">{drop.address}</p>
+                                                        {drop.customerPhone && (
+                                                            <div className="flex items-center gap-1.5 mt-1 text-[10px] text-blue-500 font-bold bg-blue-50 px-2 py-0.5 rounded-md w-fit border border-blue-100">
+                                                                <PhoneIcon className="w-3 h-3" />
+                                                                {drop.customerPhone}
+                                                            </div>
+                                                        )}
                                                         {drop.orderId && (
                                                             <p className="text-[10px] text-slate-300 mt-0.5">Order: {drop.orderId}</p>
                                                         )}

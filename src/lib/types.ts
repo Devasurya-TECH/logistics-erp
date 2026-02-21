@@ -17,12 +17,15 @@ export interface Vehicle {
     mileage: number;
     location: { lat: number; lng: number };
     lastServiceDate: string;
+    fuelType?: 'diesel' | 'petrol' | 'ev' | 'cng';
 }
 
 export interface Driver extends User {
     licenseNumber: string;
     status: 'available' | 'on-trip' | 'off-duty';
     currentVehicleId?: string;
+    isLive?: boolean;
+    lastLocationUpdate?: string;
 }
 
 export type TripStatus = 'planned' | 'assigned' | 'in-progress' | 'completed' | 'cancelled';
@@ -34,6 +37,7 @@ export interface DropPoint {
     lat: number;
     lng: number;
     customerName: string;
+    customerPhone?: string;
     status: 'pending' | 'delivered' | 'failed' | 'skipped';
     priority?: 'high' | 'medium' | 'low';
     deadline?: string;
@@ -63,11 +67,13 @@ export interface FuelEntry {
     tripId: string;
     driverId: string;
     vehicleId: string;
-    amount: number; // liters/gallons
+    amount: number; // litres
     cost: number;
     currency: string;
     odometer: number;
     location: string;
+    pumpName?: string;
+    fuelType?: 'diesel' | 'petrol' | 'ev' | 'cng';
     timestamp: string;
     receiptImage?: string;
     status: FuelStatus;

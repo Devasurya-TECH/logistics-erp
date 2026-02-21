@@ -13,12 +13,18 @@ import {
     ArrowTrendingUpIcon,
     ArrowTrendingDownIcon,
 } from "@heroicons/react/24/outline";
+import { generateTripCSV, downloadCSV } from "@/lib/utils/export";
 
 type ReportTab = 'overview' | 'drivers' | 'fuel' | 'trips';
 
 export default function ReportsPage() {
-    const { trips, drivers, vehicles, fuelEntries } = useStore();
+    const { trips, drivers, vehicles, fuelEntries, alerts } = useStore();
     const [activeTab, setActiveTab] = useState<ReportTab>('overview');
+
+    const handleExport = () => {
+        const csv = generateTripCSV(trips, drivers, vehicles, fuelEntries, alerts);
+        downloadCSV(`Fleet_Report_${format(new Date(), 'yyyy-MM-dd')}.csv`, csv);
+    };
 
     // ─── Computed Analytics ───
     const analytics = useMemo(() => {
@@ -105,7 +111,10 @@ export default function ReportsPage() {
                     <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">Reports & Analytics</h1>
                     <p className="text-slate-400 text-sm mt-1">Fleet performance insights & data exports</p>
                 </div>
-                <button className="flex items-center gap-2 px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-200 hover:shadow-blue-300 transition-all active:scale-95 text-sm">
+                <button
+                    onClick={handleExport}
+                    className="flex items-center gap-2 px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-200 hover:shadow-blue-300 transition-all active:scale-95 text-sm"
+                >
                     <ArrowDownTrayIcon className="w-5 h-5" />
                     Export CSV
                 </button>

@@ -37,9 +37,11 @@ function useSimulatedPositions(vehicles: any[], trips: any[], drivers: any[]) {
         heading: number;
         lastUpdate: Date;
         driverName: string;
+        driverId: string | null;
         vehiclePlate: string;
         tripId: string | null;
         status: 'moving' | 'idle' | 'offline';
+        isLive?: boolean;
     }>>(new Map());
 
     useEffect(() => {
@@ -48,16 +50,22 @@ function useSimulatedPositions(vehicles: any[], trips: any[], drivers: any[]) {
             const trip = trips.find((t: any) => t.vehicleId === v.id && (t.status === 'in-progress' || t.status === 'assigned'));
             const driver = trip ? drivers.find((d: any) => d.id === trip.driverId) : null;
 
+            // Only show as 'moving' or 'idle' if driver is live or unassigned
+            // If assigned driver is NOT live, mark as offline
+            const isLive = driver ? driver.isLive : true;
+
             initial.set(v.id, {
                 lat: v.location.lat,
                 lng: v.location.lng,
-                speed: trip?.status === 'in-progress' ? Math.floor(Math.random() * 60) + 20 : 0,
+                speed: (trip?.status === 'in-progress' && isLive) ? Math.floor(Math.random() * 60) + 20 : 0,
                 heading: Math.floor(Math.random() * 360),
                 lastUpdate: new Date(),
                 driverName: driver?.name || 'Unassigned',
+                driverId: driver?.id || null,
                 vehiclePlate: v.plateNumber,
                 tripId: trip?.id || null,
-                status: trip?.status === 'in-progress' ? 'moving' : v.status === 'active' ? 'idle' : 'offline',
+                status: (trip?.status === 'in-progress' && isLive) ? 'moving' : (v.status === 'active' && isLive) ? 'idle' : 'offline',
+                isLive: isLive
             });
         });
         setPositions(initial);
@@ -120,6 +128,7 @@ export default function TrackingPage() {
 
     // Prepare map positions
     const mapPositions = useMemo(() => {
+        const { alerts } = useStore.getState();
         return Array.from(positions.entries()).map(([id, pos]) => ({
             id,
             lat: pos.lat,
@@ -129,6 +138,8 @@ export default function TrackingPage() {
             driverName: pos.driverName,
             vehiclePlate: pos.vehiclePlate,
             tripId: pos.tripId,
+            isEmergency: alerts.some(a => a.vehicleId === id && a.severity === 'critical'),
+            isLive: pos.isLive
         }));
     }, [positions]);
 
