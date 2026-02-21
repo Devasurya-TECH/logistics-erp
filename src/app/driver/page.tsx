@@ -189,13 +189,13 @@ function DriverDashboardContent() {
                                         {pendingDrops.length > 0 && currentTrip.status === 'in-progress' && (
                                             <button
                                                 onClick={() => {
-                                                    const origin = `${currentTrip.startLocation.lat},${currentTrip.startLocation.lng}`;
                                                     const destination = `${pendingDrops[pendingDrops.length - 1].lat},${pendingDrops[pendingDrops.length - 1].lng}`;
                                                     const waypointDrops = pendingDrops.slice(0, -1);
                                                     const waypointsParam = waypointDrops.length > 0
                                                         ? `&waypoints=${waypointDrops.map(d => `${d.lat},${d.lng}`).join('|')}`
                                                         : '';
-                                                    const url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}${waypointsParam}&travelmode=driving`;
+                                                    // Using dir_action=navigate and omitting origin to force "My Location" turn-by-turn
+                                                    const url = `https://www.google.com/maps/dir/?api=1&destination=${destination}${waypointsParam}&travelmode=driving&dir_action=navigate`;
                                                     window.open(url, '_blank');
                                                 }}
                                                 className="w-full mt-5 py-3.5 bg-white text-blue-700 font-extrabold rounded-2xl flex items-center justify-center gap-2 transition-all active:scale-[0.97] shadow-lg text-sm hover:shadow-xl"

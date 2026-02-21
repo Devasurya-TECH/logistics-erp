@@ -45,7 +45,7 @@ export default function Sidebar() {
             {/* Mobile Bottom Navigation Bar */}
             <nav className="fixed bottom-0 left-0 right-0 z-[60] md:hidden bg-white/95 backdrop-blur-xl border-t border-gray-100 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] px-safe pb-safe">
                 <div className="flex items-center justify-around px-2 py-1 mb-0.5">
-                    {navigation.map((item) => {
+                    {navigation.slice(0, 4).map((item) => {
                         const isActive = pathname === item.href ||
                             (item.href.includes('?') && pathname === item.href.split('?')[0]);
                         return (
@@ -97,6 +97,21 @@ export default function Sidebar() {
                                     <p className="font-bold text-slate-800 text-base">{user.name}</p>
                                     <p className="text-xs text-slate-400 capitalize font-medium">{user.role} · LogiTrace</p>
                                 </div>
+                            </div>
+
+                            {/* Supplementary Mobile Navigation (those not in bottom bar) */}
+                            <div className="grid grid-cols-3 gap-3 mb-6">
+                                {navigation.slice(4).map((item) => (
+                                    <Link
+                                        key={item.name}
+                                        href={item.href}
+                                        onClick={() => setIsOpen(false)}
+                                        className="flex flex-col items-center justify-center p-3 bg-gray-50 rounded-2xl border border-gray-100 active:bg-blue-50 active:border-blue-100 transition-all"
+                                    >
+                                        <span className="text-xl mb-1">{item.icon}</span>
+                                        <span className="text-[10px] font-bold text-slate-600 text-center leading-tight">{item.name}</span>
+                                    </Link>
+                                ))}
                             </div>
                             <button
                                 onClick={() => { logout(); setIsOpen(false); }}

@@ -180,7 +180,7 @@ export default function FuelOptimizedMap() {
                 {/* Google Maps Link */}
                 <div className="absolute bottom-4 left-4 z-[400]">
                     <a
-                        href={`https://www.google.com/maps/dir/?api=1&origin=${startCoords[0]},${startCoords[1]}&destination=${endCoords[0]},${endCoords[1]}`}
+                        href={`https://www.google.com/maps/dir/?api=1&destination=${endCoords[0]},${endCoords[1]}&dir_action=navigate`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="px-4 py-2 bg-white hover:bg-gray-50 text-slate-700 font-bold text-sm rounded-lg shadow-md border border-gray-200 flex items-center gap-2 transition-colors"

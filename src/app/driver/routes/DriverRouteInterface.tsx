@@ -337,7 +337,8 @@ export default function DriverRouteMap({ trip: propTrip }: DriverRouteMapProps) 
                                             const waypointsParam = waypointDrops.length > 0
                                                 ? `&waypoints=${waypointDrops.map(d => `${d.lat},${d.lng}`).join('|')}`
                                                 : '';
-                                            window.open(`https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}${waypointsParam}&travelmode=driving`, '_blank');
+                                            // Force My Location and dir_action=navigate
+                                            window.open(`https://www.google.com/maps/dir/?api=1&destination=${destination}${waypointsParam}&travelmode=driving&dir_action=navigate`, '_blank');
                                         }}
                                     >
                                         🗺️ Open in Google Maps
@@ -346,7 +347,7 @@ export default function DriverRouteMap({ trip: propTrip }: DriverRouteMapProps) 
                                         className="w-full py-3 bg-gray-50 hover:bg-gray-100 text-slate-600 font-bold rounded-xl flex items-center justify-center gap-2 transition-colors text-sm border border-gray-200"
                                         onClick={() => {
                                             if (currentStop) {
-                                                window.open(`https://www.google.com/maps/dir/?api=1&destination=${currentStop.lat},${currentStop.lng}&travelmode=driving`, '_blank');
+                                                window.open(`https://www.google.com/maps/dir/?api=1&destination=${currentStop.lat},${currentStop.lng}&travelmode=driving&dir_action=navigate`, '_blank');
                                             }
                                         }}
                                     >

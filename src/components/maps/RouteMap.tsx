@@ -59,7 +59,7 @@ export default function RouteMap({ trip }: { trip: Trip }) {
                 {/* Navigation CTA */}
                 <div className="absolute bottom-3 left-3 right-3 md:bottom-4 md:left-4 md:right-4 z-[500]">
                     <a
-                        href={`https://www.google.com/maps/dir/?api=1&origin=${trip.startLocation.lat},${trip.startLocation.lng}&destination=${trip.drops[trip.drops.length - 1].lat},${trip.drops[trip.drops.length - 1].lng}&waypoints=${trip.drops.slice(0, -1).map(d => `${d.lat},${d.lng}`).join('|')}&travelmode=driving`}
+                        href={`https://www.google.com/maps/dir/?api=1&destination=${trip.drops[trip.drops.length - 1].lat},${trip.drops[trip.drops.length - 1].lng}&waypoints=${trip.drops.slice(0, -1).map(d => `${d.lat},${d.lng}`).join('|')}&travelmode=driving&dir_action=navigate`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="w-full py-3.5 md:py-4 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-2xl shadow-xl flex items-center justify-center gap-2 transition-all active:scale-[0.97] text-sm md:text-base"
