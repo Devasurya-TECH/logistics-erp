@@ -1,14 +1,23 @@
-import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
-import '../styles/globals.css';
+import type { Metadata, Viewport } from "next";
+import { Manrope, Space_Grotesk } from "next/font/google";
+import "../styles/globals.css";
 import { Providers } from "@/components/Providers";
 import { StoreInitializer } from "@/components/StoreInitializer";
 
-const inter = Inter({ subsets: ['latin'] });
+const appSans = Manrope({
+  subsets: ["latin"],
+  variable: "--font-app-sans",
+});
+
+const appDisplay = Space_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-app-display",
+});
 
 export const metadata: Metadata = {
-  title: "LogiTrace ERP",
-  description: "Complete Logistics Management System",
+  title: "LogiTrace | Logistics Control Platform",
+  description:
+    "A multi-role logistics operations platform for managers, supervisors, and drivers.",
   manifest: "/manifest.json",
   icons: {
     icon: "/icon-192x192.png",
@@ -17,20 +26,17 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#2563eb",
+  themeColor: "#14532d",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
 };
 
 export default function RootLayout({
   children,
-}: {
-  children: React.ReactNode;
-}) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <body className={`${appSans.variable} ${appDisplay.variable}`}>
         <StoreInitializer />
         <Providers>{children}</Providers>
       </body>

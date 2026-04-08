@@ -1,263 +1,461 @@
-import { create } from 'zustand';
-import { Trip, Vehicle, Driver, FuelEntry, Alert } from './types';
-import { useNotifications } from './notifications';
+import { create } from "zustand";
+import type { Alert, Driver, FuelEntry, Trip, Vehicle } from "./types";
+import { useNotifications } from "./notifications";
 
 interface AppState {
-    trips: Trip[];
-    vehicles: Vehicle[];
-    drivers: Driver[];
-    fuelEntries: FuelEntry[];
-    alerts: Alert[];
-    isLoading: boolean;
+  trips: Trip[];
+  vehicles: Vehicle[];
+  drivers: Driver[];
+  fuelEntries: FuelEntry[];
+  alerts: Alert[];
+  isLoading: boolean;
 
-    // Actions
-    fetchInitialData: () => Promise<void>;
-    addTrip: (trip: Trip) => Promise<void>;
-    updateTripStatus: (tripId: string, status: Trip['status']) => Promise<void>;
-    updateDropStatus: (tripId: string, dropId: string, status: 'delivered' | 'failed') => Promise<void>;
-
-    // Other actions remain local for now or can be hooked up similarly
-    assignDriver: (tripId: string, driverId: string, vehicleId: string) => Promise<void>;
-    acceptTrip: (tripId: string) => Promise<void>;
-    toggleLiveStatus: (driverId: string, isLive: boolean) => Promise<void>;
-    triggerEmergency: (driverId: string, tripId?: string) => Promise<void>;
-    addFuelEntry: (entry: FuelEntry) => void;
-    verifyFuelEntry: (entryId: string, supervisorId: string) => void;
-    rejectFuelEntry: (entryId: string, supervisorId: string) => void;
-    approveFuelEntry: (entryId: string, managerId: string) => void;
-    updateVehicleLocation: (vehicleId: string, location: { lat: number; lng: number }) => void;
-    resolveAlert: (alertId: string) => void;
+  fetchInitialData: () => Promise<void>;
+  addTrip: (trip: Trip) => Promise<void>;
+  updateTripStatus: (tripId: string, status: Trip["status"]) => Promise<void>;
+  updateDropStatus: (tripId: string, dropId: string, status: "delivered" | "failed") => Promise<void>;
+  assignDriver: (tripId: string, driverId: string, vehicleId: string) => Promise<void>;
+  acceptTrip: (tripId: string) => Promise<void>;
+  toggleLiveStatus: (driverId: string, isLive: boolean) => Promise<void>;
+  triggerEmergency: (driverId: string, tripId?: string) => Promise<void>;
+  addFuelEntry: (entry: FuelEntry) => Promise<void>;
+  verifyFuelEntry: (entryId: string, supervisorId: string) => Promise<void>;
+  rejectFuelEntry: (entryId: string, reviewerId: string) => Promise<void>;
+  approveFuelEntry: (entryId: string, managerId: string) => Promise<void>;
+  updateVehicleLocation: (vehicleId: string, location: { lat: number; lng: number }) => Promise<void>;
+  updateVehicleStatus: (vehicleId: string, status: Vehicle["status"]) => Promise<void>;
+  resolveAlert: (alertId: string) => Promise<void>;
 }
 
-// Helper to safely send notifications (doesn't break if notification store isn't ready)
-const notify = (type: 'success' | 'error' | 'warning' | 'info', title: string, message: string) => {
-    try {
-        useNotifications.getState().addNotification(type, title, message);
-    } catch { /* silent if store not ready */ }
+const notify = (
+  type: "success" | "error" | "warning" | "info",
+  title: string,
+  message: string,
+) => {
+  try {
+    useNotifications.getState().addNotification(type, title, message);
+  } catch {
+    // no-op
+  }
 };
 
+async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(url, {
+    headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
+    ...init,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Request failed (${response.status}) for ${url}`);
+  }
+
+  return (await response.json()) as T;
+}
+
 export const useStore = create<AppState>((set, get) => ({
-    trips: [],
-    vehicles: [],
-    drivers: [],
-    fuelEntries: [],
-    alerts: [],
-    isLoading: true,
+  trips: [],
+  vehicles: [],
+  drivers: [],
+  fuelEntries: [],
+  alerts: [],
+  isLoading: true,
 
-    fetchInitialData: async () => {
-        try {
-            // Fetch trips
-            const tripsRes = await fetch('/api/trips');
-            const trips = await tripsRes.json();
+  fetchInitialData: async () => {
+    try {
+      const [trips, masterData] = await Promise.all([
+        requestJson<Trip[]>("/api/trips"),
+        requestJson<{
+          drivers: Driver[];
+          vehicles: Vehicle[];
+          fuelEntries: FuelEntry[];
+          alerts: Alert[];
+        }>("/api/master-data"),
+      ]);
 
-            // Fetch master data
-            const masterRes = await fetch('/api/master-data');
-            const masterData = await masterRes.json();
-
-            set({
-                trips,
-                drivers: masterData.drivers,
-                vehicles: masterData.vehicles,
-                fuelEntries: masterData.fuelEntries || [],
-                alerts: masterData.alerts || [],
-                isLoading: false
-            });
-        } catch (error) {
-            console.error("Failed to load data", error);
-            notify('error', 'Connection Error', 'Failed to load fleet data. Retrying...');
-        }
-    },
-
-    addTrip: async (trip) => {
-        // Optimistic update
-        set((state) => ({ trips: [...state.trips, trip] }));
-        notify('success', 'Trip Created', `Trip #${trip.id.toUpperCase()} has been created successfully.`);
-        // API call
-        await fetch('/api/trips', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(trip)
-        });
-    },
-
-    updateTripStatus: async (tripId, status) => {
-        // Optimistic update
-        set((state) => ({
-            trips: state.trips.map(t => t.id === tripId ? { ...t, status } : t)
-        }));
-
-        const statusMessages: Record<string, string> = {
-            'in-progress': 'Trip is now in progress',
-            'completed': 'Trip completed successfully! 🎉',
-            'cancelled': 'Trip has been cancelled',
-            'assigned': 'Trip has been assigned to driver',
-        };
-        notify(
-            status === 'cancelled' ? 'warning' : 'success',
-            `Trip #${tripId.toUpperCase()}`,
-            statusMessages[status] || `Status updated to ${status}`
-        );
-
-        await fetch('/api/trips', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: tripId, updates: { status } })
-        });
-    },
-
-    updateDropStatus: async (tripId, dropId, status) => {
-        const currentTrip = get().trips.find(t => t.id === tripId);
-        if (!currentTrip) return;
-
-        const drop = currentTrip.drops.find(d => d.id === dropId);
-        const newDrops = currentTrip.drops.map(d =>
-            d.id === dropId ? { ...d, status, actualArrival: new Date().toISOString() } : d
-        );
-
-        // Check if all drops are done → auto-complete trip
-        const allDone = newDrops.every(d => d.status === 'delivered' || d.status === 'failed');
-        const tripUpdates: Partial<Trip> = { drops: newDrops };
-        if (allDone) {
-            tripUpdates.status = 'completed';
-            tripUpdates.endTime = new Date().toISOString();
-        }
-
-        // Optimistic update
-        set((state) => ({
-            trips: state.trips.map(t => t.id === tripId ? { ...t, ...tripUpdates } : t)
-        }));
-
-        if (status === 'delivered') {
-            notify('success', 'Delivery Complete', `📦 ${drop?.customerName || 'Package'} marked as delivered.`);
-        } else {
-            notify('error', 'Delivery Failed', `❌ ${drop?.customerName || 'Package'} delivery failed.`);
-        }
-
-        if (allDone) {
-            notify('info', 'Trip Complete', `All deliveries for Trip #${tripId.toUpperCase()} are done!`);
-        }
-
-        await fetch('/api/trips', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: tripId, updates: tripUpdates })
-        });
-    },
-
-    assignDriver: async (tripId, driverId, vehicleId) => {
-        const driver = get().drivers.find(d => d.id === driverId);
-        const updates = { driverId, vehicleId, status: 'assigned' as const };
-
-        // Optimistic update
-        set((state) => ({
-            trips: state.trips.map(t => t.id === tripId ? { ...t, ...updates } : t),
-            vehicles: state.vehicles.map(v => v.id === vehicleId ? { ...v, status: 'active' } : v),
-            drivers: state.drivers.map(d => d.id === driverId ? { ...d, status: 'on-trip', currentVehicleId: vehicleId } : d)
-        }));
-
-        notify('success', 'Driver Assigned', `${driver?.name || 'Driver'} assigned to Trip #${tripId.toUpperCase()}`);
-
-        await fetch('/api/trips', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: tripId, updates })
-        });
-    },
-
-    acceptTrip: async (tripId) => {
-        const updates = {
-            status: 'in-progress' as const,
-            startTime: new Date().toISOString()
-        };
-
-        // Optimistic update
-        set((state) => ({
-            trips: state.trips.map(t => t.id === tripId ? { ...t, ...updates } : t)
-        }));
-
-        notify('success', 'Trip Started', `Trip #${tripId.toUpperCase()} is now in progress.`);
-
-        await fetch('/api/trips', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: tripId, updates })
-        });
-    },
-
-    toggleLiveStatus: async (driverId, isLive) => {
-        set((state) => ({
-            drivers: state.drivers.map(d => d.id === driverId ? { ...d, isLive } : d)
-        }));
-
-        notify(isLive ? 'success' : 'info',
-            isLive ? 'Location Live' : 'Location Hidden',
-            isLive ? 'Supervisors can now track your route.' : 'Live tracking has been disabled.'
-        );
-
-        // API call would go here to sync live status
-    },
-
-    triggerEmergency: async (driverId, tripId) => {
-        const driver = get().drivers.find(d => d.id === driverId);
-        const newAlert: Alert = {
-            id: `a-${Math.floor(Math.random() * 10000)}`,
-            type: 'fuel-theft', // Reusing type or extending
-            severity: 'critical',
-            message: `EMERGENCY SOS: Driver ${driver?.name || 'Unknown'} triggered a panic alert!`,
-            timestamp: new Date().toISOString(),
-            vehicleId: driver?.currentVehicleId || '',
-            tripId,
-            resolved: false
-        };
-
-        set((state) => ({
-            alerts: [newAlert, ...state.alerts]
-        }));
-
-        notify('error', 'SOS TRIGGERED', 'Emergency services and supervisors have been notified.');
-
-        // API call to broadcast emergency
-        await fetch('/api/alerts', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(newAlert)
-        });
-    },
-
-    addFuelEntry: (entry) => {
-        set((state) => ({ fuelEntries: [...state.fuelEntries, entry] }));
-        notify('info', 'Fuel Entry Logged', `₹${entry.cost.toLocaleString()} fuel entry submitted for review.`);
-    },
-
-    verifyFuelEntry: (entryId, supervisorId) => {
-        set((state) => ({
-            fuelEntries: state.fuelEntries.map(e => e.id === entryId ? { ...e, status: 'verified', verifiedBy: supervisorId } : e)
-        }));
-        notify('success', 'Fuel Verified', `Fuel entry #${entryId} has been verified.`);
-    },
-
-    rejectFuelEntry: (entryId, supervisorId) => {
-        set((state) => ({
-            fuelEntries: state.fuelEntries.map(e => e.id === entryId ? { ...e, status: 'rejected', verifiedBy: supervisorId } : e)
-        }));
-        notify('warning', 'Fuel Rejected', `Fuel entry #${entryId} has been rejected.`);
-    },
-
-    approveFuelEntry: (entryId, managerId) => {
-        set((state) => ({
-            fuelEntries: state.fuelEntries.map(e => e.id === entryId ? { ...e, status: 'approved', approvedBy: managerId } : e)
-        }));
-        notify('success', 'Fuel Approved', `Fuel entry #${entryId} has been approved by manager.`);
-    },
-
-    updateVehicleLocation: (vehicleId, location) => set((state) => ({
-        vehicles: state.vehicles.map(v => v.id === vehicleId ? { ...v, location } : v)
-    })),
-
-    resolveAlert: (alertId) => {
-        set((state) => ({
-            alerts: state.alerts.map(a => a.id === alertId ? { ...a, resolved: true } : a)
-        }));
-        notify('success', 'Alert Resolved', 'The alert has been marked as resolved.');
+      set({
+        trips,
+        drivers: masterData.drivers ?? [],
+        vehicles: masterData.vehicles ?? [],
+        fuelEntries: masterData.fuelEntries ?? [],
+        alerts: masterData.alerts ?? [],
+        isLoading: false,
+      });
+    } catch (error) {
+      set({ isLoading: false });
+      console.error("Failed to load initial data", error);
+      notify("error", "Connection Error", "Could not load logistics data.");
     }
+  },
+
+  addTrip: async (trip) => {
+    const previous = get().trips;
+    set((state) => ({ trips: [...state.trips, trip] }));
+    notify("success", "Trip Created", `Trip #${trip.id.toUpperCase()} has been added.`);
+
+    try {
+      await requestJson<Trip>("/api/trips", {
+        method: "POST",
+        body: JSON.stringify(trip),
+      });
+    } catch (error) {
+      console.error("Trip creation failed", error);
+      set({ trips: previous });
+      notify("error", "Trip Failed", "Trip creation failed. Please retry.");
+    }
+  },
+
+  updateTripStatus: async (tripId, status) => {
+    const previous = get().trips;
+    set((state) => ({
+      trips: state.trips.map((trip) => (trip.id === tripId ? { ...trip, status } : trip)),
+    }));
+
+    try {
+      await requestJson<Trip>("/api/trips", {
+        method: "PATCH",
+        body: JSON.stringify({ id: tripId, updates: { status } }),
+      });
+      notify("info", "Trip Updated", `Trip #${tripId.toUpperCase()} marked ${status}.`);
+    } catch (error) {
+      console.error("Trip status update failed", error);
+      set({ trips: previous });
+      notify("error", "Update Failed", "Could not update trip status.");
+    }
+  },
+
+  updateDropStatus: async (tripId, dropId, status) => {
+    const originalTrips = get().trips;
+    const trip = originalTrips.find((item) => item.id === tripId);
+    if (!trip) return;
+
+    const updatedDrops = trip.drops.map((drop) =>
+      drop.id === dropId ? { ...drop, status, actualArrival: new Date().toISOString() } : drop,
+    );
+
+    const allDone = updatedDrops.every(
+      (drop) => drop.status === "delivered" || drop.status === "failed",
+    );
+
+    const updates: Partial<Trip> = {
+      drops: updatedDrops,
+      ...(allDone
+        ? {
+            status: "completed",
+            endTime: new Date().toISOString(),
+          }
+        : {}),
+    };
+
+    set((state) => ({
+      trips: state.trips.map((item) =>
+        item.id === tripId ? { ...item, ...updates } : item,
+      ),
+    }));
+
+    try {
+      await requestJson<Trip>("/api/trips", {
+        method: "PATCH",
+        body: JSON.stringify({ id: tripId, updates }),
+      });
+      notify(
+        status === "delivered" ? "success" : "warning",
+        "Delivery Updated",
+        status === "delivered" ? "Drop marked delivered." : "Drop marked failed.",
+      );
+    } catch (error) {
+      console.error("Drop status update failed", error);
+      set({ trips: originalTrips });
+      notify("error", "Delivery Update Failed", "Could not persist delivery update.");
+    }
+  },
+
+  assignDriver: async (tripId, driverId, vehicleId) => {
+    const snapshot = {
+      trips: get().trips,
+      drivers: get().drivers,
+      vehicles: get().vehicles,
+    };
+
+    const updates = { driverId, vehicleId, status: "assigned" as const };
+
+    set((state) => ({
+      trips: state.trips.map((trip) => (trip.id === tripId ? { ...trip, ...updates } : trip)),
+      drivers: state.drivers.map((driver) =>
+        driver.id === driverId
+          ? {
+              ...driver,
+              status: "on-trip",
+              currentVehicleId: vehicleId,
+            }
+          : driver,
+      ),
+      vehicles: state.vehicles.map((vehicle) =>
+        vehicle.id === vehicleId ? { ...vehicle, status: "active" } : vehicle,
+      ),
+    }));
+
+    try {
+      await Promise.all([
+        requestJson<Trip>("/api/trips", {
+          method: "PATCH",
+          body: JSON.stringify({ id: tripId, updates }),
+        }),
+        requestJson<Driver>("/api/drivers", {
+          method: "PATCH",
+          body: JSON.stringify({
+            id: driverId,
+            updates: { status: "on-trip", currentVehicleId: vehicleId },
+          }),
+        }),
+        requestJson<Vehicle>("/api/vehicles", {
+          method: "PATCH",
+          body: JSON.stringify({ id: vehicleId, updates: { status: "active" } }),
+        }),
+      ]);
+      notify("success", "Assignment Complete", "Driver and vehicle assigned successfully.");
+    } catch (error) {
+      console.error("Driver assignment failed", error);
+      set(snapshot);
+      notify("error", "Assignment Failed", "Could not assign driver to trip.");
+    }
+  },
+
+  acceptTrip: async (tripId) => {
+    const previous = get().trips;
+    const updates = {
+      status: "in-progress" as const,
+      startTime: new Date().toISOString(),
+    };
+
+    set((state) => ({
+      trips: state.trips.map((trip) => (trip.id === tripId ? { ...trip, ...updates } : trip)),
+    }));
+
+    try {
+      await requestJson<Trip>("/api/trips", {
+        method: "PATCH",
+        body: JSON.stringify({ id: tripId, updates }),
+      });
+      notify("success", "Trip Started", `Trip #${tripId.toUpperCase()} is now active.`);
+    } catch (error) {
+      console.error("Trip accept failed", error);
+      set({ trips: previous });
+      notify("error", "Start Failed", "Unable to start the trip.");
+    }
+  },
+
+  toggleLiveStatus: async (driverId, isLive) => {
+    const previous = get().drivers;
+    set((state) => ({
+      drivers: state.drivers.map((driver) =>
+        driver.id === driverId
+          ? { ...driver, isLive, lastLocationUpdate: new Date().toISOString() }
+          : driver,
+      ),
+    }));
+
+    try {
+      await requestJson<Driver>("/api/drivers", {
+        method: "PATCH",
+        body: JSON.stringify({
+          id: driverId,
+          updates: { isLive, lastLocationUpdate: new Date().toISOString() },
+        }),
+      });
+      notify(
+        isLive ? "success" : "info",
+        isLive ? "Live Enabled" : "Live Disabled",
+        isLive ? "Supervisors can view your movement." : "Location sharing turned off.",
+      );
+    } catch (error) {
+      console.error("Live status update failed", error);
+      set({ drivers: previous });
+      notify("error", "Update Failed", "Could not change live tracking status.");
+    }
+  },
+
+  triggerEmergency: async (driverId, tripId) => {
+    const driver = get().drivers.find((item) => item.id === driverId);
+    const newAlert: Alert = {
+      id: `a-${Date.now()}`,
+      type: "fuel-theft",
+      severity: "critical",
+      message: `EMERGENCY SOS from ${driver?.name ?? "Unknown Driver"}`,
+      timestamp: new Date().toISOString(),
+      vehicleId: driver?.currentVehicleId,
+      tripId,
+      resolved: false,
+    };
+
+    set((state) => ({ alerts: [newAlert, ...state.alerts] }));
+
+    try {
+      await requestJson<Alert>("/api/alerts", {
+        method: "POST",
+        body: JSON.stringify(newAlert),
+      });
+      notify("error", "SOS Triggered", "Emergency alert broadcast to supervisor panel.");
+    } catch (error) {
+      console.error("SOS alert failed", error);
+      set((state) => ({ alerts: state.alerts.filter((alert) => alert.id !== newAlert.id) }));
+      notify("error", "SOS Failed", "Emergency alert could not be delivered.");
+    }
+  },
+
+  addFuelEntry: async (entry) => {
+    const previous = get().fuelEntries;
+    set((state) => ({ fuelEntries: [...state.fuelEntries, entry] }));
+
+    try {
+      await requestJson<FuelEntry>("/api/fuel", {
+        method: "POST",
+        body: JSON.stringify(entry),
+      });
+      notify("info", "Fuel Logged", `Fuel entry #${entry.id.toUpperCase()} submitted.`);
+    } catch (error) {
+      console.error("Fuel entry create failed", error);
+      set({ fuelEntries: previous });
+      notify("error", "Fuel Log Failed", "Could not submit fuel entry.");
+    }
+  },
+
+  verifyFuelEntry: async (entryId, supervisorId) => {
+    const previous = get().fuelEntries;
+    set((state) => ({
+      fuelEntries: state.fuelEntries.map((entry) =>
+        entry.id === entryId
+          ? { ...entry, status: "verified", verifiedBy: supervisorId }
+          : entry,
+      ),
+    }));
+
+    try {
+      await requestJson<FuelEntry>("/api/fuel", {
+        method: "PATCH",
+        body: JSON.stringify({
+          id: entryId,
+          updates: { status: "verified", verifiedBy: supervisorId },
+        }),
+      });
+      notify("success", "Fuel Verified", `Entry #${entryId.toUpperCase()} verified.`);
+    } catch (error) {
+      console.error("Fuel verify failed", error);
+      set({ fuelEntries: previous });
+      notify("error", "Verification Failed", "Could not verify fuel entry.");
+    }
+  },
+
+  rejectFuelEntry: async (entryId, reviewerId) => {
+    const previous = get().fuelEntries;
+    set((state) => ({
+      fuelEntries: state.fuelEntries.map((entry) =>
+        entry.id === entryId
+          ? { ...entry, status: "rejected", verifiedBy: reviewerId }
+          : entry,
+      ),
+    }));
+
+    try {
+      await requestJson<FuelEntry>("/api/fuel", {
+        method: "PATCH",
+        body: JSON.stringify({
+          id: entryId,
+          updates: { status: "rejected", verifiedBy: reviewerId },
+        }),
+      });
+      notify("warning", "Fuel Rejected", `Entry #${entryId.toUpperCase()} rejected.`);
+    } catch (error) {
+      console.error("Fuel reject failed", error);
+      set({ fuelEntries: previous });
+      notify("error", "Rejection Failed", "Could not reject fuel entry.");
+    }
+  },
+
+  approveFuelEntry: async (entryId, managerId) => {
+    const previous = get().fuelEntries;
+    set((state) => ({
+      fuelEntries: state.fuelEntries.map((entry) =>
+        entry.id === entryId
+          ? { ...entry, status: "approved", approvedBy: managerId }
+          : entry,
+      ),
+    }));
+
+    try {
+      await requestJson<FuelEntry>("/api/fuel", {
+        method: "PATCH",
+        body: JSON.stringify({
+          id: entryId,
+          updates: { status: "approved", approvedBy: managerId },
+        }),
+      });
+      notify("success", "Fuel Approved", `Entry #${entryId.toUpperCase()} approved.`);
+    } catch (error) {
+      console.error("Fuel approve failed", error);
+      set({ fuelEntries: previous });
+      notify("error", "Approval Failed", "Could not approve fuel entry.");
+    }
+  },
+
+  updateVehicleLocation: async (vehicleId, location) => {
+    const previous = get().vehicles;
+    set((state) => ({
+      vehicles: state.vehicles.map((vehicle) =>
+        vehicle.id === vehicleId ? { ...vehicle, location } : vehicle,
+      ),
+    }));
+
+    try {
+      await requestJson<Vehicle>("/api/vehicles", {
+        method: "PATCH",
+        body: JSON.stringify({ id: vehicleId, updates: { location } }),
+      });
+    } catch (error) {
+      console.error("Vehicle location update failed", error);
+      set({ vehicles: previous });
+      notify("error", "Tracking Error", "Could not update vehicle location.");
+    }
+  },
+
+  updateVehicleStatus: async (vehicleId, status) => {
+    const previous = get().vehicles;
+    set((state) => ({
+      vehicles: state.vehicles.map((vehicle) =>
+        vehicle.id === vehicleId ? { ...vehicle, status } : vehicle,
+      ),
+    }));
+
+    try {
+      await requestJson<Vehicle>("/api/vehicles", {
+        method: "PATCH",
+        body: JSON.stringify({ id: vehicleId, updates: { status } }),
+      });
+      notify("info", "Vehicle Updated", `Vehicle status changed to ${status}.`);
+    } catch (error) {
+      console.error("Vehicle status update failed", error);
+      set({ vehicles: previous });
+      notify("error", "Status Update Failed", "Could not change vehicle status.");
+    }
+  },
+
+  resolveAlert: async (alertId) => {
+    const previous = get().alerts;
+    set((state) => ({
+      alerts: state.alerts.map((alert) =>
+        alert.id === alertId ? { ...alert, resolved: true } : alert,
+      ),
+    }));
+
+    try {
+      await requestJson<Alert>("/api/alerts", {
+        method: "PATCH",
+        body: JSON.stringify({ id: alertId, updates: { resolved: true } }),
+      });
+      notify("success", "Alert Resolved", "Alert marked as resolved.");
+    } catch (error) {
+      console.error("Alert resolve failed", error);
+      set({ alerts: previous });
+      notify("error", "Resolve Failed", "Could not resolve alert.");
+    }
+  },
 }));

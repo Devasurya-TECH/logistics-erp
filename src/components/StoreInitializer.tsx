@@ -1,27 +1,32 @@
 "use client";
 
-import { useStore } from "@/lib/store";
 import { useEffect, useRef } from "react";
+import { useStore } from "@/lib/store";
+
+const REFRESH_INTERVAL_MS = 8000;
 
 export function StoreInitializer() {
-    const { fetchInitialData } = useStore();
-    const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const { fetchInitialData } = useStore();
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-    useEffect(() => {
-        // Initial fetch
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === "visible") {
         fetchInitialData();
+      }
+    };
 
-        // Poll every 3 seconds so driver sees new trips assigned by supervisor
-        intervalRef.current = setInterval(() => {
-            fetchInitialData();
-        }, 3000);
+    fetchInitialData();
+    intervalRef.current = setInterval(refresh, REFRESH_INTERVAL_MS);
+    window.addEventListener("focus", refresh);
 
-        return () => {
-            if (intervalRef.current) {
-                clearInterval(intervalRef.current);
-            }
-        };
-    }, [fetchInitialData]);
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+      window.removeEventListener("focus", refresh);
+    };
+  }, [fetchInitialData]);
 
-    return null;
+  return null;
 }
