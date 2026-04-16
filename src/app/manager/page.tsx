@@ -1,178 +1,146 @@
 "use client";
 
-import Link from "next/link";
-import { useMemo } from "react";
 import { useStore } from "@/lib/store";
+import VehicleMap from "@/components/maps/VehicleMap";
+import TripList from "@/components/trips/TripList";
+// import FuelChart from "@/components/charts/FuelChart"; // Removed as per request
+import FuelOptimizedMap from "@/components/maps/FuelOptimizedMap"; // Added new component
+import {
+    BuildingStorefrontIcon,
+    MapPinIcon,
+    CurrencyDollarIcon,
+    ExclamationCircleIcon
+} from '@heroicons/react/24/outline';
 
-function formatMoney(amount: number): string {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
-
-function statusBadge(status: string): string {
-  if (status === "completed" || status === "approved") return "badge badge-success";
-  if (status === "in-progress" || status === "assigned" || status === "verified") return "badge badge-info";
-  if (status === "pending" || status === "planned") return "badge badge-warning";
-  return "badge badge-danger";
-}
-
-export default function ManagerDashboardPage() {
-  const { trips, vehicles, fuelEntries, alerts, resolveAlert } = useStore();
-
-  const activeVehicles = vehicles.filter((vehicle) => vehicle.status === "active").length;
-  const inProgressTrips = trips.filter((trip) => trip.status === "in-progress").length;
-  const pendingFuel = fuelEntries.filter((entry) => entry.status === "pending").length;
-  const unresolvedAlerts = alerts.filter((alert) => !alert.resolved).length;
-  const monthlyFuelSpend = fuelEntries.reduce((sum, entry) => sum + entry.cost, 0);
-
-  const recentTrips = useMemo(
-    () =>
-      [...trips]
-        .sort((a, b) => {
-          const aDate = new Date(a.startTime ?? 0).getTime();
-          const bDate = new Date(b.startTime ?? 0).getTime();
-          return bDate - aDate;
-        })
-        .slice(0, 5),
-    [trips],
-  );
-
-  const urgentAlerts = useMemo(
-    () =>
-      alerts
-        .filter((alert) => !alert.resolved)
-        .sort((a, b) => {
-          const rank = { critical: 0, high: 1, medium: 2, low: 3 } as const;
-          return rank[a.severity] - rank[b.severity];
-        })
-        .slice(0, 5),
-    [alerts],
-  );
-
-  return (
-    <div className="space-y-6">
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <article className="surface p-5">
-          <p className="section-title">Fleet Active</p>
-          <p className="mt-2 text-3xl font-bold text-slate-900">
-            {activeVehicles}/{vehicles.length}
-          </p>
-        </article>
-        <article className="surface p-5">
-          <p className="section-title">Trips In Progress</p>
-          <p className="mt-2 text-3xl font-bold text-slate-900">{inProgressTrips}</p>
-        </article>
-        <article className="surface p-5">
-          <p className="section-title">Pending Fuel Claims</p>
-          <p className="mt-2 text-3xl font-bold text-slate-900">{pendingFuel}</p>
-        </article>
-        <article className="surface p-5">
-          <p className="section-title">Open Alerts</p>
-          <p className="mt-2 text-3xl font-bold text-slate-900">{unresolvedAlerts}</p>
-        </article>
-      </section>
-
-      <section className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
-        <article className="surface-strong overflow-hidden">
-          <div className="border-b border-slate-200 px-5 py-4">
-            <h2 className="text-lg font-bold text-slate-900">Recent Trips</h2>
-            <p className="text-xs text-slate-500">Latest dispatch and completion updates</p>
-          </div>
-          <div className="custom-scrollbar overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead className="bg-slate-50 text-left text-xs uppercase tracking-wider text-slate-500">
-                <tr>
-                  <th className="px-5 py-3">Trip</th>
-                  <th className="px-5 py-3">Distance</th>
-                  <th className="px-5 py-3">Drops</th>
-                  <th className="px-5 py-3">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {recentTrips.map((trip) => {
-                  const completedDrops = trip.drops.filter((drop) => drop.status === "delivered").length;
-                  return (
-                    <tr key={trip.id} className="hover:bg-slate-50">
-                      <td className="px-5 py-3 font-semibold text-slate-800">#{trip.id.toUpperCase()}</td>
-                      <td className="px-5 py-3 text-slate-600">{trip.estimatedDistance} km</td>
-                      <td className="px-5 py-3 text-slate-600">
-                        {completedDrops}/{trip.drops.length}
-                      </td>
-                      <td className="px-5 py-3">
-                        <span className={statusBadge(trip.status)}>{trip.status}</span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </article>
-
-        <div className="space-y-4">
-          <article className="surface p-5">
-            <p className="section-title">Fuel Spend To Date</p>
-            <p className="mt-2 text-2xl font-bold text-slate-900">
-              {formatMoney(monthlyFuelSpend)}
-            </p>
-            <p className="mt-2 text-xs text-slate-500">
-              Total from all recorded fuel entries.
-            </p>
-          </article>
-
-          <article className="surface p-5">
-            <p className="section-title">Urgent Alerts</p>
-            <div className="mt-3 space-y-2">
-              {urgentAlerts.length === 0 ? (
-                <p className="text-sm text-slate-500">No unresolved alerts.</p>
-              ) : (
-                urgentAlerts.map((alert) => (
-                  <div key={alert.id} className="rounded-xl border border-slate-200 bg-white p-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      {alert.severity} • {alert.type}
-                    </p>
-                    <p className="mt-1 text-sm text-slate-700">{alert.message}</p>
-                    <button
-                      type="button"
-                      onClick={() => resolveAlert(alert.id)}
-                      className="mt-2 rounded-lg bg-emerald-700 px-2.5 py-1 text-xs font-semibold text-white hover:brightness-110"
-                    >
-                      Resolve
-                    </button>
-                  </div>
-                ))
-              )}
+const StatCard = ({ title, value, icon, trend }: { title: string; value: string; icon: any; trend: string }) => (
+    <div className="bg-white p-4 md:p-6 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300">
+        <div className="flex items-start justify-between">
+            <div>
+                <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">{title}</p>
+                <div className="flex items-baseline gap-2 mt-2">
+                    <h3 className="text-2xl font-bold text-slate-800 tracking-tight">
+                        {value}
+                    </h3>
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${trend.startsWith('+') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        {trend}
+                    </span>
+                </div>
             </div>
-          </article>
-
-          <article className="surface p-5">
-            <p className="section-title">Manager Shortcuts</p>
-            <div className="mt-3 space-y-2">
-              <Link
-                href="/manager/trips"
-                className="block rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-              >
-                Open Trip Ledger
-              </Link>
-              <Link
-                href="/manager/vehicles"
-                className="block rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-              >
-                Review Vehicle Status
-              </Link>
-              <Link
-                href="/manager/fuel"
-                className="block rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-              >
-                Approve Fuel Claims
-              </Link>
+            <div className="p-2 md:p-3 bg-blue-50 text-blue-600 rounded-lg">
+                <icon.type className="w-5 h-5 md:w-6 md:h-6" />
             </div>
-          </article>
         </div>
-      </section>
     </div>
-  );
+);
+
+export default function ManagerDashboard() {
+    const { trips, vehicles, fuelEntries, alerts } = useStore();
+
+    const activeTrips = trips.filter(t => t.status === 'in-progress');
+    const totalCost = fuelEntries.reduce((acc, curr) => acc + curr.cost, 0);
+    const criticalAlerts = alerts.filter(a => a.severity === 'critical' || a.severity === 'high').length;
+
+    return (
+        <div className="space-y-8 pb-12">
+            {/* KPI Stats */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
+                <StatCard
+                    title="Active Fleet"
+                    value={`${activeTrips.length}/${vehicles.length}`}
+                    icon={<BuildingStorefrontIcon />}
+                    trend="+12%"
+                />
+                <StatCard
+                    title="Fuel Costs (YTD)"
+                    value={`$${totalCost.toLocaleString()}`}
+                    icon={<CurrencyDollarIcon />}
+                    trend="+5%"
+                />
+                <StatCard
+                    title="Distance (Km)"
+                    value="12,504"
+                    icon={<MapPinIcon />}
+                    trend="+18%"
+                />
+                <StatCard
+                    title="Critical Alerts"
+                    value={criticalAlerts.toString()}
+                    icon={<ExclamationCircleIcon />}
+                    trend="-2"
+                />
+            </div>
+
+            {/* Main Content Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Left Column (2/3) */}
+                <div className="lg:col-span-2 space-y-8">
+                    <section>
+                        <div className="flex justify-between items-end mb-4">
+                            <h3 className="text-lg font-bold text-slate-800">Live Fleet Tracking</h3>
+                            <span className="text-xs text-slate-500 font-medium bg-white px-2 py-1 rounded border border-gray-200 shadow-sm">Updated just now</span>
+                        </div>
+                        <VehicleMap vehicles={vehicles} />
+                    </section>
+
+                    <section>
+                        <TripList trips={trips} />
+                    </section>
+                </div>
+
+                {/* Right Column (1/3) */}
+                <div className="space-y-8">
+                    <section>
+                        {/* Replaced FuelChart with Route Optimizer */}
+                        <FuelOptimizedMap />
+                    </section>
+
+                    {/* Recent Activity / Alerts */}
+                    <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col h-[400px]">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-bold text-slate-800">Alerts & Notifications</h3>
+                            <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold">{alerts.length} New</span>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto pr-2 space-y-3">
+                            {alerts.length === 0 ? (
+                                <div className="flex items-center justify-center h-full text-slate-400 text-sm">All clear. Minimum risk detected.</div>
+                            ) : (
+                                alerts.map((alert) => (
+                                    <div
+                                        key={alert.id}
+                                        className={`p-4 rounded-lg border transition-all hover:shadow-md ${alert.severity === 'critical'
+                                            ? 'bg-red-50 border-red-100 hover:bg-white'
+                                            : 'bg-white border-gray-100 hover:bg-gray-50'
+                                            }`}
+                                    >
+                                        <div className="flex items-start gap-3">
+                                            <ExclamationCircleIcon className={`w-5 h-5 mt-0.5 flex-shrink-0 ${alert.severity === 'critical' ? 'text-red-500' : 'text-blue-500'
+                                                }`} />
+                                            <div>
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">{alert.type}</h4>
+                                                    <span className="text-[10px] text-slate-400">{new Date(alert.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                </div>
+                                                <p className="text-sm text-slate-600 leading-relaxed font-medium">
+                                                    {alert.message}
+                                                </p>
+                                                <div className="mt-3 flex gap-2">
+                                                    <button className="text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-md bg-white border border-gray-200 text-slate-600 hover:text-blue-600 hover:border-blue-200 transition-colors shadow-sm">
+                                                        Details
+                                                    </button>
+                                                    <button className="text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-md text-slate-400 hover:text-slate-600 transition-colors">
+                                                        Dismiss
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
 }

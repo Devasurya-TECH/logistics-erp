@@ -1,189 +1,231 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/contexts/AuthContext";
-import type { UserRole } from "@/lib/types";
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { UserRole } from '@/lib/types';
+import { useRouter } from 'next/navigation';
 
+// Which role is this deployment for? If not set, show all roles (local dev)
 const APP_ROLE = process.env.NEXT_PUBLIC_APP_ROLE as UserRole | undefined;
 
-type RoleConfig = {
-  label: string;
-  subtitle: string;
-  ring: string;
-  button: string;
-  users: Array<{ name: string; email: string }>;
-};
-
-const roleConfig: Record<UserRole, RoleConfig> = {
-  manager: {
-    label: "Manager",
-    subtitle: "Executive analytics and control",
-    ring: "ring-emerald-200 border-emerald-200 bg-emerald-50",
-    button:
-      "bg-gradient-to-r from-emerald-700 to-teal-700 shadow-emerald-900/20",
-    users: [{ name: "Arjun", email: "manager@logistics.com" }],
-  },
-  supervisor: {
-    label: "Supervisor",
-    subtitle: "Dispatch operations and delivery coordination",
-    ring: "ring-cyan-200 border-cyan-200 bg-cyan-50",
-    button: "bg-gradient-to-r from-cyan-700 to-sky-700 shadow-cyan-900/20",
-    users: [{ name: "Lakshmi", email: "supervisor@logistics.com" }],
-  },
-  driver: {
-    label: "Driver",
-    subtitle: "Trip execution, navigation and updates",
-    ring: "ring-amber-200 border-amber-200 bg-amber-50",
-    button:
-      "bg-gradient-to-r from-amber-500 to-orange-600 shadow-orange-900/20",
-    users: [
-      { name: "Rahul", email: "driver@logistics.com" },
-      { name: "Vishnu", email: "driver2@logistics.com" },
-      { name: "Fasil", email: "driver3@logistics.com" },
-    ],
-  },
+const roleConfig: Record<UserRole, { icon: string; gradient: string; label: string; tagline: string; users: { name: string; email: string; color: string }[] }> = {
+    driver: {
+        icon: '🚚',
+        gradient: 'from-blue-600 to-indigo-700',
+        label: 'Driver',
+        tagline: 'Navigate, deliver, log fuel — all in one place',
+        users: [
+            { name: 'Rahul', email: 'driver@logistics.com', color: 'blue' },
+            { name: 'Vishnu', email: 'driver2@logistics.com', color: 'purple' },
+            { name: 'Fasil', email: 'driver3@logistics.com', color: 'emerald' },
+        ],
+    },
+    supervisor: {
+        icon: '📋',
+        gradient: 'from-amber-500 to-orange-600',
+        label: 'Supervisor',
+        tagline: 'Assign trips, verify fuel, track progress',
+        users: [
+            { name: 'Supervisor', email: 'supervisor@logistics.com', color: 'amber' },
+        ],
+    },
+    manager: {
+        icon: '📊',
+        gradient: 'from-emerald-600 to-teal-700',
+        label: 'Admin',
+        tagline: 'Fleet analytics, costs, and operational oversight',
+        users: [
+            { name: 'Manager', email: 'manager@logistics.com', color: 'emerald' },
+        ],
+    },
 };
 
 export default function LoginPage() {
-  const { login } = useAuth();
-  const router = useRouter();
-  const [role, setRole] = useState<UserRole>(APP_ROLE ?? "manager");
-  const [email, setEmail] = useState(roleConfig[APP_ROLE ?? "manager"].users[0].email);
-  const [password, setPassword] = useState("demo123");
-  const [error, setError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+    const { login } = useAuth();
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [role, setRole] = useState<UserRole>(APP_ROLE || 'manager');
+    const [error, setError] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const router = useRouter();
 
-  const singleRole = Boolean(APP_ROLE);
-  const config = useMemo(() => roleConfig[role], [role]);
+    const isSingleRole = !!APP_ROLE;
+    const config = roleConfig[role];
 
-  const onRoleChange = (nextRole: UserRole) => {
-    setRole(nextRole);
-    setEmail(roleConfig[nextRole].users[0].email);
-    setPassword("demo123");
-    setError("");
-  };
+    useEffect(() => {
+        if (APP_ROLE) {
+            setRole(APP_ROLE);
+            // Auto-fill first user for the role
+            const firstUser = roleConfig[APP_ROLE].users[0];
+            if (firstUser) setEmail(firstUser.email);
+        }
+    }, []);
 
-  const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setError("");
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (password !== 'demo123') {
+            setError('Invalid password. Try "demo123"');
+            return;
+        }
 
-    if (password !== "demo123") {
-      setError('Invalid password. Use "demo123".');
-      return;
-    }
+        setIsLoading(true);
+        setError('');
 
-    setIsSubmitting(true);
-    const success = await login(email.trim().toLowerCase(), role);
-    setIsSubmitting(false);
+        try {
+            const success = await login(email, role);
+            if (success) {
+                router.push(`/${role}`);
+            } else {
+                setError('User not found. Check credentials.');
+            }
+        } catch (err) {
+            setError('Login failed');
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-    if (!success) {
-      setError("User not found for the selected role.");
-      return;
-    }
+    const handleQuickLogin = (userEmail: string) => {
+        setEmail(userEmail);
+        setPassword('demo123');
+    };
 
-    router.push(`/${role}`);
-  };
+    const handleRoleChange = (newRole: UserRole) => {
+        setRole(newRole);
+        const firstUser = roleConfig[newRole].users[0];
+        if (firstUser) setEmail(firstUser.email);
+        setPassword('');
+        setError('');
+    };
 
-  return (
-    <main className="min-h-screen px-4 py-8 md:px-8 md:py-14">
-      <div className="mx-auto grid w-full max-w-5xl gap-8 md:grid-cols-[1.1fr_1fr]">
-        <section className="surface-strong page-enter p-8 md:p-10">
-          <p className="section-title mb-4">LogiTrace Access</p>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900 md:text-4xl">
-            Welcome back to fleet control
-          </h1>
-          <p className="mt-4 text-sm leading-relaxed text-slate-600 md:text-base">
-            Sign in with your role account to manage logistics, deliveries, and
-            operational performance from a single workspace.
-          </p>
+    return (
+        <div className="flex min-h-screen min-h-[100dvh] flex-col items-center justify-center bg-gray-50 relative overflow-hidden p-4">
+            {/* Gradient background */}
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-indigo-50 -z-10"></div>
+            <div className={`absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-br ${config.gradient} opacity-5 rounded-full -translate-y-1/2 translate-x-1/4 blur-3xl -z-10`}></div>
+            <div className={`absolute bottom-0 left-0 w-[400px] h-[400px] bg-gradient-to-tr ${config.gradient} opacity-5 rounded-full translate-y-1/2 -translate-x-1/4 blur-3xl -z-10`}></div>
 
-          <div className="mt-7 grid gap-3 sm:grid-cols-3">
-            {(Object.keys(roleConfig) as UserRole[]).map((key) => (
-              <button
-                key={key}
-                type="button"
-                disabled={singleRole}
-                onClick={() => onRoleChange(key)}
-                className={`rounded-xl border p-3 text-left transition ${role === key ? roleConfig[key].ring : "border-slate-200 bg-white hover:bg-slate-50"} ${singleRole ? "cursor-not-allowed opacity-70" : ""}`}
-              >
-                <p className="text-sm font-semibold text-slate-900">
-                  {roleConfig[key].label}
-                </p>
-                <p className="mt-1 text-xs text-slate-500">{roleConfig[key].subtitle}</p>
-              </button>
-            ))}
-          </div>
-        </section>
+            <div className="z-10 w-full max-w-md animate-fade-in-up">
+                {/* Logo + Title */}
+                <div className="text-center mb-6">
+                    <div className={`h-16 w-16 md:h-20 md:w-20 bg-gradient-to-br ${config.gradient} rounded-3xl mx-auto mb-4 flex items-center justify-center text-white text-3xl md:text-4xl shadow-xl ring-4 ring-white`}>
+                        {config.icon}
+                    </div>
+                    <h1 className="text-2xl md:text-3xl font-black text-slate-800 tracking-tight">
+                        LogiTrace {isSingleRole ? config.label : ''}
+                    </h1>
+                    <p className="text-slate-400 text-sm mt-1.5 font-medium">{config.tagline}</p>
+                </div>
 
-        <section className="surface p-6 md:p-8">
-          <form className="space-y-4" onSubmit={onSubmit}>
-            <div>
-              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-500">
-                Email
-              </label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
-              />
+                {/* Card */}
+                <div className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-xl border border-gray-100/80 p-5 md:p-8">
+                    <form onSubmit={handleSubmit} className="space-y-5">
+
+                        {/* Role Selector — only shown in unified mode (local dev) */}
+                        {!isSingleRole && (
+                            <div>
+                                <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Select Panel</label>
+                                <div className="grid grid-cols-3 gap-2 bg-gray-50 p-1.5 rounded-2xl">
+                                    {(Object.keys(roleConfig) as UserRole[]).map((r) => (
+                                        <button
+                                            key={r}
+                                            type="button"
+                                            onClick={() => handleRoleChange(r)}
+                                            className={`px-3 py-3 md:py-2.5 rounded-xl text-sm font-bold capitalize transition-all flex flex-col md:flex-row items-center justify-center gap-1 md:gap-1.5 ${role === r
+                                                ? 'bg-white text-slate-800 shadow-lg ring-1 ring-black/5'
+                                                : 'text-slate-400 hover:text-slate-600 hover:bg-gray-100'
+                                                }`}
+                                        >
+                                            <span className="text-lg md:text-base">{roleConfig[r].icon}</span>
+                                            <span className="text-xs md:text-sm">{roleConfig[r].label}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Quick login for multi-user roles */}
+                        {config.users.length > 1 && (
+                            <div>
+                                <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Quick Login</label>
+                                <div className="flex gap-2 flex-wrap">
+                                    {config.users.map((u) => (
+                                        <button
+                                            key={u.email}
+                                            type="button"
+                                            onClick={() => handleQuickLogin(u.email)}
+                                            className={`text-xs px-3.5 py-2 rounded-xl font-bold transition-all active:scale-95 border ${email === u.email
+                                                    ? `bg-${u.color}-50 text-${u.color}-600 border-${u.color}-200 shadow-sm`
+                                                    : 'bg-gray-50 text-slate-500 border-gray-200 hover:bg-white hover:border-gray-300'
+                                                }`}
+                                        >
+                                            {u.name}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Email */}
+                        <div>
+                            <label className="block text-xs font-bold text-slate-600 mb-1.5">Email</label>
+                            <input
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                placeholder={`${role}@logistics.com`}
+                                className="w-full px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-800 placeholder-gray-300 outline-none transition-all text-sm font-medium"
+                                required
+                            />
+                        </div>
+
+                        {/* Password */}
+                        <div>
+                            <label className="block text-xs font-bold text-slate-600 mb-1.5">Password</label>
+                            <input
+                                type="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                placeholder="Enter demo123"
+                                className="w-full px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-800 placeholder-gray-300 outline-none transition-all text-sm font-medium"
+                                required
+                            />
+                        </div>
+
+                        {/* Error */}
+                        {error && (
+                            <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-red-600 text-xs flex items-center gap-2 font-medium animate-fade-in">
+                                <span>⚠️</span> {error}
+                            </div>
+                        )}
+
+                        {/* Submit */}
+                        <button
+                            type="submit"
+                            disabled={isLoading}
+                            className={`w-full py-4 bg-gradient-to-r ${config.gradient} hover:opacity-90 disabled:opacity-60 text-white font-extrabold rounded-2xl shadow-lg transform hover:-translate-y-0.5 transition-all duration-200 active:scale-[0.97] text-sm flex items-center justify-center gap-2`}
+                        >
+                            {isLoading ? (
+                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                            ) : (
+                                <>Access {config.label} Dashboard</>
+                            )}
+                        </button>
+                    </form>
+
+                    {/* Demo hint */}
+                    <div className="mt-5 pt-4 border-t border-gray-100 text-center">
+                        <p className="text-[10px] text-slate-300 font-medium uppercase tracking-wider">
+                            Demo credentials · Password: demo123
+                        </p>
+                    </div>
+                </div>
+
+                {/* Footer */}
+                <div className="mt-6 text-center text-[10px] text-slate-300 font-medium">
+                    <p>© 2026 LogiTrace · {isSingleRole ? `${config.label} Portal` : 'Logistics Management System'}</p>
+                </div>
             </div>
-
-            <div>
-              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-500">
-                Password
-              </label>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
-              />
-            </div>
-
-            <div>
-              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                Quick Accounts
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {config.users.map((account) => (
-                  <button
-                    key={account.email}
-                    type="button"
-                    onClick={() => setEmail(account.email)}
-                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${email === account.email ? config.ring : "border-slate-300 text-slate-600 hover:bg-white"}`}
-                  >
-                    {account.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {error ? (
-              <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                {error}
-              </p>
-            ) : null}
-
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className={`w-full rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-lg transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60 ${config.button}`}
-            >
-              {isSubmitting
-                ? "Signing in..."
-                : `Enter ${config.label} Workspace`}
-            </button>
-
-            <p className="text-center text-xs text-slate-500">
-              Demo password: <span className="font-semibold">demo123</span>
-            </p>
-          </form>
-        </section>
-      </div>
-    </main>
-  );
+        </div>
+    );
 }
