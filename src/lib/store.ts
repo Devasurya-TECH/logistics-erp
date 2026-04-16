@@ -14,19 +14,24 @@ interface AppState {
     fetchInitialData: () => Promise<void>;
     addTrip: (trip: Trip) => Promise<void>;
     updateTripStatus: (tripId: string, status: Trip['status']) => Promise<void>;
-    updateDropStatus: (tripId: string, dropId: string, status: 'delivered' | 'failed') => Promise<void>;
+    updateDropStatus: (
+        tripId: string,
+        dropId: string,
+        status: 'delivered' | 'failed',
+        details?: { proofImage?: string; failureReason?: string; notes?: string }
+    ) => Promise<void>;
 
     // Other actions remain local for now or can be hooked up similarly
     assignDriver: (tripId: string, driverId: string, vehicleId: string) => Promise<void>;
     acceptTrip: (tripId: string) => Promise<void>;
     toggleLiveStatus: (driverId: string, isLive: boolean) => Promise<void>;
     triggerEmergency: (driverId: string, tripId?: string) => Promise<void>;
-    addFuelEntry: (entry: FuelEntry) => void;
-    verifyFuelEntry: (entryId: string, supervisorId: string) => void;
-    rejectFuelEntry: (entryId: string, supervisorId: string) => void;
-    approveFuelEntry: (entryId: string, managerId: string) => void;
-    updateVehicleLocation: (vehicleId: string, location: { lat: number; lng: number }) => void;
-    resolveAlert: (alertId: string) => void;
+    addFuelEntry: (entry: FuelEntry) => Promise<void>;
+    verifyFuelEntry: (entryId: string, supervisorId: string) => Promise<void>;
+    rejectFuelEntry: (entryId: string, supervisorId: string) => Promise<void>;
+    approveFuelEntry: (entryId: string, managerId: string) => Promise<void>;
+    updateVehicleLocation: (vehicleId: string, location: { lat: number; lng: number }) => Promise<void>;
+    resolveAlert: (alertId: string) => Promise<void>;
 }
 
 // Helper to safely send notifications (doesn't break if notification store isn't ready)
@@ -34,6 +39,17 @@ const notify = (type: 'success' | 'error' | 'warning' | 'info', title: string, m
     try {
         useNotifications.getState().addNotification(type, title, message);
     } catch { /* silent if store not ready */ }
+};
+
+const request = async (url: string, init: RequestInit) => {
+    const response = await fetch(url, {
+        headers: { 'Content-Type': 'application/json' },
+        ...init,
+    });
+
+    if (!response.ok) {
+        throw new Error(`Request failed: ${url}`);
+    }
 };
 
 export const useStore = create<AppState>((set, get) => ({
@@ -56,7 +72,7 @@ export const useStore = create<AppState>((set, get) => ({
 
             set({
                 trips,
-                drivers: masterData.drivers,
+                drivers: (masterData.drivers || []).map((driver: Driver) => ({ ...driver, isLive: true })),
                 vehicles: masterData.vehicles,
                 fuelEntries: masterData.fuelEntries || [],
                 alerts: masterData.alerts || [],
@@ -105,13 +121,22 @@ export const useStore = create<AppState>((set, get) => ({
         });
     },
 
-    updateDropStatus: async (tripId, dropId, status) => {
+    updateDropStatus: async (tripId, dropId, status, details) => {
         const currentTrip = get().trips.find(t => t.id === tripId);
         if (!currentTrip) return;
 
         const drop = currentTrip.drops.find(d => d.id === dropId);
         const newDrops = currentTrip.drops.map(d =>
-            d.id === dropId ? { ...d, status, actualArrival: new Date().toISOString() } : d
+            d.id === dropId
+                ? {
+                    ...d,
+                    status,
+                    actualArrival: new Date().toISOString(),
+                    proofImage: details?.proofImage || d.proofImage,
+                    failureReason: details?.failureReason || d.failureReason,
+                    notes: details?.notes || d.notes,
+                }
+                : d
         );
 
         // Check if all drops are done → auto-complete trip
@@ -152,16 +177,32 @@ export const useStore = create<AppState>((set, get) => ({
         set((state) => ({
             trips: state.trips.map(t => t.id === tripId ? { ...t, ...updates } : t),
             vehicles: state.vehicles.map(v => v.id === vehicleId ? { ...v, status: 'active' } : v),
-            drivers: state.drivers.map(d => d.id === driverId ? { ...d, status: 'on-trip', currentVehicleId: vehicleId } : d)
+            drivers: state.drivers.map(d => d.id === driverId ? { ...d, status: 'on-trip', currentVehicleId: vehicleId, isLive: true } : d)
         }));
 
         notify('success', 'Driver Assigned', `${driver?.name || 'Driver'} assigned to Trip #${tripId.toUpperCase()}`);
 
-        await fetch('/api/trips', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: tripId, updates })
-        });
+        try {
+            await Promise.all([
+                request('/api/trips', {
+                    method: 'PATCH',
+                    body: JSON.stringify({ id: tripId, updates }),
+                }),
+                request('/api/drivers', {
+                    method: 'PATCH',
+                    body: JSON.stringify({
+                        id: driverId,
+                        updates: { status: 'on-trip', currentVehicleId: vehicleId, isLive: true },
+                    }),
+                }),
+                request('/api/vehicles', {
+                    method: 'PATCH',
+                    body: JSON.stringify({ id: vehicleId, updates: { status: 'active' } }),
+                }),
+            ]);
+        } catch (error) {
+            console.error('Assignment persistence failed', error);
+        }
     },
 
     acceptTrip: async (tripId) => {
@@ -185,16 +226,27 @@ export const useStore = create<AppState>((set, get) => ({
     },
 
     toggleLiveStatus: async (driverId, isLive) => {
+        const forcedLive = true;
         set((state) => ({
-            drivers: state.drivers.map(d => d.id === driverId ? { ...d, isLive } : d)
+            drivers: state.drivers.map(d => d.id === driverId ? { ...d, isLive: forcedLive } : d)
         }));
 
-        notify(isLive ? 'success' : 'info',
-            isLive ? 'Location Live' : 'Location Hidden',
-            isLive ? 'Supervisors can now track your route.' : 'Live tracking has been disabled.'
+        notify('success',
+            'Location Live',
+            'Live tracking is always enabled for active fleet visibility.'
         );
 
-        // API call would go here to sync live status
+        try {
+            await request('/api/drivers', {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    id: driverId,
+                    updates: { isLive: forcedLive, lastLocationUpdate: new Date().toISOString() },
+                }),
+            });
+        } catch (error) {
+            console.error('Live status persistence failed', error);
+        }
     },
 
     triggerEmergency: async (driverId, tripId) => {
@@ -217,47 +269,115 @@ export const useStore = create<AppState>((set, get) => ({
         notify('error', 'SOS TRIGGERED', 'Emergency services and supervisors have been notified.');
 
         // API call to broadcast emergency
-        await fetch('/api/alerts', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(newAlert)
-        });
+        try {
+            await request('/api/alerts', {
+                method: 'POST',
+                body: JSON.stringify(newAlert),
+            });
+        } catch (error) {
+            console.error('Emergency alert failed to persist', error);
+        }
     },
 
-    addFuelEntry: (entry) => {
+    addFuelEntry: async (entry) => {
         set((state) => ({ fuelEntries: [...state.fuelEntries, entry] }));
         notify('info', 'Fuel Entry Logged', `₹${entry.cost.toLocaleString()} fuel entry submitted for review.`);
+
+        try {
+            await request('/api/fuel', {
+                method: 'POST',
+                body: JSON.stringify(entry),
+            });
+        } catch (error) {
+            console.error('Fuel entry persistence failed', error);
+        }
     },
 
-    verifyFuelEntry: (entryId, supervisorId) => {
+    verifyFuelEntry: async (entryId, supervisorId) => {
         set((state) => ({
             fuelEntries: state.fuelEntries.map(e => e.id === entryId ? { ...e, status: 'verified', verifiedBy: supervisorId } : e)
         }));
         notify('success', 'Fuel Verified', `Fuel entry #${entryId} has been verified.`);
+
+        try {
+            await request('/api/fuel', {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    id: entryId,
+                    updates: { status: 'verified', verifiedBy: supervisorId },
+                }),
+            });
+        } catch (error) {
+            console.error('Fuel verify persistence failed', error);
+        }
     },
 
-    rejectFuelEntry: (entryId, supervisorId) => {
+    rejectFuelEntry: async (entryId, supervisorId) => {
         set((state) => ({
             fuelEntries: state.fuelEntries.map(e => e.id === entryId ? { ...e, status: 'rejected', verifiedBy: supervisorId } : e)
         }));
         notify('warning', 'Fuel Rejected', `Fuel entry #${entryId} has been rejected.`);
+
+        try {
+            await request('/api/fuel', {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    id: entryId,
+                    updates: { status: 'rejected', verifiedBy: supervisorId },
+                }),
+            });
+        } catch (error) {
+            console.error('Fuel reject persistence failed', error);
+        }
     },
 
-    approveFuelEntry: (entryId, managerId) => {
+    approveFuelEntry: async (entryId, managerId) => {
         set((state) => ({
             fuelEntries: state.fuelEntries.map(e => e.id === entryId ? { ...e, status: 'approved', approvedBy: managerId } : e)
         }));
         notify('success', 'Fuel Approved', `Fuel entry #${entryId} has been approved by manager.`);
+
+        try {
+            await request('/api/fuel', {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    id: entryId,
+                    updates: { status: 'approved', approvedBy: managerId },
+                }),
+            });
+        } catch (error) {
+            console.error('Fuel approve persistence failed', error);
+        }
     },
 
-    updateVehicleLocation: (vehicleId, location) => set((state) => ({
-        vehicles: state.vehicles.map(v => v.id === vehicleId ? { ...v, location } : v)
-    })),
+    updateVehicleLocation: async (vehicleId, location) => {
+        set((state) => ({
+            vehicles: state.vehicles.map(v => v.id === vehicleId ? { ...v, location } : v)
+        }));
 
-    resolveAlert: (alertId) => {
+        try {
+            await request('/api/vehicles', {
+                method: 'PATCH',
+                body: JSON.stringify({ id: vehicleId, updates: { location } }),
+            });
+        } catch (error) {
+            console.error('Vehicle location persistence failed', error);
+        }
+    },
+
+    resolveAlert: async (alertId) => {
         set((state) => ({
             alerts: state.alerts.map(a => a.id === alertId ? { ...a, resolved: true } : a)
         }));
         notify('success', 'Alert Resolved', 'The alert has been marked as resolved.');
+
+        try {
+            await request('/api/alerts', {
+                method: 'PATCH',
+                body: JSON.stringify({ id: alertId, updates: { resolved: true } }),
+            });
+        } catch (error) {
+            console.error('Alert resolve persistence failed', error);
+        }
     }
 }));

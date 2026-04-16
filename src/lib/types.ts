@@ -44,6 +44,9 @@ export interface DropPoint {
     estimatedArrival?: string;
     actualArrival?: string;
     distanceFromPrev?: number; // km
+    proofImage?: string;
+    failureReason?: string;
+    notes?: string;
 }
 
 export interface Trip {

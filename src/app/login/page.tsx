@@ -4,9 +4,10 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserRole } from '@/lib/types';
 import { useRouter } from 'next/navigation';
+import { normalizeRole, roleToPath } from '@/lib/roles';
 
 // Which role is this deployment for? If not set, show all roles (local dev)
-const APP_ROLE = process.env.NEXT_PUBLIC_APP_ROLE as UserRole | undefined;
+const APP_ROLE = normalizeRole(process.env.NEXT_PUBLIC_APP_ROLE);
 
 const roleConfig: Record<UserRole, { icon: string; gradient: string; label: string; tagline: string; users: { name: string; email: string; color: string }[] }> = {
     driver: {
@@ -40,6 +41,25 @@ const roleConfig: Record<UserRole, { icon: string; gradient: string; label: stri
     },
 };
 
+const quickLoginStyles: Record<string, { active: string; inactive: string }> = {
+    blue: {
+        active: 'bg-blue-50 text-blue-600 border-blue-200 shadow-sm',
+        inactive: 'bg-gray-50 text-slate-500 border-gray-200 hover:bg-white hover:border-gray-300',
+    },
+    purple: {
+        active: 'bg-violet-50 text-violet-600 border-violet-200 shadow-sm',
+        inactive: 'bg-gray-50 text-slate-500 border-gray-200 hover:bg-white hover:border-gray-300',
+    },
+    emerald: {
+        active: 'bg-emerald-50 text-emerald-600 border-emerald-200 shadow-sm',
+        inactive: 'bg-gray-50 text-slate-500 border-gray-200 hover:bg-white hover:border-gray-300',
+    },
+    amber: {
+        active: 'bg-amber-50 text-amber-600 border-amber-200 shadow-sm',
+        inactive: 'bg-gray-50 text-slate-500 border-gray-200 hover:bg-white hover:border-gray-300',
+    },
+};
+
 export default function LoginPage() {
     const { login } = useAuth();
     const [email, setEmail] = useState('');
@@ -49,16 +69,18 @@ export default function LoginPage() {
     const [isLoading, setIsLoading] = useState(false);
     const router = useRouter();
 
-    const isSingleRole = !!APP_ROLE;
+    const isSingleRole = APP_ROLE !== null;
     const config = roleConfig[role];
 
     useEffect(() => {
+        const initialRole = APP_ROLE || role;
         if (APP_ROLE) {
             setRole(APP_ROLE);
-            // Auto-fill first user for the role
-            const firstUser = roleConfig[APP_ROLE].users[0];
-            if (firstUser) setEmail(firstUser.email);
         }
+
+        // Auto-fill first user for the active role for easier demo access
+        const firstUser = roleConfig[initialRole].users[0];
+        if (firstUser) setEmail(firstUser.email);
     }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -74,7 +96,7 @@ export default function LoginPage() {
         try {
             const success = await login(email, role);
             if (success) {
-                router.push(`/${role}`);
+                router.push(roleToPath(role));
             } else {
                 setError('User not found. Check credentials.');
             }
@@ -155,8 +177,8 @@ export default function LoginPage() {
                                             type="button"
                                             onClick={() => handleQuickLogin(u.email)}
                                             className={`text-xs px-3.5 py-2 rounded-xl font-bold transition-all active:scale-95 border ${email === u.email
-                                                    ? `bg-${u.color}-50 text-${u.color}-600 border-${u.color}-200 shadow-sm`
-                                                    : 'bg-gray-50 text-slate-500 border-gray-200 hover:bg-white hover:border-gray-300'
+                                                ? (quickLoginStyles[u.color]?.active ?? quickLoginStyles.blue.active)
+                                                : (quickLoginStyles[u.color]?.inactive ?? quickLoginStyles.blue.inactive)
                                                 }`}
                                         >
                                             {u.name}

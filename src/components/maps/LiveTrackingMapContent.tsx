@@ -135,6 +135,10 @@ export default function LiveTrackingMapContent({ positions, selectedId, onSelect
         } else {
             document.body.style.overflow = '';
         }
+
+        return () => {
+            document.body.style.overflow = '';
+        };
     }, [isFullscreen]);
 
     const center: [number, number] = positions.length > 0

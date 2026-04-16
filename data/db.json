@@ -37,7 +37,9 @@
       "role": "driver",
       "isLive": true,
       "licenseNumber": "KL-DL-2019-9012",
-      "status": "available"
+      "status": "on-trip",
+      "currentVehicleId": "v1",
+      "lastLocationUpdate": "2026-04-16T20:02:51.530Z"
     },
     {
       "id": "u6",
@@ -53,9 +55,10 @@
       "name": "Sreekanth Pillai",
       "email": "driver5@logistics.com",
       "role": "driver",
-      "isLive": false,
+      "isLive": true,
       "licenseNumber": "KL-DL-2020-7890",
-      "status": "available"
+      "status": "available",
+      "lastLocationUpdate": "2026-04-16T19:47:06.412Z"
     },
     {
       "id": "u8",
@@ -63,7 +66,8 @@
       "email": "driver6@logistics.com",
       "role": "driver",
       "licenseNumber": "KL-DL-2021-2345",
-      "status": "available"
+      "status": "on-trip",
+      "currentVehicleId": "v4"
     },
     {
       "id": "u9",
@@ -79,7 +83,8 @@
       "email": "driver8@logistics.com",
       "role": "driver",
       "licenseNumber": "KL-DL-2023-0123",
-      "status": "available"
+      "status": "on-trip",
+      "currentVehicleId": "v5"
     }
   ],
   "vehicles": [
@@ -91,8 +96,8 @@
       "fuelLevel": 75,
       "mileage": 120500,
       "location": {
-        "lat": 9.9312,
-        "lng": 76.2673
+        "lat": 9.940214378118423,
+        "lng": 76.24097925956399
       },
       "lastServiceDate": "2025-12-01",
       "fuelType": "diesel"
@@ -282,10 +287,10 @@
     },
     {
       "id": "t8",
-      "vehicleId": "v1",
+      "vehicleId": "v5",
       "driverId": "u10",
       "supervisorId": "u2",
-      "status": "planned",
+      "status": "assigned",
       "startLocation": {
         "lat": 9.9312,
         "lng": 76.2673,
@@ -362,6 +367,57 @@
       "vehicleId": "v2",
       "driverId": "u4",
       "startTime": "2026-02-21T14:36:22.940Z"
+    },
+    {
+      "id": "t-69521939",
+      "status": "assigned",
+      "supervisorId": "u2",
+      "startLocation": {
+        "address": "Maradu, Thrippunithura, Kerala",
+        "lat": 9.9397588,
+        "lng": 76.3286304
+      },
+      "drops": [
+        {
+          "id": "d-1776369521939-0",
+          "customerName": "devasurya",
+          "address": "Pattazhy Vadakkekkara, Kerala",
+          "lat": 9.0969438,
+          "lng": 76.8065967,
+          "priority": "high",
+          "status": "pending",
+          "distanceFromPrev": 107.4
+        }
+      ],
+      "estimatedDistance": 107.4,
+      "driverId": "u8",
+      "vehicleId": "v4"
+    },
+    {
+      "id": "t-69725395",
+      "status": "in-progress",
+      "supervisorId": "u2",
+      "startLocation": {
+        "address": "Kochi Dispatch Hub",
+        "lat": 9.9312,
+        "lng": 76.2673
+      },
+      "drops": [
+        {
+          "id": "d-1776369725395-0",
+          "customerName": "linshad",
+          "address": "Maradu, Thrippunithura, Kerala",
+          "lat": 9.9397588,
+          "lng": 76.3286304,
+          "priority": "low",
+          "status": "pending",
+          "distanceFromPrev": 6.8
+        }
+      ],
+      "estimatedDistance": 6.8,
+      "driverId": "u5",
+      "vehicleId": "v1",
+      "startTime": "2026-04-16T20:02:37.171Z"
     }
   ],
   "fuelEntries": [

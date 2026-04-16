@@ -1,146 +1,203 @@
 "use client";
 
+import Link from "next/link";
+import { useMemo } from "react";
 import { useStore } from "@/lib/store";
 import VehicleMap from "@/components/maps/VehicleMap";
-import TripList from "@/components/trips/TripList";
-// import FuelChart from "@/components/charts/FuelChart"; // Removed as per request
-import FuelOptimizedMap from "@/components/maps/FuelOptimizedMap"; // Added new component
-import {
-    BuildingStorefrontIcon,
-    MapPinIcon,
-    CurrencyDollarIcon,
-    ExclamationCircleIcon
-} from '@heroicons/react/24/outline';
 
-const StatCard = ({ title, value, icon, trend }: { title: string; value: string; icon: any; trend: string }) => (
-    <div className="bg-white p-4 md:p-6 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300">
-        <div className="flex items-start justify-between">
-            <div>
-                <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">{title}</p>
-                <div className="flex items-baseline gap-2 mt-2">
-                    <h3 className="text-2xl font-bold text-slate-800 tracking-tight">
-                        {value}
-                    </h3>
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${trend.startsWith('+') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                        {trend}
-                    </span>
-                </div>
-            </div>
-            <div className="p-2 md:p-3 bg-blue-50 text-blue-600 rounded-lg">
-                <icon.type className="w-5 h-5 md:w-6 md:h-6" />
-            </div>
-        </div>
-    </div>
-);
+function statusClass(status: string) {
+    if (status === "completed") return "bg-emerald-100 text-emerald-700";
+    if (status === "in-progress") return "bg-blue-100 text-blue-700";
+    if (status === "assigned" || status === "planned") return "bg-amber-100 text-amber-700";
+    return "bg-rose-100 text-rose-700";
+}
 
-export default function ManagerDashboard() {
-    const { trips, vehicles, fuelEntries, alerts } = useStore();
+function severityClass(severity: string) {
+    if (severity === "critical") return "bg-rose-100 text-rose-700";
+    if (severity === "high") return "bg-orange-100 text-orange-700";
+    if (severity === "medium") return "bg-amber-100 text-amber-700";
+    return "bg-blue-100 text-blue-700";
+}
 
-    const activeTrips = trips.filter(t => t.status === 'in-progress');
-    const totalCost = fuelEntries.reduce((acc, curr) => acc + curr.cost, 0);
-    const criticalAlerts = alerts.filter(a => a.severity === 'critical' || a.severity === 'high').length;
+export default function ManagerDashboardPage() {
+    const { trips, vehicles, fuelEntries, alerts, resolveAlert } = useStore();
+
+    const summary = useMemo(() => {
+        const activeTrips = trips.filter((trip) => trip.status === "in-progress").length;
+        const completedTrips = trips.filter((trip) => trip.status === "completed").length;
+        const openAlerts = alerts.filter((alert) => !alert.resolved).length;
+        const pendingApprovals = fuelEntries.filter(
+            (entry) => entry.status === "pending" || entry.status === "verified",
+        ).length;
+        const monthlyFuel = fuelEntries.reduce((sum, entry) => sum + entry.cost, 0);
+
+        return {
+            fleetCount: vehicles.length,
+            activeTrips,
+            completedTrips,
+            openAlerts,
+            pendingApprovals,
+            monthlyFuel,
+        };
+    }, [trips, vehicles, fuelEntries, alerts]);
+
+    const unresolvedAlerts = alerts
+        .filter((alert) => !alert.resolved)
+        .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
+        .slice(0, 8);
+
+    const latestTrips = [...trips].sort((a, b) => b.id.localeCompare(a.id)).slice(0, 8);
+    const reviewFuel = [...fuelEntries]
+        .filter((entry) => entry.status === "pending" || entry.status === "verified")
+        .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
+        .slice(0, 8);
+    const trackedVehicles = vehicles.filter((vehicle) =>
+        trips.some(
+            (trip) =>
+                trip.vehicleId === vehicle.id &&
+                (trip.status === "assigned" || trip.status === "in-progress"),
+        ),
+    );
 
     return (
-        <div className="space-y-8 pb-12">
-            {/* KPI Stats */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
-                <StatCard
-                    title="Active Fleet"
-                    value={`${activeTrips.length}/${vehicles.length}`}
-                    icon={<BuildingStorefrontIcon />}
-                    trend="+12%"
-                />
-                <StatCard
-                    title="Fuel Costs (YTD)"
-                    value={`$${totalCost.toLocaleString()}`}
-                    icon={<CurrencyDollarIcon />}
-                    trend="+5%"
-                />
-                <StatCard
-                    title="Distance (Km)"
-                    value="12,504"
-                    icon={<MapPinIcon />}
-                    trend="+18%"
-                />
-                <StatCard
-                    title="Critical Alerts"
-                    value={criticalAlerts.toString()}
-                    icon={<ExclamationCircleIcon />}
-                    trend="-2"
-                />
-            </div>
+        <div className="space-y-5">
+            <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+                <article className="bg-white border border-gray-200 rounded-xl p-4">
+                    <p className="text-xs text-slate-500">Fleet</p>
+                    <p className="text-2xl font-bold text-slate-900 mt-1">{summary.fleetCount}</p>
+                </article>
+                <article className="bg-white border border-gray-200 rounded-xl p-4">
+                    <p className="text-xs text-slate-500">Active Trips</p>
+                    <p className="text-2xl font-bold text-blue-700 mt-1">{summary.activeTrips}</p>
+                </article>
+                <article className="bg-white border border-gray-200 rounded-xl p-4">
+                    <p className="text-xs text-slate-500">Completed Trips</p>
+                    <p className="text-2xl font-bold text-emerald-700 mt-1">{summary.completedTrips}</p>
+                </article>
+                <article className="bg-white border border-gray-200 rounded-xl p-4">
+                    <p className="text-xs text-slate-500">Open Alerts</p>
+                    <p className="text-2xl font-bold text-rose-700 mt-1">{summary.openAlerts}</p>
+                </article>
+                <article className="bg-white border border-gray-200 rounded-xl p-4">
+                    <p className="text-xs text-slate-500">Fuel Approvals</p>
+                    <p className="text-2xl font-bold text-amber-700 mt-1">{summary.pendingApprovals}</p>
+                </article>
+                <article className="bg-white border border-gray-200 rounded-xl p-4">
+                    <p className="text-xs text-slate-500">Fuel Cost (Total)</p>
+                    <p className="text-2xl font-bold text-slate-900 mt-1">
+                        ₹{summary.monthlyFuel.toLocaleString()}
+                    </p>
+                </article>
+            </section>
 
-            {/* Main Content Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Left Column (2/3) */}
-                <div className="lg:col-span-2 space-y-8">
-                    <section>
-                        <div className="flex justify-between items-end mb-4">
-                            <h3 className="text-lg font-bold text-slate-800">Live Fleet Tracking</h3>
-                            <span className="text-xs text-slate-500 font-medium bg-white px-2 py-1 rounded border border-gray-200 shadow-sm">Updated just now</span>
-                        </div>
-                        <VehicleMap vehicles={vehicles} />
-                    </section>
-
-                    <section>
-                        <TripList trips={trips} />
-                    </section>
-                </div>
-
-                {/* Right Column (1/3) */}
-                <div className="space-y-8">
-                    <section>
-                        {/* Replaced FuelChart with Route Optimizer */}
-                        <FuelOptimizedMap />
-                    </section>
-
-                    {/* Recent Activity / Alerts */}
-                    <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col h-[400px]">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-lg font-bold text-slate-800">Alerts & Notifications</h3>
-                            <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold">{alerts.length} New</span>
-                        </div>
-
-                        <div className="flex-1 overflow-y-auto pr-2 space-y-3">
-                            {alerts.length === 0 ? (
-                                <div className="flex items-center justify-center h-full text-slate-400 text-sm">All clear. Minimum risk detected.</div>
-                            ) : (
-                                alerts.map((alert) => (
-                                    <div
-                                        key={alert.id}
-                                        className={`p-4 rounded-lg border transition-all hover:shadow-md ${alert.severity === 'critical'
-                                            ? 'bg-red-50 border-red-100 hover:bg-white'
-                                            : 'bg-white border-gray-100 hover:bg-gray-50'
-                                            }`}
-                                    >
-                                        <div className="flex items-start gap-3">
-                                            <ExclamationCircleIcon className={`w-5 h-5 mt-0.5 flex-shrink-0 ${alert.severity === 'critical' ? 'text-red-500' : 'text-blue-500'
-                                                }`} />
-                                            <div>
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">{alert.type}</h4>
-                                                    <span className="text-[10px] text-slate-400">{new Date(alert.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                                </div>
-                                                <p className="text-sm text-slate-600 leading-relaxed font-medium">
-                                                    {alert.message}
-                                                </p>
-                                                <div className="mt-3 flex gap-2">
-                                                    <button className="text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-md bg-white border border-gray-200 text-slate-600 hover:text-blue-600 hover:border-blue-200 transition-colors shadow-sm">
-                                                        Details
-                                                    </button>
-                                                    <button className="text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-md text-slate-400 hover:text-slate-600 transition-colors">
-                                                        Dismiss
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))
-                            )}
-                        </div>
+            <section className="grid gap-5 xl:grid-cols-3">
+                <article className="bg-white border border-gray-200 rounded-xl p-4 xl:col-span-1">
+                    <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-sm font-semibold text-slate-900">Open Alerts</h3>
+                        <button
+                            type="button"
+                            className="text-xs font-semibold text-blue-700 hover:underline"
+                            onClick={() => {
+                                unresolvedAlerts.forEach((alert) => {
+                                    void resolveAlert(alert.id);
+                                });
+                            }}
+                        >
+                            Resolve All
+                        </button>
                     </div>
+                    <div className="space-y-2 max-h-[360px] overflow-y-auto custom-scrollbar">
+                        {unresolvedAlerts.length === 0 && (
+                            <p className="text-sm text-slate-500">No open alerts.</p>
+                        )}
+                        {unresolvedAlerts.map((alert) => (
+                            <div key={alert.id} className="border border-gray-200 rounded-lg p-3">
+                                <div className="flex items-center justify-between gap-2">
+                                    <span
+                                        className={`text-[11px] font-semibold px-2 py-1 rounded-full ${severityClass(alert.severity)}`}
+                                    >
+                                        {alert.severity}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        className="text-xs font-semibold text-emerald-700 hover:underline"
+                                        onClick={() => {
+                                            void resolveAlert(alert.id);
+                                        }}
+                                    >
+                                        Resolve
+                                    </button>
+                                </div>
+                                <p className="text-sm text-slate-800 mt-2">{alert.message}</p>
+                                <p className="text-xs text-slate-500 mt-1">
+                                    {new Date(alert.timestamp).toLocaleString()}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                </article>
+
+                <article className="bg-white border border-gray-200 rounded-xl p-4 xl:col-span-1">
+                    <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-sm font-semibold text-slate-900">Latest Trips</h3>
+                        <Link href="/manager/trips" className="text-xs font-semibold text-blue-700 hover:underline">
+                            View all
+                        </Link>
+                    </div>
+                    <div className="space-y-2 max-h-[360px] overflow-y-auto custom-scrollbar">
+                        {latestTrips.map((trip) => (
+                            <div key={trip.id} className="border border-gray-200 rounded-lg p-3">
+                                <div className="flex items-center justify-between">
+                                    <p className="text-sm font-semibold text-slate-900">Trip #{trip.id.toUpperCase()}</p>
+                                    <span className={`text-[11px] px-2 py-1 rounded-full font-semibold ${statusClass(trip.status)}`}>
+                                        {trip.status}
+                                    </span>
+                                </div>
+                                <p className="text-xs text-slate-500 mt-1">{trip.startLocation.address}</p>
+                                <p className="text-xs text-slate-500 mt-1">
+                                    {trip.drops.filter((drop) => drop.status === "delivered").length}/{trip.drops.length} delivered
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                </article>
+
+                <article className="bg-white border border-gray-200 rounded-xl p-4 xl:col-span-1">
+                    <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-sm font-semibold text-slate-900">Fuel Review Queue</h3>
+                        <Link href="/manager/fuel" className="text-xs font-semibold text-blue-700 hover:underline">
+                            Open fuel
+                        </Link>
+                    </div>
+                    <div className="space-y-2 max-h-[360px] overflow-y-auto custom-scrollbar">
+                        {reviewFuel.length === 0 && (
+                            <p className="text-sm text-slate-500">No fuel entries awaiting action.</p>
+                        )}
+                        {reviewFuel.map((entry) => (
+                            <div key={entry.id} className="border border-gray-200 rounded-lg p-3">
+                                <div className="flex items-center justify-between">
+                                    <p className="text-sm font-semibold text-slate-900">#{entry.id.toUpperCase()}</p>
+                                    <span className="text-[11px] px-2 py-1 rounded-full bg-amber-100 text-amber-700 font-semibold">
+                                        {entry.status}
+                                    </span>
+                                </div>
+                                <p className="text-sm text-slate-800 mt-1">₹{entry.cost.toLocaleString()} • {entry.amount}L</p>
+                                <p className="text-xs text-slate-500 mt-1">{entry.location}</p>
+                            </div>
+                        ))}
+                    </div>
+                </article>
+            </section>
+
+            <section className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-sm font-semibold text-slate-900">Live Fleet Tracking</h3>
+                    <Link href="/supervisor/tracking" className="text-xs font-semibold text-blue-700 hover:underline">
+                        Supervisor tracking panel
+                    </Link>
                 </div>
-            </div>
+                <VehicleMap vehicles={trackedVehicles.length > 0 ? trackedVehicles : vehicles} />
+            </section>
         </div>
     );
 }

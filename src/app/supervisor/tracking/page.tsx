@@ -1,376 +1,243 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
-import { useMemo, useState, useEffect, useCallback } from "react";
-import dynamic from "next/dynamic";
-import {
-    MapPinIcon,
-    TruckIcon,
-    UserIcon,
-    SignalIcon,
-    SignalSlashIcon,
-    ArrowPathIcon,
-    ChevronRightIcon,
-    ClockIcon,
-} from "@heroicons/react/24/outline";
-import { formatDistanceToNow } from "date-fns";
+import VehicleMap from "@/components/maps/VehicleMap";
 
-// Dynamic import for Leaflet map
-const LiveTrackingMapContent = dynamic(() => import('@/components/maps/LiveTrackingMapContent'), {
-    ssr: false,
-    loading: () => (
-        <div className="h-full w-full bg-slate-900 animate-pulse flex items-center justify-center rounded-2xl">
-            <div className="text-center">
-                <div className="w-10 h-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-                <p className="text-slate-400 text-xs font-medium">Loading map engine...</p>
-            </div>
-        </div>
-    ),
-});
+type ViewMode = "all" | "moving" | "idle" | "offline";
 
-// Simulated live positions
-function useSimulatedPositions(vehicles: any[], trips: any[], drivers: any[]) {
-    const [positions, setPositions] = useState<Map<string, {
-        lat: number;
-        lng: number;
-        speed: number;
-        heading: number;
-        lastUpdate: Date;
-        driverName: string;
-        driverId: string | null;
-        vehiclePlate: string;
-        tripId: string | null;
-        status: 'moving' | 'idle' | 'offline';
-        isLive?: boolean;
-    }>>(new Map());
-
-    useEffect(() => {
-        const initial = new Map<string, any>();
-        vehicles.forEach(v => {
-            const trip = trips.find((t: any) => t.vehicleId === v.id && (t.status === 'in-progress' || t.status === 'assigned'));
-            const driver = trip ? drivers.find((d: any) => d.id === trip.driverId) : null;
-
-            // Only show as 'moving' or 'idle' if driver is live or unassigned
-            // If assigned driver is NOT live, mark as offline
-            const isLive = driver ? driver.isLive : true;
-
-            initial.set(v.id, {
-                lat: v.location.lat,
-                lng: v.location.lng,
-                speed: (trip?.status === 'in-progress' && isLive) ? Math.floor(Math.random() * 60) + 20 : 0,
-                heading: Math.floor(Math.random() * 360),
-                lastUpdate: new Date(),
-                driverName: driver?.name || 'Unassigned',
-                driverId: driver?.id || null,
-                vehiclePlate: v.plateNumber,
-                tripId: trip?.id || null,
-                status: (trip?.status === 'in-progress' && isLive) ? 'moving' : (v.status === 'active' && isLive) ? 'idle' : 'offline',
-                isLive: isLive
-            });
-        });
-        setPositions(initial);
-
-        const interval = setInterval(() => {
-            setPositions(prev => {
-                const updated = new Map(prev);
-                updated.forEach((pos, id) => {
-                    if (pos.status === 'moving') {
-                        const deltaLat = (Math.random() - 0.5) * 0.002;
-                        const deltaLng = (Math.random() - 0.5) * 0.002;
-                        updated.set(id, {
-                            ...pos,
-                            lat: pos.lat + deltaLat,
-                            lng: pos.lng + deltaLng,
-                            speed: Math.max(0, pos.speed + (Math.random() - 0.5) * 15),
-                            heading: (pos.heading + (Math.random() - 0.5) * 30) % 360,
-                            lastUpdate: new Date(),
-                        });
-                    }
-                });
-                return updated;
-            });
-        }, 3000);
-
-        return () => clearInterval(interval);
-    }, [vehicles.length]);
-
-    return positions;
+function vehicleClass(status: string) {
+    if (status === "active") return "bg-emerald-100 text-emerald-700";
+    if (status === "maintenance") return "bg-amber-100 text-amber-700";
+    return "bg-rose-100 text-rose-700";
 }
 
-export default function TrackingPage() {
-    const { trips, drivers, vehicles } = useStore();
-    const [selectedVehicle, setSelectedVehicle] = useState<string | null>(null);
-    const [viewMode, setViewMode] = useState<'all' | 'active' | 'idle'>('all');
-    const [lastRefresh, setLastRefresh] = useState(new Date());
+export default function SupervisorTrackingPage() {
+    const { vehicles, trips, drivers, alerts, updateVehicleLocation } = useStore();
+    const [viewMode, setViewMode] = useState<ViewMode>("all");
+    const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
+    const [autoSimulate, setAutoSimulate] = useState(true);
 
-    const positions = useSimulatedPositions(vehicles, trips, drivers);
+    const enriched = useMemo(() => {
+        return vehicles.map((vehicle) => {
+            const activeTrip = trips.find(
+                (trip) =>
+                    trip.vehicleId === vehicle.id &&
+                    (trip.status === "in-progress" || trip.status === "assigned"),
+            );
+            const driver = activeTrip
+                ? drivers.find((candidate) => candidate.id === activeTrip.driverId)
+                : null;
 
-    const handleRefresh = useCallback(() => {
-        setLastRefresh(new Date());
-    }, []);
+            let runtimeState: "moving" | "idle" | "offline" = "idle";
+            if (!driver?.isLive) runtimeState = "offline";
+            else if (activeTrip?.status === "in-progress") runtimeState = "moving";
 
-    const filteredVehicles = useMemo(() => {
-        return vehicles.filter(v => {
-            const pos = positions.get(v.id);
-            if (!pos) return false;
-            if (viewMode === 'active') return pos.status === 'moving';
-            if (viewMode === 'idle') return pos.status === 'idle' || pos.status === 'offline';
-            return true;
+            const emergency = alerts.some(
+                (alert) =>
+                    !alert.resolved &&
+                    alert.severity === "critical" &&
+                    (alert.vehicleId === vehicle.id || alert.tripId === activeTrip?.id),
+            );
+
+            return {
+                vehicle,
+                activeTrip,
+                driver,
+                runtimeState,
+                emergency,
+            };
         });
-    }, [vehicles, positions, viewMode]);
+    }, [vehicles, trips, drivers, alerts]);
 
-    const activeCount = Array.from(positions.values()).filter(p => p.status === 'moving').length;
-    const idleCount = Array.from(positions.values()).filter(p => p.status === 'idle').length;
+    const filtered = enriched.filter((item) => {
+        if (viewMode === "all") return true;
+        return item.runtimeState === viewMode;
+    });
 
-    const selectedPos = selectedVehicle ? positions.get(selectedVehicle) : null;
-    const selectedVehicleData = vehicles.find(v => v.id === selectedVehicle);
-    const selectedTrip = selectedPos?.tripId ? trips.find(t => t.id === selectedPos.tripId) : null;
+    const movingVehicles = useMemo(
+        () => enriched.filter((item) => item.runtimeState === "moving").map((item) => item.vehicle),
+        [enriched],
+    );
 
-    // Prepare map positions
-    const mapPositions = useMemo(() => {
-        const { alerts } = useStore.getState();
-        return Array.from(positions.entries()).map(([id, pos]) => ({
-            id,
-            lat: pos.lat,
-            lng: pos.lng,
-            speed: pos.speed,
-            status: pos.status,
-            driverName: pos.driverName,
-            vehiclePlate: pos.vehiclePlate,
-            tripId: pos.tripId,
-            isEmergency: alerts.some(a => a.vehicleId === id && a.severity === 'critical'),
-            isLive: pos.isLive
-        }));
-    }, [positions]);
+    const selected = enriched.find((item) => item.vehicle.id === selectedVehicleId) || null;
+
+    const movingCount = enriched.filter((item) => item.runtimeState === "moving").length;
+    const idleCount = enriched.filter((item) => item.runtimeState === "idle").length;
+    const offlineCount = enriched.filter((item) => item.runtimeState === "offline").length;
+
+    useEffect(() => {
+        if (!autoSimulate || movingVehicles.length === 0) return;
+
+        const interval = setInterval(() => {
+            movingVehicles.forEach((vehicle) => {
+                const lat = vehicle.location.lat + (Math.random() - 0.5) * 0.01;
+                const lng = vehicle.location.lng + (Math.random() - 0.5) * 0.01;
+                void updateVehicleLocation(vehicle.id, { lat, lng });
+            });
+        }, 5000);
+
+        return () => clearInterval(interval);
+    }, [autoSimulate, movingVehicles, updateVehicleLocation]);
 
     return (
-        <div className="space-y-6 pb-24 md:pb-4">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">Live Fleet Tracking</h1>
-                    <p className="text-slate-400 text-sm mt-1">Real-time vehicle positions & driver status</p>
-                </div>
-                <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 border border-emerald-100 rounded-full">
-                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Live</span>
-                    </div>
+        <div className="space-y-5">
+            <section className="grid gap-3 sm:grid-cols-4">
+                <article className="bg-white border border-gray-200 rounded-xl p-4">
+                    <p className="text-xs text-slate-500">Total Vehicles</p>
+                    <p className="text-2xl font-bold text-slate-900 mt-1">{vehicles.length}</p>
+                </article>
+                <article className="bg-white border border-gray-200 rounded-xl p-4">
+                    <p className="text-xs text-slate-500">Moving</p>
+                    <p className="text-2xl font-bold text-emerald-700 mt-1">{movingCount}</p>
+                </article>
+                <article className="bg-white border border-gray-200 rounded-xl p-4">
+                    <p className="text-xs text-slate-500">Idle</p>
+                    <p className="text-2xl font-bold text-amber-700 mt-1">{idleCount}</p>
+                </article>
+                <article className="bg-white border border-gray-200 rounded-xl p-4">
+                    <p className="text-xs text-slate-500">Offline</p>
+                    <p className="text-2xl font-bold text-slate-600 mt-1">{offlineCount}</p>
+                </article>
+            </section>
+
+            <section className="flex flex-wrap items-center gap-2">
+                {(["all", "moving", "idle", "offline"] as ViewMode[]).map((mode) => (
                     <button
-                        onClick={handleRefresh}
-                        className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 text-slate-500 hover:bg-white hover:border-gray-200 transition-all active:scale-95"
+                        key={mode}
+                        type="button"
+                        onClick={() => setViewMode(mode)}
+                        className={`px-3 py-2 rounded-lg text-sm font-semibold ${
+                            viewMode === mode
+                                ? "bg-blue-600 text-white"
+                                : "bg-white border border-gray-200 text-slate-700"
+                        }`}
                     >
-                        <ArrowPathIcon className="w-4 h-4" />
+                        {mode}
                     </button>
-                </div>
-            </div>
+                ))}
 
-            {/* Stats Row - Scrollable on mobile */}
-            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0 snap-x snap-mandatory">
                 <button
-                    onClick={() => setViewMode('active')}
-                    className={`flex-1 min-w-[100px] p-4 rounded-2xl border text-center transition-all card-hover snap-start ${viewMode === 'active' ? 'border-emerald-200 bg-emerald-50/80 shadow-md' : 'border-gray-100 bg-white'}`}
+                    type="button"
+                    onClick={() => setAutoSimulate((prev) => !prev)}
+                    className={`ml-auto px-3 py-2 rounded-lg text-sm font-semibold ${
+                        autoSimulate
+                            ? "bg-emerald-600 text-white"
+                            : "bg-white border border-gray-200 text-slate-700"
+                    }`}
                 >
-                    <div className="flex items-center justify-center gap-2 mb-1">
-                        <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600">Moving</span>
-                    </div>
-                    <p className="text-2xl font-black text-emerald-600">{activeCount}</p>
+                    {autoSimulate ? "Live Simulation ON" : "Live Simulation OFF"}
                 </button>
-                <button
-                    onClick={() => setViewMode('idle')}
-                    className={`flex-1 min-w-[100px] p-4 rounded-2xl border text-center transition-all card-hover snap-start ${viewMode === 'idle' ? 'border-amber-200 bg-amber-50/80 shadow-md' : 'border-gray-100 bg-white'}`}
-                >
-                    <div className="flex items-center justify-center gap-2 mb-1">
-                        <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600">Idle</span>
-                    </div>
-                    <p className="text-2xl font-black text-amber-600">{idleCount}</p>
-                </button>
-                <button
-                    onClick={() => setViewMode('all')}
-                    className={`flex-1 min-w-[100px] p-4 rounded-2xl border text-center transition-all card-hover snap-start ${viewMode === 'all' ? 'border-blue-200 bg-blue-50/80 shadow-md' : 'border-gray-100 bg-white'}`}
-                >
-                    <div className="flex items-center justify-center gap-2 mb-1">
-                        <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600">All</span>
-                    </div>
-                    <p className="text-2xl font-black text-blue-600">{vehicles.length}</p>
-                </button>
-            </div>
+            </section>
 
-            {/* Main Content */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-
-                {/* Vehicle List */}
-                <div className="lg:col-span-1 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                    <div className="p-4 border-b border-gray-50 flex items-center justify-between">
-                        <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                            <span className="bg-blue-100 p-1 rounded-lg text-blue-600 text-xs">🚛</span>
-                            Fleet Vehicles
-                        </h3>
-                        <span className="text-[10px] font-bold text-slate-400 bg-gray-50 px-2 py-0.5 rounded-full border border-gray-200">
-                            {filteredVehicles.length} shown
-                        </span>
+            <section className="grid gap-5 xl:grid-cols-3">
+                <article className="bg-white border border-gray-200 rounded-xl p-3 xl:col-span-2">
+                    <div className="h-[520px] rounded-xl overflow-hidden border border-gray-200">
+                        <VehicleMap vehicles={filtered.length > 0 ? filtered.map((item) => item.vehicle) : vehicles} />
                     </div>
-                    <div className="overflow-y-auto max-h-[500px] custom-scrollbar divide-y divide-gray-50">
-                        {filteredVehicles.map(vehicle => {
-                            const pos = positions.get(vehicle.id);
-                            if (!pos) return null;
-                            const isSelected = selectedVehicle === vehicle.id;
+                </article>
 
-                            return (
-                                <button
-                                    key={vehicle.id}
-                                    onClick={() => setSelectedVehicle(isSelected ? null : vehicle.id)}
-                                    className={`w-full p-4 text-left transition-all flex items-center gap-3 ${isSelected ? 'bg-blue-50/80 border-l-4 border-l-blue-500' : 'hover:bg-gray-50/50 border-l-4 border-l-transparent'}`}
-                                >
-                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${pos.status === 'moving'
-                                        ? 'bg-gradient-to-tr from-emerald-500 to-emerald-600 text-white shadow-md shadow-emerald-200'
-                                        : pos.status === 'idle'
-                                            ? 'bg-amber-100 text-amber-600 border border-amber-200'
-                                            : 'bg-gray-100 text-gray-400 border border-gray-200'
-                                        }`}>
-                                        <TruckIcon className="w-5 h-5" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center justify-between">
-                                            <p className="text-sm font-bold text-slate-800 truncate">{vehicle.plateNumber}</p>
-                                            <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full ${pos.status === 'moving'
-                                                ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
-                                                : pos.status === 'idle'
-                                                    ? 'bg-amber-50 text-amber-600 border border-amber-200'
-                                                    : 'bg-gray-50 text-gray-400 border border-gray-200'
-                                                }`}>
-                                                {pos.status}
-                                            </span>
-                                        </div>
-                                        <p className="text-[11px] text-slate-400 truncate mt-0.5">
-                                            <UserIcon className="w-3 h-3 inline mr-1" />
-                                            {pos.driverName}
-                                        </p>
-                                        {pos.status === 'moving' && (
-                                            <p className="text-[10px] text-emerald-500 font-bold mt-1">
-                                                🏎️ {Math.round(pos.speed)} km/h
-                                            </p>
-                                        )}
-                                    </div>
-                                    <ChevronRightIcon className={`w-4 h-4 text-slate-300 transition-transform ${isSelected ? 'rotate-90' : ''}`} />
-                                </button>
-                            );
-                        })}
-                        {filteredVehicles.length === 0 && (
-                            <div className="p-8 text-center">
-                                <span className="text-3xl mb-2 block">🔍</span>
-                                <p className="text-slate-400 text-xs font-medium">No vehicles match current filter</p>
+                <article className="bg-white border border-gray-200 rounded-xl p-4">
+                    <h3 className="text-sm font-semibold text-slate-900 mb-3">Selected Vehicle</h3>
+                    {!selected && <p className="text-sm text-slate-500">Select a vehicle from the list to inspect details.</p>}
+                    {selected && (
+                        <div className="space-y-2">
+                            <div className="border border-gray-200 rounded-lg p-3">
+                                <div className="flex items-center justify-between gap-2">
+                                    <p className="text-sm font-semibold text-slate-900">{selected.vehicle.plateNumber}</p>
+                                    <span className={`text-[11px] px-2 py-1 rounded-full font-semibold ${vehicleClass(selected.vehicle.status)}`}>
+                                        {selected.vehicle.status}
+                                    </span>
+                                </div>
+                                <p className="text-xs text-slate-500 mt-1">{selected.vehicle.model}</p>
+                                <p className="text-xs text-slate-500 mt-2">Driver: {selected.driver?.name || "Unassigned"}</p>
+                                <p className="text-xs text-slate-500">
+                                    Trip: {selected.activeTrip ? `#${selected.activeTrip.id.toUpperCase()}` : "N/A"}
+                                </p>
+                                <p className="text-xs text-slate-500">
+                                    Location: {selected.vehicle.location.lat.toFixed(5)}, {selected.vehicle.location.lng.toFixed(5)}
+                                </p>
                             </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* Map + Details */}
-                <div className="lg:col-span-2 space-y-4">
-                    {/* Real Leaflet Map */}
-                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                        <div className="p-4 border-b border-gray-50 flex items-center justify-between">
-                            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                                <span className="bg-emerald-100 p-1 rounded-lg text-emerald-600 text-xs">📍</span>
-                                Live Positions
-                                <span className="ml-1 flex h-2 w-2 relative">
-                                    <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-emerald-400 opacity-75" />
-                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-                                </span>
-                            </h3>
-                            <span className="text-[10px] font-bold text-slate-400">
-                                Last update: {formatDistanceToNow(lastRefresh, { addSuffix: true })}
-                            </span>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const lat = selected.vehicle.location.lat + (Math.random() - 0.5) * 0.02;
+                                    const lng = selected.vehicle.location.lng + (Math.random() - 0.5) * 0.02;
+                                    void updateVehicleLocation(selected.vehicle.id, { lat, lng });
+                                }}
+                                className="w-full px-3 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700"
+                            >
+                                Nudge Position
+                            </button>
                         </div>
-                        <div className="h-[400px] md:h-[500px]">
-                            <LiveTrackingMapContent
-                                positions={mapPositions}
-                                selectedId={selectedVehicle}
-                                onSelect={setSelectedVehicle}
-                            />
-                        </div>
-                    </div>
+                    )}
+                </article>
+            </section>
 
-                    {/* Selected Vehicle Detail */}
-                    {selectedVehicle && selectedPos && selectedVehicleData && (
-                        <div className="bg-white rounded-2xl border border-blue-100 shadow-sm overflow-hidden animate-fade-in-up">
-                            <div className="p-4 md:p-5 border-b border-blue-50 bg-blue-50/30">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-sm ${selectedPos.status === 'moving'
-                                            ? 'bg-gradient-to-tr from-emerald-500 to-emerald-600 text-white shadow-lg shadow-emerald-200'
-                                            : 'bg-amber-100 text-amber-600 border border-amber-200'
-                                            }`}>
-                                            <TruckIcon className="w-6 h-6" />
-                                        </div>
-                                        <div>
-                                            <h3 className="text-lg font-bold text-slate-800">{selectedVehicleData.plateNumber}</h3>
-                                            <p className="text-xs text-slate-400">{selectedVehicleData.model} · {selectedPos.driverName}</p>
-                                        </div>
-                                    </div>
-                                    <span className={`text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full border ${selectedPos.status === 'moving'
-                                        ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
-                                        : selectedPos.status === 'idle'
-                                            ? 'bg-amber-50 text-amber-600 border-amber-200'
-                                            : 'bg-gray-50 text-gray-400 border-gray-200'
-                                        }`}>
-                                        {selectedPos.status === 'moving' ? '● Moving' : selectedPos.status === 'idle' ? '● Idle' : '● Offline'}
+            <section className="bg-white border border-gray-200 rounded-xl p-4">
+                <h3 className="text-sm font-semibold text-slate-900 mb-3">Fleet Tracking List</h3>
+                <div className="space-y-2 max-h-[380px] overflow-y-auto custom-scrollbar">
+                    {filtered.map((item) => (
+                        <div
+                            key={item.vehicle.id}
+                            className={`border rounded-lg p-3 ${
+                                selectedVehicleId === item.vehicle.id ? "border-blue-300 bg-blue-50" : "border-gray-200"
+                            }`}
+                        >
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                <div>
+                                    <p className="text-sm font-semibold text-slate-900">{item.vehicle.plateNumber}</p>
+                                    <p className="text-xs text-slate-500 mt-0.5">{item.driver?.name || "Unassigned"}</p>
+                                </div>
+                                <div className="flex gap-2">
+                                    <span className={`text-[11px] px-2 py-1 rounded-full font-semibold ${vehicleClass(item.vehicle.status)}`}>
+                                        {item.vehicle.status}
+                                    </span>
+                                    <span
+                                        className={`text-[11px] px-2 py-1 rounded-full font-semibold ${
+                                            item.runtimeState === "moving"
+                                                ? "bg-emerald-100 text-emerald-700"
+                                                : item.runtimeState === "idle"
+                                                    ? "bg-amber-100 text-amber-700"
+                                                    : "bg-slate-100 text-slate-700"
+                                        }`}
+                                    >
+                                        {item.runtimeState}
                                     </span>
                                 </div>
                             </div>
-                            <div className="p-4 md:p-5">
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                    <div className="bg-gray-50 rounded-xl p-3 text-center">
-                                        <p className="text-lg font-black text-slate-800">{Math.round(selectedPos.speed)}</p>
-                                        <p className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">km/h</p>
-                                    </div>
-                                    <div className="bg-gray-50 rounded-xl p-3 text-center">
-                                        <p className="text-lg font-black text-slate-800">{Math.round(selectedPos.heading)}°</p>
-                                        <p className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Heading</p>
-                                    </div>
-                                    <div className="bg-gray-50 rounded-xl p-3 text-center">
-                                        <p className="text-lg font-black text-blue-600">{selectedPos.lat.toFixed(4)}</p>
-                                        <p className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Latitude</p>
-                                    </div>
-                                    <div className="bg-gray-50 rounded-xl p-3 text-center">
-                                        <p className="text-lg font-black text-blue-600">{selectedPos.lng.toFixed(4)}</p>
-                                        <p className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Longitude</p>
-                                    </div>
-                                </div>
-
-                                {selectedTrip && (
-                                    <div className="mt-4 p-4 bg-blue-50 rounded-xl border border-blue-100">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <span className="text-xs font-bold text-blue-600">Active Trip #{selectedTrip.id.toUpperCase()}</span>
-                                            <span className="text-[10px] font-bold text-blue-500 bg-blue-100 px-2 py-0.5 rounded-full">
-                                                {selectedTrip.drops.filter((d: any) => d.status === 'delivered').length}/{selectedTrip.drops.length} delivered
-                                            </span>
-                                        </div>
-                                        <div className="w-full h-2 bg-blue-100 rounded-full overflow-hidden">
-                                            <div
-                                                className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all duration-500"
-                                                style={{ width: `${(selectedTrip.drops.filter((d: any) => d.status === 'delivered').length / selectedTrip.drops.length) * 100}%` }}
-                                            />
-                                        </div>
-                                        <div className="mt-2 flex items-center gap-2 text-[11px] text-blue-500">
-                                            <MapPinIcon className="w-3.5 h-3.5" />
-                                            <span className="truncate">{selectedTrip.startLocation.address}</span>
-                                        </div>
-                                    </div>
-                                )}
-
-                                <div className="mt-3 flex items-center gap-2 text-[10px] text-slate-400">
-                                    <ClockIcon className="w-3.5 h-3.5" />
-                                    <span>Last signal: {formatDistanceToNow(selectedPos.lastUpdate, { addSuffix: true })}</span>
-                                </div>
+                            <div className="mt-2 text-xs text-slate-500 grid sm:grid-cols-2 gap-2">
+                                <p>Trip: {item.activeTrip ? `#${item.activeTrip.id.toUpperCase()}` : "N/A"}</p>
+                                <p>Fuel: {item.vehicle.fuelLevel}%</p>
+                                <p>
+                                    Lat: {item.vehicle.location.lat.toFixed(4)} | Lng: {item.vehicle.location.lng.toFixed(4)}
+                                </p>
+                                <p>Live: {item.driver?.isLive ? "Yes" : "No"}</p>
+                            </div>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedVehicleId(item.vehicle.id)}
+                                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-gray-200 text-slate-700 hover:bg-slate-100"
+                                >
+                                    Focus
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const lat = item.vehicle.location.lat + (Math.random() - 0.5) * 0.01;
+                                        const lng = item.vehicle.location.lng + (Math.random() - 0.5) * 0.01;
+                                        void updateVehicleLocation(item.vehicle.id, { lat, lng });
+                                    }}
+                                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700"
+                                >
+                                    Simulate Movement
+                                </button>
                             </div>
                         </div>
-                    )}
+                    ))}
                 </div>
-            </div>
+            </section>
         </div>
     );
 }

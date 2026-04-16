@@ -3,6 +3,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { roleToPath } from '@/lib/roles';
 
 export default function Home() {
   const { user, isLoading } = useAuth();
@@ -11,7 +12,7 @@ export default function Home() {
   useEffect(() => {
     if (!isLoading) {
       if (user) {
-        router.push(`/${user.role}`);
+        router.push(roleToPath(user.role));
       } else {
         router.push('/login');
       }

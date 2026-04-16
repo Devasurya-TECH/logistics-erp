@@ -1,185 +1,147 @@
 "use client";
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { useState } from 'react';
+import { UserRole } from '@/lib/types';
 
-const roles = {
+type NavItem = {
+    name: string;
+    href: string;
+    icon: string;
+};
+
+const navigationByRole: Record<UserRole, NavItem[]> = {
     manager: [
-        { name: 'Overview', href: '/manager', icon: '📊', desc: 'KPIs & Fleet' },
-        { name: 'Trips', href: '/manager/trips', icon: '🚚', desc: 'All trips' },
-        { name: 'Vehicles', href: '/manager/vehicles', icon: '🚛', desc: 'Fleet status' },
+        { name: 'Dashboard', href: '/manager', icon: '📊' },
+        { name: 'Trips', href: '/manager/trips', icon: '🚚' },
+        { name: 'Vehicles', href: '/manager/vehicles', icon: '🚛' },
+        { name: 'Fuel', href: '/manager/fuel', icon: '⛽' },
     ],
     supervisor: [
-        { name: 'Dashboard', href: '/supervisor', icon: '📊', desc: 'Command Center' },
-        { name: 'Drivers', href: '/supervisor/drivers', icon: '👤', desc: 'Manage drivers' },
-        { name: 'Deliveries', href: '/supervisor/deliveries', icon: '📦', desc: 'All deliveries' },
-        { name: 'Trips', href: '/supervisor/trips', icon: '🚚', desc: 'Trip management' },
-        { name: 'Tracking', href: '/supervisor/tracking', icon: '📡', desc: 'Live fleet GPS' },
-        { name: 'Fuel', href: '/supervisor/fuel', icon: '⛽', desc: 'Fuel verification' },
-        { name: 'Reports', href: '/supervisor/reports', icon: '📈', desc: 'Analytics & exports' },
-        { name: 'Activity', href: '/supervisor/activity', icon: '📋', desc: 'Audit trail' },
-        { name: 'Settings', href: '/supervisor/settings', icon: '⚙️', desc: 'Preferences' },
+        { name: 'Dashboard', href: '/supervisor', icon: '📊' },
+        { name: 'Drivers', href: '/supervisor/drivers', icon: '👤' },
+        { name: 'Deliveries', href: '/supervisor/deliveries', icon: '📦' },
+        { name: 'Trips', href: '/supervisor/trips', icon: '🚚' },
+        { name: 'Tracking', href: '/supervisor/tracking', icon: '📡' },
+        { name: 'Fuel', href: '/supervisor/fuel', icon: '⛽' },
+        { name: 'Reports', href: '/supervisor/reports', icon: '📈' },
+        { name: 'Activity', href: '/supervisor/activity', icon: '📋' },
+        { name: 'Settings', href: '/supervisor/settings', icon: '⚙️' },
     ],
     driver: [
-        { name: 'Home', href: '/driver?tab=overview', icon: '🏠', desc: 'Current trip' },
-        { name: 'History', href: '/driver?tab=history', icon: '📋', desc: 'Past trips' },
-        { name: 'Fuel', href: '/driver?tab=fuel', icon: '⛽', desc: 'Log expenses' },
-        { name: 'Analytics', href: '/driver?tab=performance', icon: '📈', desc: 'Rank & stats' },
-        { name: 'Navigate', href: '/driver/routes', icon: '⚡', desc: 'Route Optimizer' },
-    ]
+        { name: 'Overview', href: '/driver?tab=overview', icon: '🏠' },
+        { name: 'Fuel', href: '/driver?tab=fuel', icon: '⛽' },
+        { name: 'Routes', href: '/driver/routes', icon: '🧭' },
+        { name: 'Settings', href: '/driver/settings', icon: '⚙️' },
+    ],
 };
 
 export default function Sidebar() {
     const { user, logout } = useAuth();
     const pathname = usePathname();
-    const [isOpen, setIsOpen] = useState(false);
+    const searchParams = useSearchParams();
 
     if (!user) return null;
 
-    const navigation = roles[user.role as keyof typeof roles] || [];
+    const navigation = navigationByRole[user.role] || [];
+
+    const isRouteActive = (href: string) => {
+        if (pathname === href) return true;
+        if (href.includes('?')) {
+            const [targetPath, queryString] = href.split('?');
+            if (pathname !== targetPath) return false;
+
+            const expectedParams = new URLSearchParams(queryString);
+            for (const [key, value] of expectedParams.entries()) {
+                if (searchParams.get(key) !== value) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+        return false;
+    };
 
     return (
         <>
-            {/* Mobile Bottom Navigation Bar */}
-            <nav className="fixed bottom-0 left-0 right-0 z-[60] md:hidden bg-white/95 backdrop-blur-xl border-t border-gray-100 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] px-safe pb-safe">
-                <div className="flex items-center justify-around px-2 py-1 mb-0.5">
-                    {navigation.slice(0, 4).map((item) => {
-                        const isActive = pathname === item.href ||
-                            (item.href.includes('?') && pathname === item.href.split('?')[0]);
+            <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-white border-t border-gray-200">
+                <div className="flex overflow-x-auto custom-scrollbar">
+                    {navigation.map((item) => {
+                        const isActive = isRouteActive(item.href);
                         return (
                             <Link
                                 key={item.name}
                                 href={item.href}
-                                className={`flex flex-col items-center justify-center gap-0.5 py-2 px-3 rounded-xl transition-all min-h-[56px] ${isActive
-                                    ? 'text-blue-600'
-                                    : 'text-slate-400 active:text-slate-600'
+                                className={`min-w-[84px] flex flex-col items-center justify-center gap-1 px-2 py-2 text-xs font-semibold ${isActive
+                                    ? 'text-blue-600 bg-blue-50'
+                                    : 'text-slate-500'
                                     }`}
                             >
-                                <span className={`text-xl transition-transform ${isActive ? 'scale-110' : ''}`}>{item.icon}</span>
-                                <span className={`text-[10px] font-semibold tracking-tight ${isActive ? 'text-blue-600' : 'text-slate-400'}`}>
-                                    {item.name.split(' ').pop()}
-                                </span>
-                                {isActive && (
-                                    <span className="w-1 h-1 rounded-full bg-blue-500 mt-0.5"></span>
-                                )}
+                                <span className="text-base">{item.icon}</span>
+                                <span>{item.name}</span>
                             </Link>
                         );
                     })}
                     <button
-                        onClick={() => setIsOpen(!isOpen)}
-                        className="flex flex-col items-center justify-center gap-0.5 py-2 px-3 rounded-xl text-slate-400 active:text-slate-600 min-h-[56px]"
+                        onClick={logout}
+                        className="min-w-[84px] flex flex-col items-center justify-center gap-1 px-2 py-2 text-xs font-semibold text-rose-600"
                     >
-                        <span className="text-xl">⚙️</span>
-                        <span className="text-[10px] font-semibold tracking-tight">More</span>
+                        <span className="text-base">🚪</span>
+                        <span>Logout</span>
                     </button>
                 </div>
             </nav>
 
-            {/* Mobile "More" Panel */}
-            {isOpen && (
-                <>
-                    <div
-                        className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[65] md:hidden animate-fade-in"
-                        onClick={() => setIsOpen(false)}
-                    />
-                    <div className="fixed bottom-0 left-0 right-0 z-[66] md:hidden bg-white rounded-t-3xl shadow-2xl animate-slide-up safe-bottom">
-                        <div className="flex justify-center pt-3 pb-2">
-                            <div className="w-10 h-1.5 bg-gray-200 rounded-full"></div>
-                        </div>
-                        <div className="p-6 pt-2">
-                            <div className="flex items-center gap-4 mb-6 pb-4 border-b border-gray-100">
-                                <div className="h-12 w-12 rounded-2xl bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-blue-200">
-                                    {user.name.charAt(0)}
-                                </div>
-                                <div>
-                                    <p className="font-bold text-slate-800 text-base">{user.name}</p>
-                                    <p className="text-xs text-slate-400 capitalize font-medium">{user.role} · LogiTrace</p>
-                                </div>
-                            </div>
-
-                            {/* Supplementary Mobile Navigation (those not in bottom bar) */}
-                            <div className="grid grid-cols-3 gap-3 mb-6">
-                                {navigation.slice(4).map((item) => (
-                                    <Link
-                                        key={item.name}
-                                        href={item.href}
-                                        onClick={() => setIsOpen(false)}
-                                        className="flex flex-col items-center justify-center p-3 bg-gray-50 rounded-2xl border border-gray-100 active:bg-blue-50 active:border-blue-100 transition-all"
-                                    >
-                                        <span className="text-xl mb-1">{item.icon}</span>
-                                        <span className="text-[10px] font-bold text-slate-600 text-center leading-tight">{item.name}</span>
-                                    </Link>
-                                ))}
-                            </div>
-                            <button
-                                onClick={() => { logout(); setIsOpen(false); }}
-                                className="w-full flex items-center justify-center gap-3 px-4 py-4 text-sm font-bold text-red-500 hover:bg-red-50 rounded-2xl transition-colors border border-red-100 active:scale-95"
-                            >
-                                🚪 Sign Out
-                            </button>
-                        </div>
-                    </div>
-                </>
-            )}
-
-            {/* Desktop Sidebar */}
-            <div className="hidden md:flex flex-col w-[260px] h-screen bg-white border-r border-gray-100 text-slate-800 shadow-sm flex-shrink-0">
-                <div className="p-6 border-b border-gray-100">
+            <aside className="hidden md:flex flex-col w-64 h-screen bg-white border-r border-gray-200 flex-shrink-0">
+                <div className="p-5 border-b border-gray-200">
                     <div className="flex items-center gap-3">
-                        <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-md shadow-blue-200">
+                        <div className="h-9 w-9 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold">
                             LT
                         </div>
                         <div>
-                            <h1 className="text-lg font-extrabold gradient-text tracking-tight">LogiTrace</h1>
-                            <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">{user.role}</p>
+                            <h1 className="text-base font-bold text-slate-900">LogiTrace ERP</h1>
+                            <p className="text-xs text-slate-500 capitalize">{user.role} panel</p>
                         </div>
                     </div>
                 </div>
-
                 <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
                     {navigation.map((item) => {
-                        const isActive = pathname === item.href;
+                        const isActive = isRouteActive(item.href);
                         return (
                             <Link
                                 key={item.name}
                                 href={item.href}
-                                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all group ${isActive
-                                    ? 'bg-blue-50 text-blue-700 border border-blue-100 shadow-sm shadow-blue-50'
-                                    : 'text-slate-500 hover:bg-gray-50 hover:text-slate-800'
+                                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${isActive
+                                    ? 'bg-blue-50 text-blue-700 border border-blue-100'
+                                    : 'text-slate-600 hover:bg-slate-100'
                                     }`}
                             >
-                                <span className={`text-lg transition-transform group-hover:scale-110 ${isActive ? 'scale-110' : ''}`}>
-                                    {item.icon}
-                                </span>
-                                <div>
-                                    <span className="block">{item.name}</span>
-                                    <span className={`text-[10px] ${isActive ? 'text-blue-400' : 'text-slate-300'}`}>{item.desc}</span>
-                                </div>
+                                <span className="text-base">{item.icon}</span>
+                                <span>{item.name}</span>
                             </Link>
                         );
                     })}
                 </nav>
-
-                <div className="p-4 border-t border-gray-100">
-                    <div className="flex items-center gap-3 mb-4 px-2">
-                        <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-blue-100 to-indigo-100 flex items-center justify-center text-blue-600 font-bold text-sm border border-white shadow-sm ring-2 ring-gray-50">
+                <div className="p-4 border-t border-gray-200">
+                    <div className="flex items-center gap-2 mb-3">
+                        <div className="h-8 w-8 rounded-lg bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-sm">
                             {user.name.charAt(0)}
                         </div>
-                        <div className="min-w-0 flex-1">
-                            <p className="text-sm font-semibold text-slate-800 truncate">{user.name}</p>
-                            <p className="text-[10px] text-slate-400 capitalize truncate">{user.role}</p>
+                        <div>
+                            <p className="text-sm font-semibold text-slate-800">{user.name}</p>
+                            <p className="text-xs text-slate-500 capitalize">{user.role}</p>
                         </div>
                     </div>
                     <button
                         onClick={logout}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-red-500 hover:bg-red-50 rounded-xl transition-colors border border-transparent hover:border-red-100"
+                        className="w-full px-3 py-2.5 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 text-sm font-semibold"
                     >
-                        🚪 Sign Out
+                        Sign Out
                     </button>
                 </div>
-            </div>
+            </aside>
         </>
     );
 }

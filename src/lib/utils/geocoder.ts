@@ -1,6 +1,6 @@
 // Comprehensive geocoding utility combining Photon + Nominatim APIs.
 // Finds local businesses, shops, companies, temples, hospitals — everything, like Google Maps.
-// No API keys required. Results biased towards Kerala, India.
+// No API keys required. Results biased towards India.
 
 export interface GeocodingResult {
     displayName: string;
@@ -15,9 +15,9 @@ export interface GeocodingResult {
 // Debounce timer
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-// Kerala center for location bias
-const KERALA_LAT = 10.0;
-const KERALA_LNG = 76.3;
+// India center for location bias
+const INDIA_LAT = 22.5937;
+const INDIA_LNG = 78.9629;
 
 // =============================================
 // TYPE → EMOJI MAPPING (like Google Maps icons)
@@ -120,16 +120,20 @@ function getHumanType(type: string, category: string): string {
 // =============================================
 async function searchPhoton(query: string): Promise<GeocodingResult[]> {
     try {
-        // Append 'Kerala' for better local results if not already included
-        const keralaWords = ['kerala', 'kochi', 'ernakulam', 'trivandrum', 'thiruvananthapuram', 'kozhikode', 'calicut', 'thrissur', 'kannur', 'kollam', 'palakkad', 'malappuram', 'kottayam', 'alappuzha', 'idukki', 'wayanad', 'pathanamthitta', 'kasaragod'];
+        // Append "India" for better local results if not already included
+        const indiaWords = [
+            'india', 'bharat', 'mumbai', 'delhi', 'bengaluru', 'bangalore', 'chennai',
+            'kolkata', 'hyderabad', 'pune', 'ahmedabad', 'jaipur', 'lucknow',
+            'kochi', 'trivandrum', 'kozhikode', 'thrissur'
+        ];
         const queryLower = query.toLowerCase();
-        const hasKeralaContext = keralaWords.some(w => queryLower.includes(w));
-        const enhancedQuery = hasKeralaContext ? query : `${query} Kerala`;
+        const hasIndiaContext = indiaWords.some(w => queryLower.includes(w));
+        const enhancedQuery = hasIndiaContext ? query : `${query} India`;
 
         const params = new URLSearchParams({
             q: enhancedQuery,
-            lat: KERALA_LAT.toString(),
-            lon: KERALA_LNG.toString(),
+            lat: INDIA_LAT.toString(),
+            lon: INDIA_LNG.toString(),
             limit: '8',
             lang: 'en',
         });
@@ -137,8 +141,8 @@ async function searchPhoton(query: string): Promise<GeocodingResult[]> {
         // Also search without Kerala suffix for broader results
         const params2 = new URLSearchParams({
             q: query,
-            lat: KERALA_LAT.toString(),
-            lon: KERALA_LNG.toString(),
+            lat: INDIA_LAT.toString(),
+            lon: INDIA_LNG.toString(),
             limit: '4',
             lang: 'en',
         });
@@ -147,7 +151,7 @@ async function searchPhoton(query: string): Promise<GeocodingResult[]> {
             fetch(`https://photon.komoot.io/api/?${params.toString()}`, {
                 headers: { 'Accept': 'application/json' }
             }),
-            hasKeralaContext ? Promise.resolve(null) : fetch(`https://photon.komoot.io/api/?${params2.toString()}`, {
+            hasIndiaContext ? Promise.resolve(null) : fetch(`https://photon.komoot.io/api/?${params2.toString()}`, {
                 headers: { 'Accept': 'application/json' }
             })
         ]);
@@ -215,18 +219,21 @@ async function searchPhoton(query: string): Promise<GeocodingResult[]> {
 // =============================================
 async function searchNominatim(query: string): Promise<GeocodingResult[]> {
     try {
-        // Append Kerala/India to query for better local results
-        const keralaWords = ['kerala', 'kochi', 'ernakulam', 'trivandrum', 'india'];
+        // Append India to query for better local results
+        const indiaWords = [
+            'india', 'bharat', 'mumbai', 'delhi', 'bengaluru', 'bangalore', 'chennai',
+            'kolkata', 'hyderabad', 'pune', 'ahmedabad', 'jaipur', 'lucknow'
+        ];
         const queryLower = query.toLowerCase();
-        const hasContext = keralaWords.some(w => queryLower.includes(w));
-        const enhancedQuery = hasContext ? query : `${query}, Kerala, India`;
+        const hasContext = indiaWords.some(w => queryLower.includes(w));
+        const enhancedQuery = hasContext ? query : `${query}, India`;
 
         const params = new URLSearchParams({
             q: enhancedQuery,
             format: 'json',
             addressdetails: '1',
             limit: '6',
-            viewbox: '74.5,13.0,77.8,8.0', // Kerala + surrounding
+            viewbox: '68.0,37.5,97.5,6.0', // India bounding box
             bounded: '0',
         });
 
@@ -298,10 +305,10 @@ export const searchPlaces = async (query: string): Promise<GeocodingResult[]> =>
         }
     }
 
-    // Sort: prefer results closer to Kerala
+    // Sort: prefer results closer to India center
     merged.sort((a, b) => {
-        const distA = Math.abs(a.lat - KERALA_LAT) + Math.abs(a.lng - KERALA_LNG);
-        const distB = Math.abs(b.lat - KERALA_LAT) + Math.abs(b.lng - KERALA_LNG);
+        const distA = Math.abs(a.lat - INDIA_LAT) + Math.abs(a.lng - INDIA_LNG);
+        const distB = Math.abs(b.lat - INDIA_LAT) + Math.abs(b.lng - INDIA_LNG);
         return distA - distB;
     });
 

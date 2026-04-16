@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<body>
+    <h2>Codex Output:</h2>
+
+    <script src="https://js.puter.com/v2/"></script>
+
+    <script>
+        async function runAI() {
+            try {
+                const response = await puter.ai.chat(
+                    "Write a Python function that implements binary search on a sorted array",
+                    { model: "openai/gpt-5.1-codex-max" }
+                );
+
+                console.log("FULL RESPONSE:", response);
+
+                const output = response?.text || response?.message?.content || "No output";
+
+                puter.print(output, { code: true });
+
+            } catch (err) {
+                console.error(err);
+                document.body.innerHTML += "<p>Error: " + err.message + "</p>";
+            }
+        }
+
+        runAI();
+    </script>
+</body>
+</html>

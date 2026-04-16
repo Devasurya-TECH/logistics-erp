@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, UserRole } from '@/lib/types';
 import { users } from '@/lib/mock-data';
 import { useRouter } from 'next/navigation';
+import { normalizeRole, roleToPath } from '@/lib/roles';
 
 interface AuthContextType {
     user: User | null;
@@ -23,7 +24,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Check localStorage for persisted session
         const storedUser = localStorage.getItem('logistics_user');
         if (storedUser) {
-            setUser(JSON.parse(storedUser));
+            try {
+                const parsed = JSON.parse(storedUser) as Partial<User> | null;
+                const normalizedRole = normalizeRole(parsed?.role);
+                if (
+                    parsed &&
+                    typeof parsed.id === 'string' &&
+                    typeof parsed.name === 'string' &&
+                    typeof parsed.email === 'string' &&
+                    normalizedRole
+                ) {
+                    const normalizedUser: User = {
+                        id: parsed.id,
+                        name: parsed.name,
+                        email: parsed.email,
+                        role: normalizedRole,
+                        avatar: parsed.avatar,
+                    };
+                    setUser(normalizedUser);
+                    localStorage.setItem('logistics_user', JSON.stringify(normalizedUser));
+                } else {
+                    localStorage.removeItem('logistics_user');
+                }
+            } catch {
+                localStorage.removeItem('logistics_user');
+            }
         }
         setIsLoading(false);
     }, []);
@@ -32,14 +57,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Mock login delay
         await new Promise(resolve => setTimeout(resolve, 500));
 
-        const foundUser = users.find(u => u.email === email && u.role === role);
+        const normalizedRole = normalizeRole(role);
+        if (!normalizedRole) return false;
+
+        const foundUser = users.find(u => u.email === email && u.role === normalizedRole);
 
         if (foundUser) {
-            setUser(foundUser);
-            localStorage.setItem('logistics_user', JSON.stringify(foundUser));
+            const normalizedUser: User = { ...foundUser, role: normalizedRole };
+            setUser(normalizedUser);
+            localStorage.setItem('logistics_user', JSON.stringify(normalizedUser));
 
             // Redirect based on role
-            router.push(`/${role}`);
+            router.push(roleToPath(normalizedRole));
             return true;
         }
 
