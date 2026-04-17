@@ -73,6 +73,9 @@ export default function DriverRoutesPage() {
         }
         : null;
 
+    const nextStop = selectedRouteDrops.find((drop) => drop.status === "pending") || null;
+    const progressPct = activeTrip ? Math.round((completedCount / activeTrip.drops.length) * 100) : 0;
+
     return (
         <div className="space-y-4">
             {isFallbackView && (
@@ -82,6 +85,7 @@ export default function DriverRoutesPage() {
                     </p>
                 </article>
             )}
+
             <section className="flex flex-wrap gap-2">
                 {activeTrips.map((trip) => (
                     <button
@@ -107,15 +111,16 @@ export default function DriverRoutesPage() {
 
             {activeTrip && (
                 <div className="space-y-4">
-                    <article className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
+                    <article className="bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-xl p-4 space-y-3">
                         <div className="flex flex-wrap items-start justify-between gap-2">
                             <div>
-                                <h3 className="text-lg font-bold text-slate-900">Trip #{activeTrip.id.toUpperCase()} Route</h3>
-                                <p className="text-sm text-slate-500 mt-1">{activeTrip.startLocation.address}</p>
+                                <p className="text-[11px] uppercase tracking-wide text-slate-300 font-semibold">Driver Mission</p>
+                                <h3 className="text-lg font-bold text-white">Trip #{activeTrip.id.toUpperCase()} Route</h3>
+                                <p className="text-sm text-slate-300 mt-1">{activeTrip.startLocation.address}</p>
                             </div>
                             <div className="flex flex-wrap gap-2">
-                                <span className="text-xs font-semibold px-2 py-1 rounded-full bg-blue-100 text-blue-700">
-                                    {completedCount}/{activeTrip.drops.length} stops done
+                                <span className="text-xs font-semibold px-2 py-1 rounded-full bg-white/15 text-white">
+                                    {completedCount}/{activeTrip.drops.length} stops done • {progressPct}%
                                 </span>
                                 {activeTrip.status === "assigned" && (
                                     <button
@@ -123,14 +128,26 @@ export default function DriverRoutesPage() {
                                         onClick={() => {
                                             void acceptTrip(activeTrip.id);
                                         }}
-                                        className="px-3 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700"
+                                        className="px-3 py-2 rounded-lg text-sm font-semibold bg-emerald-500 text-white hover:bg-emerald-600"
                                     >
                                         Start Trip
                                     </button>
                                 )}
                             </div>
                         </div>
+                        <div className="w-full bg-white/15 rounded-full h-2 overflow-hidden">
+                            <div className="h-2 bg-emerald-400 rounded-full" style={{ width: `${progressPct}%` }} />
+                        </div>
+                        {nextStop && (
+                            <div className="rounded-lg bg-white/10 border border-white/20 p-3">
+                                <p className="text-[11px] uppercase tracking-wide font-semibold text-slate-300">Next Stop</p>
+                                <p className="text-sm font-semibold text-white mt-1">{nextStop.customerName}</p>
+                                <p className="text-xs text-slate-300 mt-1">{nextStop.address}</p>
+                            </div>
+                        )}
+                    </article>
 
+                    <article className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
                         <div className="grid gap-2 sm:grid-cols-2">
                             <button
                                 type="button"
@@ -166,24 +183,6 @@ export default function DriverRoutesPage() {
                         </div>
 
                         {selectedRouteTrip && <RouteMap trip={selectedRouteTrip} />}
-
-                        <button
-                            type="button"
-                            onClick={() => {
-                                if (!selectedRouteDrops.length) return;
-                                const destination = selectedRouteDrops[selectedRouteDrops.length - 1];
-                                const waypoints = selectedRouteDrops
-                                    .slice(0, -1)
-                                    .map((drop) => `${drop.lat},${drop.lng}`)
-                                    .join("|");
-                                const waypointSegment = waypoints ? `&waypoints=${waypoints}` : "";
-                                const url = `https://www.google.com/maps/dir/?api=1&destination=${destination.lat},${destination.lng}${waypointSegment}&travelmode=driving&dir_action=navigate`;
-                                window.open(url, "_blank");
-                            }}
-                            className="w-full px-4 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700"
-                        >
-                            Start Navigation In Google Maps
-                        </button>
                     </article>
 
                     <article className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
