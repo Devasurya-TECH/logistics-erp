@@ -9,7 +9,7 @@ import type { DropPoint, Trip } from "@/lib/types";
 
 export default function DriverRoutesPage() {
     const { user } = useAuth();
-    const { trips, acceptTrip, updateDropStatus } = useStore();
+    const { trips, acceptTrip, updateDropStatus, registerDriverActivity } = useStore();
 
     const myActiveTrips = useMemo(
         () =>
@@ -127,6 +127,7 @@ export default function DriverRoutesPage() {
                                         type="button"
                                         onClick={() => {
                                             void acceptTrip(activeTrip.id);
+                                            if (user?.id) void registerDriverActivity(user.id);
                                         }}
                                         className="px-3 py-2 rounded-lg text-sm font-semibold bg-emerald-500 text-white hover:bg-emerald-600"
                                     >
@@ -266,6 +267,7 @@ export default function DriverRoutesPage() {
                                                             void updateDropStatus(activeTrip.id, drop.id, "delivered", {
                                                                 proofImage,
                                                             });
+                                                            if (user?.id) void registerDriverActivity(user.id);
                                                         }}
                                                         className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
                                                     >
@@ -279,6 +281,7 @@ export default function DriverRoutesPage() {
                                                                 failureReason:
                                                                     failedReason.trim() || "Customer unavailable",
                                                             });
+                                                            if (user?.id) void registerDriverActivity(user.id);
                                                         }}
                                                         className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 text-white hover:bg-rose-700"
                                                     >

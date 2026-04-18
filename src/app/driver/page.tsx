@@ -8,8 +8,23 @@ import { useStore } from "@/lib/store";
 import type { FuelEntry } from "@/lib/types";
 
 type DriverTab = "overview" | "fuel";
+type VehicleIssueType =
+    | "engine-check"
+    | "flat-tyre"
+    | "brake-issue"
+    | "battery-issue"
+    | "accident"
+    | "other";
 
 const tabs: DriverTab[] = ["overview", "fuel"];
+const issueOptions: { value: VehicleIssueType; label: string }[] = [
+    { value: "engine-check", label: "Engine / Warning Light" },
+    { value: "flat-tyre", label: "Flat Tyre" },
+    { value: "brake-issue", label: "Brake Issue" },
+    { value: "battery-issue", label: "Battery / Electrical" },
+    { value: "accident", label: "Accident / Safety Risk" },
+    { value: "other", label: "Other Issue" },
+];
 
 function tabLabel(tab: DriverTab) {
     if (tab === "overview") return "Overview";
@@ -21,6 +36,13 @@ function statusClass(status: string) {
     if (status === "pending") return "bg-amber-100 text-amber-700";
     if (status === "failed") return "bg-rose-100 text-rose-700";
     return "bg-slate-100 text-slate-700";
+}
+
+function formatMinutes(totalMinutes: number) {
+    const hours = Math.floor(totalMinutes / 60);
+    const mins = totalMinutes % 60;
+    if (hours <= 0) return `${mins}m`;
+    return `${hours}h ${mins}m`;
 }
 
 export default function DriverDashboardPage() {
@@ -35,6 +57,11 @@ export default function DriverDashboardPage() {
         triggerEmergency,
         addFuelEntry,
         toggleLiveStatus,
+        startDriverDay,
+        endDriverDay,
+        startDriverBreak,
+        endDriverBreak,
+        registerDriverActivity,
     } = useStore();
 
     const selectedTabParam = searchParams.get("tab");
@@ -52,7 +79,6 @@ export default function DriverDashboardPage() {
         .sort((a, b) => (b.endTime || "").localeCompare(a.endTime || ""));
 
     const [selectedTripId, setSelectedTripId] = useState<string | null>(activeTrips[0]?.id || null);
-
     const activeTrip = activeTrips.find((trip) => trip.id === selectedTripId) || activeTrips[0] || null;
 
     const [fuelAmount, setFuelAmount] = useState("20");
@@ -61,18 +87,56 @@ export default function DriverDashboardPage() {
     const [fuelOdometer, setFuelOdometer] = useState("12000");
     const [fuelReceiptImage, setFuelReceiptImage] = useState("");
 
+    const [showSosModal, setShowSosModal] = useState(false);
+    const [sosIssueType, setSosIssueType] = useState<VehicleIssueType>("engine-check");
+    const [sosDescription, setSosDescription] = useState("");
+    const [sosEta, setSosEta] = useState("20");
+    const [sosSevere, setSosSevere] = useState(false);
+    const [sosInformSupervisor, setSosInformSupervisor] = useState(true);
+
+    const [nowTick, setNowTick] = useState(Date.now());
+
     const recentFuel = fuelEntries
         .filter((entry) => entry.driverId === user?.id)
         .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
         .slice(0, 6);
 
     const canSubmitFuel = Boolean(activeTrip && user);
+    const dayStarted = me?.dutyStatus !== "off-duty";
+    const onBreak = Boolean(me?.onBreak);
+
+    const currentBreakMinutes =
+        me?.onBreak && me.breakStartedAt
+            ? Math.max(0, Math.round((nowTick - new Date(me.breakStartedAt).getTime()) / 60000))
+            : 0;
+    const totalBreakMinutes = (me?.totalBreakMinutes || 0) + currentBreakMinutes;
+
+    // Keep time labels fresh
+    useEffect(() => {
+        const timer = window.setInterval(() => setNowTick(Date.now()), 1000);
+        return () => window.clearInterval(timer);
+    }, []);
 
     // Force always-live tracking for drivers.
     useEffect(() => {
         if (!me || me.isLive) return;
         void toggleLiveStatus(me.id, true);
     }, [me, toggleLiveStatus]);
+
+    // Auto break if inactive for > 8 min while trip is in progress and break not informed
+    useEffect(() => {
+        if (!me || !activeTrip || activeTrip.status !== "in-progress" || me.onBreak) return;
+        const monitor = window.setInterval(() => {
+            const lastActivity = me.lastActivityAt
+                ? new Date(me.lastActivityAt).getTime()
+                : Date.now();
+            if (Date.now() - lastActivity >= 8 * 60 * 1000) {
+                void startDriverBreak(me.id, false);
+            }
+        }, 30000);
+
+        return () => window.clearInterval(monitor);
+    }, [me, activeTrip, startDriverBreak]);
 
     return (
         <div className="space-y-5">
@@ -100,7 +164,7 @@ export default function DriverDashboardPage() {
 
             {activeTab === "overview" && (
                 <section className="space-y-4">
-                    <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="grid gap-3 sm:grid-cols-4">
                         <article className="bg-white border border-gray-200 rounded-xl p-4">
                             <p className="text-xs text-slate-500">Active Trips</p>
                             <p className="text-2xl font-bold text-blue-700 mt-1">{activeTrips.length}</p>
@@ -110,10 +174,80 @@ export default function DriverDashboardPage() {
                             <p className="text-2xl font-bold text-emerald-700 mt-1">{completedTrips.length}</p>
                         </article>
                         <article className="bg-white border border-gray-200 rounded-xl p-4">
-                            <p className="text-xs text-slate-500">Live Tracking</p>
-                            <p className="text-2xl font-bold text-emerald-700 mt-1">ON</p>
+                            <p className="text-xs text-slate-500">Duty Status</p>
+                            <p className={`text-2xl font-bold mt-1 ${dayStarted ? "text-emerald-700" : "text-slate-600"}`}>
+                                {dayStarted ? "ON" : "OFF"}
+                            </p>
+                        </article>
+                        <article className="bg-white border border-gray-200 rounded-xl p-4">
+                            <p className="text-xs text-slate-500">Break Time Today</p>
+                            <p className="text-2xl font-bold text-amber-700 mt-1">{formatMinutes(totalBreakMinutes)}</p>
                         </article>
                     </div>
+
+                    <article className="bg-white border border-gray-200 rounded-xl p-4">
+                        <h3 className="text-sm font-semibold text-slate-900">Duty Controls</h3>
+                        <p className="text-xs text-slate-500 mt-1">
+                            If vehicle inactivity crosses 8 minutes during an in-progress trip without informed break, it auto-registers as uninformed break.
+                        </p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (!me) return;
+                                    void startDriverDay(me.id);
+                                }}
+                                className="px-3 py-2 rounded-lg text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700"
+                            >
+                                Start Day
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (!me) return;
+                                    void endDriverDay(me.id);
+                                }}
+                                className="px-3 py-2 rounded-lg text-sm font-semibold bg-slate-700 text-white hover:bg-slate-800"
+                            >
+                                End Day
+                            </button>
+                            {!onBreak ? (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (!me) return;
+                                        void startDriverBreak(me.id, true);
+                                    }}
+                                    className="px-3 py-2 rounded-lg text-sm font-semibold bg-amber-600 text-white hover:bg-amber-700"
+                                >
+                                    Start Break
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (!me) return;
+                                        void endDriverBreak(me.id);
+                                    }}
+                                    className="px-3 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700"
+                                >
+                                    End Break
+                                </button>
+                            )}
+                            <button
+                                type="button"
+                                onClick={() => setShowSosModal(true)}
+                                className="px-3 py-2 rounded-lg text-sm font-semibold bg-rose-600 text-white hover:bg-rose-700"
+                            >
+                                SOS / Report Issue
+                            </button>
+                        </div>
+                        {onBreak && (
+                            <p className="mt-2 text-xs font-semibold text-amber-700">
+                                Break active ({me?.breakType || "informed"}) • {formatMinutes(currentBreakMinutes)}
+                            </p>
+                        )}
+                    </article>
 
                     <div className="flex flex-wrap gap-2">
                         {activeTrips.map((trip) => (
@@ -151,24 +285,15 @@ export default function DriverDashboardPage() {
                                     {activeTrip.status === "assigned" && (
                                         <button
                                             type="button"
+                                            disabled={!dayStarted || onBreak}
                                             onClick={() => {
                                                 void acceptTrip(activeTrip.id);
                                             }}
-                                            className="px-3 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700"
+                                            className="px-3 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             Start Trip
                                         </button>
                                     )}
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            if (!user) return;
-                                            void triggerEmergency(user.id, activeTrip.id);
-                                        }}
-                                        className="px-3 py-2 rounded-lg text-sm font-semibold bg-rose-600 text-white hover:bg-rose-700"
-                                    >
-                                        SOS
-                                    </button>
                                 </div>
                             </div>
 
@@ -188,19 +313,25 @@ export default function DriverDashboardPage() {
                                             <div className="mt-2 flex flex-wrap gap-2">
                                                 <button
                                                     type="button"
+                                                    disabled={!dayStarted || onBreak}
                                                     onClick={() => {
+                                                        if (!me) return;
                                                         void updateDropStatus(activeTrip.id, drop.id, "delivered");
+                                                        void registerDriverActivity(me.id);
                                                     }}
-                                                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700"
+                                                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
                                                 >
                                                     Mark Delivered
                                                 </button>
                                                 <button
                                                     type="button"
+                                                    disabled={!dayStarted || onBreak}
                                                     onClick={() => {
+                                                        if (!me) return;
                                                         void updateDropStatus(activeTrip.id, drop.id, "failed");
+                                                        void registerDriverActivity(me.id);
                                                     }}
-                                                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 text-white hover:bg-rose-700"
+                                                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed"
                                                 >
                                                     Mark Failed
                                                 </button>
@@ -284,7 +415,7 @@ export default function DriverDashboardPage() {
                         </div>
                         <button
                             type="button"
-                            disabled={!canSubmitFuel}
+                            disabled={!canSubmitFuel || !dayStarted || onBreak}
                             onClick={() => {
                                 if (!user || !activeTrip) return;
                                 const newEntry: FuelEntry = {
@@ -308,8 +439,10 @@ export default function DriverDashboardPage() {
                         >
                             Submit Fuel Entry
                         </button>
-                        {!canSubmitFuel && (
-                            <p className="text-xs text-rose-600">Fuel submission requires an active trip.</p>
+                        {(!canSubmitFuel || !dayStarted || onBreak) && (
+                            <p className="text-xs text-rose-600">
+                                Fuel submission requires active trip, day started, and break ended.
+                            </p>
                         )}
                     </article>
 
@@ -341,6 +474,101 @@ export default function DriverDashboardPage() {
                 </section>
             )}
 
+            {showSosModal && (
+                <div className="fixed inset-0 z-50 bg-black/35 p-4 flex items-center justify-center">
+                    <article className="w-full max-w-lg rounded-xl bg-white border border-gray-200 p-4">
+                        <h3 className="text-lg font-bold text-slate-900">SOS / Vehicle Issue</h3>
+                        <p className="text-xs text-slate-500 mt-1">
+                            Choose issue type, estimated repair time, and whether supervisor escalation is required.
+                        </p>
+
+                        <div className="mt-3 space-y-3">
+                            <div>
+                                <label className="block text-xs text-slate-600 mb-1">Issue</label>
+                                <select
+                                    value={sosIssueType}
+                                    onChange={(event) => setSosIssueType(event.target.value as VehicleIssueType)}
+                                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                                >
+                                    {issueOptions.map((item) => (
+                                        <option key={item.value} value={item.value}>
+                                            {item.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs text-slate-600 mb-1">Description</label>
+                                <textarea
+                                    value={sosDescription}
+                                    onChange={(event) => setSosDescription(event.target.value)}
+                                    rows={3}
+                                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                                    placeholder="Explain the issue briefly"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs text-slate-600 mb-1">Estimated time to resume (minutes)</label>
+                                <input
+                                    type="number"
+                                    min={1}
+                                    value={sosEta}
+                                    onChange={(event) => setSosEta(event.target.value)}
+                                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                                />
+                            </div>
+
+                            <label className="flex items-center gap-2 text-sm text-slate-700">
+                                <input
+                                    type="checkbox"
+                                    checked={sosSevere}
+                                    onChange={(event) => setSosSevere(event.target.checked)}
+                                />
+                                Serious issue (critical)
+                            </label>
+                            <label className="flex items-center gap-2 text-sm text-slate-700">
+                                <input
+                                    type="checkbox"
+                                    checked={sosInformSupervisor}
+                                    onChange={(event) => setSosInformSupervisor(event.target.checked)}
+                                />
+                                Inform supervisor immediately
+                            </label>
+                        </div>
+
+                        <div className="mt-4 flex justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setShowSosModal(false)}
+                                className="px-3 py-2 rounded-lg border border-gray-200 text-sm font-semibold text-slate-600"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (!me) return;
+                                    void triggerEmergency(me.id, activeTrip?.id, {
+                                        issueType: issueOptions.find((item) => item.value === sosIssueType)?.label,
+                                        description: sosDescription,
+                                        etaMinutes: Number(sosEta) || 0,
+                                        severe: sosSevere,
+                                        informSupervisor: sosInformSupervisor,
+                                    });
+                                    setShowSosModal(false);
+                                    setSosDescription("");
+                                    setSosEta("20");
+                                    setSosSevere(false);
+                                    setSosInformSupervisor(true);
+                                }}
+                                className="px-3 py-2 rounded-lg bg-rose-600 text-white text-sm font-semibold hover:bg-rose-700"
+                            >
+                                Send SOS
+                            </button>
+                        </div>
+                    </article>
+                </div>
+            )}
         </div>
     );
 }

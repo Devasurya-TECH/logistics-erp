@@ -25,7 +25,22 @@ interface AppState {
     assignDriver: (tripId: string, driverId: string, vehicleId: string) => Promise<void>;
     acceptTrip: (tripId: string) => Promise<void>;
     toggleLiveStatus: (driverId: string, isLive: boolean) => Promise<void>;
-    triggerEmergency: (driverId: string, tripId?: string) => Promise<void>;
+    triggerEmergency: (
+        driverId: string,
+        tripId?: string,
+        details?: {
+            issueType?: string;
+            description?: string;
+            etaMinutes?: number;
+            severe?: boolean;
+            informSupervisor?: boolean;
+        }
+    ) => Promise<void>;
+    startDriverDay: (driverId: string) => Promise<void>;
+    endDriverDay: (driverId: string) => Promise<void>;
+    startDriverBreak: (driverId: string, informed?: boolean) => Promise<void>;
+    endDriverBreak: (driverId: string) => Promise<void>;
+    registerDriverActivity: (driverId: string) => Promise<void>;
     addFuelEntry: (entry: FuelEntry) => Promise<void>;
     verifyFuelEntry: (entryId: string, supervisorId: string) => Promise<void>;
     rejectFuelEntry: (entryId: string, supervisorId: string) => Promise<void>;
@@ -52,6 +67,19 @@ const request = async (url: string, init: RequestInit) => {
     }
 };
 
+const hasActiveTrip = (trips: Trip[], driverId: string) =>
+    trips.some(
+        (trip) =>
+            trip.driverId === driverId &&
+            (trip.status === 'assigned' || trip.status === 'in-progress')
+    );
+
+const calculateBreakMinutes = (startedAt?: string) => {
+    if (!startedAt) return 0;
+    const diffMs = Date.now() - new Date(startedAt).getTime();
+    return Math.max(0, Math.round(diffMs / 60000));
+};
+
 export const useStore = create<AppState>((set, get) => ({
     trips: [],
     vehicles: [],
@@ -72,7 +100,14 @@ export const useStore = create<AppState>((set, get) => ({
 
             set({
                 trips,
-                drivers: (masterData.drivers || []).map((driver: Driver) => ({ ...driver, isLive: true })),
+                drivers: (masterData.drivers || []).map((driver: Driver) => ({
+                    ...driver,
+                    isLive: true,
+                    dutyStatus: driver.dutyStatus ?? (driver.status === 'off-duty' ? 'off-duty' : 'on-duty'),
+                    onBreak: driver.onBreak ?? false,
+                    totalBreakMinutes: driver.totalBreakMinutes ?? 0,
+                    lastActivityAt: driver.lastActivityAt ?? driver.lastLocationUpdate ?? new Date().toISOString(),
+                })),
                 vehicles: masterData.vehicles,
                 fuelEntries: masterData.fuelEntries || [],
                 alerts: masterData.alerts || [],
@@ -97,9 +132,20 @@ export const useStore = create<AppState>((set, get) => ({
     },
 
     updateTripStatus: async (tripId, status) => {
-        // Optimistic update
+        const trip = get().trips.find((item) => item.id === tripId);
+        if (!trip) return;
+
+        const tripUpdates: Partial<Trip> = { status };
+        if (status === 'in-progress' && !trip.startTime) {
+            tripUpdates.startTime = new Date().toISOString();
+        }
+        if ((status === 'completed' || status === 'cancelled') && !trip.endTime) {
+            tripUpdates.endTime = new Date().toISOString();
+        }
+
+        // Optimistic trip update
         set((state) => ({
-            trips: state.trips.map(t => t.id === tripId ? { ...t, status } : t)
+            trips: state.trips.map(t => t.id === tripId ? { ...t, ...tripUpdates } : t)
         }));
 
         const statusMessages: Record<string, string> = {
@@ -117,8 +163,34 @@ export const useStore = create<AppState>((set, get) => ({
         await fetch('/api/trips', {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: tripId, updates: { status } })
+            body: JSON.stringify({ id: tripId, updates: tripUpdates })
         });
+
+        if (trip.driverId && (status === 'completed' || status === 'cancelled')) {
+            const driverUpdates: Partial<Driver> = {
+                status: 'available',
+                currentVehicleId: undefined,
+                onBreak: false,
+                breakStartedAt: undefined,
+                breakType: undefined,
+                lastActivityAt: new Date().toISOString(),
+            };
+
+            set((state) => ({
+                drivers: state.drivers.map((driver) =>
+                    driver.id === trip.driverId ? { ...driver, ...driverUpdates } : driver
+                ),
+            }));
+
+            try {
+                await request('/api/drivers', {
+                    method: 'PATCH',
+                    body: JSON.stringify({ id: trip.driverId, updates: driverUpdates }),
+                });
+            } catch (error) {
+                console.error('Driver release persistence failed', error);
+            }
+        }
     },
 
     updateDropStatus: async (tripId, dropId, status, details) => {
@@ -167,17 +239,68 @@ export const useStore = create<AppState>((set, get) => ({
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id: tripId, updates: tripUpdates })
         });
+
+        if (allDone && currentTrip.driverId) {
+            const driverUpdates: Partial<Driver> = {
+                status: 'available',
+                currentVehicleId: undefined,
+                onBreak: false,
+                breakStartedAt: undefined,
+                breakType: undefined,
+                lastActivityAt: new Date().toISOString(),
+            };
+
+            set((state) => ({
+                drivers: state.drivers.map((driver) =>
+                    driver.id === currentTrip.driverId ? { ...driver, ...driverUpdates } : driver
+                ),
+            }));
+
+            try {
+                await request('/api/drivers', {
+                    method: 'PATCH',
+                    body: JSON.stringify({ id: currentTrip.driverId, updates: driverUpdates }),
+                });
+            } catch (error) {
+                console.error('Driver completion persistence failed', error);
+            }
+        }
     },
 
     assignDriver: async (tripId, driverId, vehicleId) => {
-        const driver = get().drivers.find(d => d.id === driverId);
+        const state = get();
+        const driver = state.drivers.find(d => d.id === driverId);
+        const trip = state.trips.find(t => t.id === tripId);
+        if (!driver || !trip) return;
+
+        if (hasActiveTrip(state.trips, driverId)) {
+            notify('error', 'Assignment Blocked', `${driver.name} already has an active trip.`);
+            return;
+        }
+
+        if (driver.status !== 'available') {
+            notify('error', 'Assignment Blocked', `${driver.name} is not available for assignment.`);
+            return;
+        }
+
         const updates = { driverId, vehicleId, status: 'assigned' as const };
+        const driverUpdates: Partial<Driver> = {
+            status: 'on-trip',
+            currentVehicleId: vehicleId,
+            isLive: true,
+            lastLocationUpdate: new Date().toISOString(),
+            lastActivityAt: new Date().toISOString(),
+            dutyStatus: driver.dutyStatus ?? 'on-duty',
+            onBreak: false,
+            breakStartedAt: undefined,
+            breakType: undefined,
+        };
 
         // Optimistic update
         set((state) => ({
             trips: state.trips.map(t => t.id === tripId ? { ...t, ...updates } : t),
             vehicles: state.vehicles.map(v => v.id === vehicleId ? { ...v, status: 'active' } : v),
-            drivers: state.drivers.map(d => d.id === driverId ? { ...d, status: 'on-trip', currentVehicleId: vehicleId, isLive: true } : d)
+            drivers: state.drivers.map(d => d.id === driverId ? { ...d, ...driverUpdates } : d)
         }));
 
         notify('success', 'Driver Assigned', `${driver?.name || 'Driver'} assigned to Trip #${tripId.toUpperCase()}`);
@@ -192,7 +315,7 @@ export const useStore = create<AppState>((set, get) => ({
                     method: 'PATCH',
                     body: JSON.stringify({
                         id: driverId,
-                        updates: { status: 'on-trip', currentVehicleId: vehicleId, isLive: true },
+                        updates: driverUpdates,
                     }),
                 }),
                 request('/api/vehicles', {
@@ -206,6 +329,8 @@ export const useStore = create<AppState>((set, get) => ({
     },
 
     acceptTrip: async (tripId) => {
+        const trip = get().trips.find((item) => item.id === tripId);
+        if (!trip) return;
         const updates = {
             status: 'in-progress' as const,
             startTime: new Date().toISOString()
@@ -223,6 +348,31 @@ export const useStore = create<AppState>((set, get) => ({
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id: tripId, updates })
         });
+
+        if (trip.driverId) {
+            const driverUpdates: Partial<Driver> = {
+                status: 'on-trip',
+                dutyStatus: 'on-duty',
+                lastActivityAt: new Date().toISOString(),
+                lastLocationUpdate: new Date().toISOString(),
+                onBreak: false,
+                breakStartedAt: undefined,
+                breakType: undefined,
+            };
+            set((state) => ({
+                drivers: state.drivers.map((driver) =>
+                    driver.id === trip.driverId ? { ...driver, ...driverUpdates } : driver
+                ),
+            }));
+            try {
+                await request('/api/drivers', {
+                    method: 'PATCH',
+                    body: JSON.stringify({ id: trip.driverId, updates: driverUpdates }),
+                });
+            } catch (error) {
+                console.error('Driver start-trip persistence failed', error);
+            }
+        }
     },
 
     toggleLiveStatus: async (driverId, isLive) => {
@@ -249,24 +399,44 @@ export const useStore = create<AppState>((set, get) => ({
         }
     },
 
-    triggerEmergency: async (driverId, tripId) => {
+    triggerEmergency: async (driverId, tripId, details) => {
         const driver = get().drivers.find(d => d.id === driverId);
+        const issueType = details?.issueType || 'vehicle issue';
+        const etaText =
+            typeof details?.etaMinutes === 'number' && details.etaMinutes > 0
+                ? ` ETA: ~${details.etaMinutes} min.`
+                : '';
+        const detailText = details?.description?.trim() ? ` ${details.description.trim()}` : '';
         const newAlert: Alert = {
             id: `a-${Math.floor(Math.random() * 10000)}`,
-            type: 'fuel-theft', // Reusing type or extending
-            severity: 'critical',
-            message: `EMERGENCY SOS: Driver ${driver?.name || 'Unknown'} triggered a panic alert!`,
+            type: 'sos',
+            severity: details?.severe ? 'critical' : 'high',
+            message: `SOS from ${driver?.name || 'Unknown'}: ${issueType}.${detailText}${etaText}`,
             timestamp: new Date().toISOString(),
             vehicleId: driver?.currentVehicleId || '',
             tripId,
-            resolved: false
+            resolved: false,
+            metadata: {
+                issueType,
+                etaMinutes: details?.etaMinutes,
+                informed: details?.informSupervisor ?? true,
+            },
         };
 
         set((state) => ({
-            alerts: [newAlert, ...state.alerts]
+            alerts: [newAlert, ...state.alerts],
+            drivers: state.drivers.map((item) =>
+                item.id === driverId
+                    ? {
+                        ...item,
+                        lastActivityAt: new Date().toISOString(),
+                        lastLocationUpdate: new Date().toISOString(),
+                    }
+                    : item
+            ),
         }));
 
-        notify('error', 'SOS TRIGGERED', 'Emergency services and supervisors have been notified.');
+        notify('error', 'SOS Triggered', `${driver?.name || 'Driver'} reported ${issueType}.`);
 
         // API call to broadcast emergency
         try {
@@ -274,20 +444,240 @@ export const useStore = create<AppState>((set, get) => ({
                 method: 'POST',
                 body: JSON.stringify(newAlert),
             });
+            if (driverId) {
+                await request('/api/drivers', {
+                    method: 'PATCH',
+                    body: JSON.stringify({
+                        id: driverId,
+                        updates: {
+                            lastActivityAt: new Date().toISOString(),
+                            lastLocationUpdate: new Date().toISOString(),
+                        },
+                    }),
+                });
+            }
         } catch (error) {
             console.error('Emergency alert failed to persist', error);
         }
     },
 
+    startDriverDay: async (driverId) => {
+        const now = new Date().toISOString();
+        const active = hasActiveTrip(get().trips, driverId);
+        const updates: Partial<Driver> = {
+            dutyStatus: 'on-duty',
+            dayStartedAt: now,
+            dayEndedAt: undefined,
+            status: active ? 'on-trip' : 'available',
+            onBreak: false,
+            breakStartedAt: undefined,
+            breakType: undefined,
+            lastActivityAt: now,
+            lastLocationUpdate: now,
+            totalBreakMinutes: 0,
+        };
+
+        set((state) => ({
+            drivers: state.drivers.map((driver) =>
+                driver.id === driverId ? { ...driver, ...updates } : driver
+            ),
+        }));
+        notify('success', 'Duty Started', 'Driver day has been started.');
+
+        try {
+            await request('/api/drivers', {
+                method: 'PATCH',
+                body: JSON.stringify({ id: driverId, updates }),
+            });
+        } catch (error) {
+            console.error('Start day persistence failed', error);
+        }
+    },
+
+    endDriverDay: async (driverId) => {
+        const state = get();
+        const driver = state.drivers.find((item) => item.id === driverId);
+        if (!driver) return;
+
+        if (hasActiveTrip(state.trips, driverId)) {
+            notify('warning', 'Trip Active', 'Complete the active trip before ending the day.');
+            return;
+        }
+
+        const now = new Date().toISOString();
+        const additionalBreak = calculateBreakMinutes(driver.breakStartedAt);
+        const updates: Partial<Driver> = {
+            dutyStatus: 'off-duty',
+            dayEndedAt: now,
+            status: 'off-duty',
+            onBreak: false,
+            breakStartedAt: undefined,
+            breakType: undefined,
+            totalBreakMinutes: (driver.totalBreakMinutes || 0) + additionalBreak,
+            lastActivityAt: now,
+            lastLocationUpdate: now,
+        };
+
+        set((state) => ({
+            drivers: state.drivers.map((item) =>
+                item.id === driverId ? { ...item, ...updates } : item
+            ),
+        }));
+        notify('info', 'Duty Ended', 'Driver day has been closed.');
+
+        try {
+            await request('/api/drivers', {
+                method: 'PATCH',
+                body: JSON.stringify({ id: driverId, updates }),
+            });
+        } catch (error) {
+            console.error('End day persistence failed', error);
+        }
+    },
+
+    startDriverBreak: async (driverId, informed = true) => {
+        const state = get();
+        const driver = state.drivers.find((item) => item.id === driverId);
+        if (!driver) return;
+        if (driver.onBreak) return;
+
+        const now = new Date().toISOString();
+        const updates: Partial<Driver> = {
+            onBreak: true,
+            breakStartedAt: now,
+            breakType: informed ? 'informed' : 'uninformed',
+            lastActivityAt: now,
+            lastLocationUpdate: now,
+        };
+
+        set((storeState) => ({
+            drivers: storeState.drivers.map((item) =>
+                item.id === driverId ? { ...item, ...updates } : item
+            ),
+        }));
+
+        notify(
+            informed ? 'info' : 'warning',
+            informed ? 'Break Started' : 'Uninformed Break Detected',
+            informed
+                ? 'Driver informed and started break.'
+                : 'Vehicle inactive > 8 min without informed break.'
+        );
+
+        try {
+            await request('/api/drivers', {
+                method: 'PATCH',
+                body: JSON.stringify({ id: driverId, updates }),
+            });
+
+            if (!informed) {
+                const breakAlert: Alert = {
+                    id: `a-${Math.floor(Math.random() * 10000)}`,
+                    type: 'driver-break',
+                    severity: 'medium',
+                    message: `${driver.name} entered uninformed break (vehicle inactive > 8 min).`,
+                    timestamp: now,
+                    vehicleId: driver.currentVehicleId,
+                    resolved: false,
+                    metadata: { informed: false },
+                };
+
+                set((storeState) => ({
+                    alerts: [breakAlert, ...storeState.alerts],
+                }));
+
+                await request('/api/alerts', {
+                    method: 'POST',
+                    body: JSON.stringify(breakAlert),
+                });
+            }
+        } catch (error) {
+            console.error('Break start persistence failed', error);
+        }
+    },
+
+    endDriverBreak: async (driverId) => {
+        const driver = get().drivers.find((item) => item.id === driverId);
+        if (!driver || !driver.onBreak) return;
+
+        const elapsedMinutes = calculateBreakMinutes(driver.breakStartedAt);
+        const now = new Date().toISOString();
+        const updates: Partial<Driver> = {
+            onBreak: false,
+            breakStartedAt: undefined,
+            breakType: undefined,
+            totalBreakMinutes: (driver.totalBreakMinutes || 0) + elapsedMinutes,
+            lastActivityAt: now,
+            lastLocationUpdate: now,
+        };
+
+        set((state) => ({
+            drivers: state.drivers.map((item) =>
+                item.id === driverId ? { ...item, ...updates } : item
+            ),
+        }));
+
+        notify('success', 'Break Ended', `Break duration: ${elapsedMinutes} min.`);
+
+        try {
+            await request('/api/drivers', {
+                method: 'PATCH',
+                body: JSON.stringify({ id: driverId, updates }),
+            });
+        } catch (error) {
+            console.error('Break end persistence failed', error);
+        }
+    },
+
+    registerDriverActivity: async (driverId) => {
+        const now = new Date().toISOString();
+        const updates: Partial<Driver> = {
+            lastActivityAt: now,
+            lastLocationUpdate: now,
+        };
+
+        set((state) => ({
+            drivers: state.drivers.map((item) =>
+                item.id === driverId ? { ...item, ...updates } : item
+            ),
+        }));
+
+        try {
+            await request('/api/drivers', {
+                method: 'PATCH',
+                body: JSON.stringify({ id: driverId, updates }),
+            });
+        } catch (error) {
+            console.error('Driver activity persistence failed', error);
+        }
+    },
+
     addFuelEntry: async (entry) => {
-        set((state) => ({ fuelEntries: [...state.fuelEntries, entry] }));
+        const now = new Date().toISOString();
+        set((state) => ({
+            fuelEntries: [...state.fuelEntries, entry],
+            drivers: state.drivers.map((driver) =>
+                driver.id === entry.driverId
+                    ? { ...driver, lastActivityAt: now, lastLocationUpdate: now }
+                    : driver
+            ),
+        }));
         notify('info', 'Fuel Entry Logged', `₹${entry.cost.toLocaleString()} fuel entry submitted for review.`);
 
         try {
-            await request('/api/fuel', {
-                method: 'POST',
-                body: JSON.stringify(entry),
-            });
+            await Promise.all([
+                request('/api/fuel', {
+                    method: 'POST',
+                    body: JSON.stringify(entry),
+                }),
+                request('/api/drivers', {
+                    method: 'PATCH',
+                    body: JSON.stringify({
+                        id: entry.driverId,
+                        updates: { lastActivityAt: now, lastLocationUpdate: now },
+                    }),
+                }),
+            ]);
         } catch (error) {
             console.error('Fuel entry persistence failed', error);
         }

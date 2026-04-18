@@ -26,6 +26,14 @@ export interface Driver extends User {
     currentVehicleId?: string;
     isLive?: boolean;
     lastLocationUpdate?: string;
+    dutyStatus?: 'on-duty' | 'off-duty';
+    dayStartedAt?: string;
+    dayEndedAt?: string;
+    onBreak?: boolean;
+    breakStartedAt?: string;
+    breakType?: 'informed' | 'uninformed';
+    totalBreakMinutes?: number;
+    lastActivityAt?: string;
 }
 
 export type TripStatus = 'planned' | 'assigned' | 'in-progress' | 'completed' | 'cancelled';
@@ -99,11 +107,16 @@ export interface Expense {
 
 export interface Alert {
     id: string;
-    type: 'geofence' | 'maintenance' | 'fuel-theft' | 'delay';
+    type: 'geofence' | 'maintenance' | 'fuel-theft' | 'delay' | 'sos' | 'driver-break';
     severity: 'low' | 'medium' | 'high' | 'critical';
     message: string;
     timestamp: string;
     vehicleId?: string;
     tripId?: string;
     resolved: boolean;
+    metadata?: {
+        issueType?: string;
+        etaMinutes?: number;
+        informed?: boolean;
+    };
 }

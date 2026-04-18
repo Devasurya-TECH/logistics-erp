@@ -1,27 +1,5 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { useAuth } from '@/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-import { roleToPath } from '@/lib/roles';
-
-export default function Home() {
-  const { user, isLoading } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!isLoading) {
-      if (user) {
-        router.push(roleToPath(user.role));
-      } else {
-        router.push('/login');
-      }
-    }
-  }, [user, isLoading, router]);
-
-  return (
-    <div className="flex items-center justify-center min-h-screen bg-slate-950">
-      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-    </div>
-  );
+export default function HomePage() {
+  redirect("/login");
 }
