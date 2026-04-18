@@ -179,7 +179,7 @@ export default function DriverRoutesPage() {
     };
 
     const submitProof = async () => {
-        if (!proofTarget || !activeTrip || !user) return;
+        if (!proofTarget || !user) return;
         if (!proofImage) {
             setProofError("Photo proof is required.");
             return;
@@ -203,6 +203,12 @@ export default function DriverRoutesPage() {
             });
             await registerDriverActivity(user.id);
             closeProof();
+        } catch (error) {
+            setProofError(
+                error instanceof Error
+                    ? error.message
+                    : "Unable to submit proof right now. Please retry."
+            );
         } finally {
             setProofSubmitting(false);
         }
