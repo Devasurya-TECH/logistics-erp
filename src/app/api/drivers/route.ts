@@ -30,13 +30,7 @@ export async function PATCH(request: Request) {
 
         users[index] = { ...users[index], ...updates };
         db.users = users;
-        const persisted = await writeDbData(db);
-        if (!persisted) {
-            return NextResponse.json(
-                { error: 'Persistence unavailable. Use local server or configure persistent database.' },
-                { status: 503 },
-            );
-        }
+        await writeDbData(db);
         return NextResponse.json(users[index]);
     } catch {
         return NextResponse.json({ error: 'Failed to update driver' }, { status: 500 });

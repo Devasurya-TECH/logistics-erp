@@ -20,14 +20,11 @@ export async function POST(request: Request) {
         const newTrip = await request.json();
         const db = await getDbData();
         db.trips.push(newTrip);
-        const persisted = await writeDbData(db);
-        if (!persisted) {
-            return NextResponse.json(
-                { error: 'Persistence unavailable. Use local server or configure persistent database.' },
-                { status: 503 },
-            );
-        }
-        return NextResponse.json(newTrip);
+        await writeDbData(db);
+        return NextResponse.json({
+            data: newTrip,
+            storage: getDbStorageInfo(),
+        });
     } catch (error) {
         return NextResponse.json({ error: 'Failed to add trip' }, { status: 500 });
     }
@@ -40,14 +37,11 @@ export async function PATCH(request: Request) { // For multi-edit or status upda
         const index = db.trips.findIndex((t: any) => t.id === id);
         if (index > -1) {
             db.trips[index] = { ...db.trips[index], ...updates };
-            const persisted = await writeDbData(db);
-            if (!persisted) {
-                return NextResponse.json(
-                    { error: 'Persistence unavailable. Use local server or configure persistent database.' },
-                    { status: 503 },
-                );
-            }
-            return NextResponse.json(db.trips[index]);
+            await writeDbData(db);
+            return NextResponse.json({
+                data: db.trips[index],
+                storage: getDbStorageInfo(),
+            });
         }
         return NextResponse.json({ error: 'Trip not found' }, { status: 404 });
     } catch (error) {
