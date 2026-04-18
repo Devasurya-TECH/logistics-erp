@@ -6,7 +6,7 @@ const DB_PATH = join(process.cwd(), 'data', 'db.json');
 
 // In-memory fallback for Vercel/Read-only environments
 let inMemoryCache: any = null;
-let isReadOnly = false; // Detected on first write failure
+let storageMode: 'file' | 'memory' = 'file';
 
 export async function getDbData() {
     // If we're in a read-only environment and have cache, return it
@@ -16,6 +16,7 @@ export async function getDbData() {
         const file = await fs.readFile(DB_PATH, 'utf8');
         const data = JSON.parse(file);
         inMemoryCache = data;
+        storageMode = 'file';
         return data;
     } catch (error) {
         console.warn("Using bundled mock data fallback (File read failed)");
@@ -27,6 +28,7 @@ export async function getDbData() {
             fuelEntries: initialData.fuelEntries,
             alerts: initialData.alerts
         };
+        storageMode = 'memory';
         return inMemoryCache;
     }
 }
@@ -35,10 +37,20 @@ export async function writeDbData(data: any) {
     inMemoryCache = data; // Always update memory
     try {
         await fs.writeFile(DB_PATH, JSON.stringify(data, null, 2));
+        storageMode = 'file';
+        return true;
     } catch (error) {
-        isReadOnly = true;
+        storageMode = 'memory';
         console.warn("Write to DB file failed (likely Read-Only Environment like Vercel). Data updated in memory only.");
+        return false;
     }
+}
+
+export function getDbStorageInfo() {
+    return {
+        mode: storageMode,
+        persistent: storageMode === 'file',
+    };
 }
 
 export async function updateTrips(newTrips: any[]) {

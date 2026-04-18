@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { Trip, Vehicle, Driver, FuelEntry, Alert } from './types';
 import { useNotifications } from './notifications';
 
+let warnedNonPersistentStorage = false;
+
 interface AppState {
     trips: Trip[];
     vehicles: Vehicle[];
@@ -70,9 +72,18 @@ const request = async (url: string, init: RequestInit) => {
         ...init,
     });
 
-    if (!response.ok) {
-        throw new Error(`Request failed: ${url}`);
+    let payload: any = null;
+    try {
+        payload = await response.json();
+    } catch {
+        payload = null;
     }
+
+    if (!response.ok) {
+        throw new Error(payload?.error || `Request failed: ${url}`);
+    }
+
+    return payload;
 };
 
 const hasActiveTrip = (trips: Trip[], driverId: string) =>
@@ -100,17 +111,28 @@ export const useStore = create<AppState>((set, get) => ({
         try {
             // Fetch trips
             const tripsRes = await fetch('/api/trips');
-            const trips = await tripsRes.json();
+            const tripsPayload = await tripsRes.json();
+            const trips = Array.isArray(tripsPayload) ? tripsPayload : (tripsPayload?.data || []);
 
             // Fetch master data
             const masterRes = await fetch('/api/master-data');
             const masterData = await masterRes.json();
 
+            const storageInfo = masterData?.storage || tripsPayload?.storage;
+            if (storageInfo?.persistent === false && !warnedNonPersistentStorage) {
+                warnedNonPersistentStorage = true;
+                notify(
+                    'warning',
+                    'Non-Persistent Backend',
+                    'Server storage is temporary. For multi-device live sync, use localhost or configure a persistent database.'
+                );
+            }
+
             set({
                 trips,
                 drivers: (masterData.drivers || []).map((driver: Driver) => ({
                     ...driver,
-                    isLive: true,
+                    isLive: driver.isLive ?? true,
                     dutyStatus: driver.dutyStatus ?? (driver.status === 'off-duty' ? 'off-duty' : 'on-duty'),
                     onBreak: driver.onBreak ?? false,
                     totalBreakMinutes: driver.totalBreakMinutes ?? 0,
@@ -128,15 +150,18 @@ export const useStore = create<AppState>((set, get) => ({
     },
 
     addTrip: async (trip) => {
-        // Optimistic update
-        set((state) => ({ trips: [...state.trips, trip] }));
-        notify('success', 'Trip Created', `Trip #${trip.id.toUpperCase()} has been created successfully.`);
-        // API call
-        await fetch('/api/trips', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(trip)
-        });
+        try {
+            await request('/api/trips', {
+                method: 'POST',
+                body: JSON.stringify(trip),
+            });
+            set((state) => ({ trips: [...state.trips, trip] }));
+            notify('success', 'Trip Created', `Trip #${trip.id.toUpperCase()} has been created successfully.`);
+        } catch (error) {
+            console.error('Trip creation failed', error);
+            notify('error', 'Trip Create Failed', error instanceof Error ? error.message : 'Unable to create trip.');
+            throw error;
+        }
     },
 
     updateTripStatus: async (tripId, status) => {
@@ -168,9 +193,8 @@ export const useStore = create<AppState>((set, get) => ({
             statusMessages[status] || `Status updated to ${status}`
         );
 
-        await fetch('/api/trips', {
+        await request('/api/trips', {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id: tripId, updates: tripUpdates })
         });
 
@@ -263,9 +287,8 @@ export const useStore = create<AppState>((set, get) => ({
             notify('info', 'Trip Complete', `All deliveries for Trip #${tripId.toUpperCase()} are done!`);
         }
 
-        await fetch('/api/trips', {
+        await request('/api/trips', {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id: tripId, updates: tripUpdates })
         });
 
@@ -378,15 +401,6 @@ export const useStore = create<AppState>((set, get) => ({
             breakType: undefined,
         };
 
-        // Optimistic update
-        set((state) => ({
-            trips: state.trips.map(t => t.id === tripId ? { ...t, ...updates } : t),
-            vehicles: state.vehicles.map(v => v.id === vehicleId ? { ...v, status: 'active' } : v),
-            drivers: state.drivers.map(d => d.id === driverId ? { ...d, ...driverUpdates } : d)
-        }));
-
-        notify('success', 'Driver Assigned', `${driver?.name || 'Driver'} assigned to Trip #${tripId.toUpperCase()}`);
-
         try {
             await Promise.all([
                 request('/api/trips', {
@@ -405,8 +419,17 @@ export const useStore = create<AppState>((set, get) => ({
                     body: JSON.stringify({ id: vehicleId, updates: { status: 'active' } }),
                 }),
             ]);
+
+            set((state) => ({
+                trips: state.trips.map(t => t.id === tripId ? { ...t, ...updates } : t),
+                vehicles: state.vehicles.map(v => v.id === vehicleId ? { ...v, status: 'active' } : v),
+                drivers: state.drivers.map(d => d.id === driverId ? { ...d, ...driverUpdates } : d)
+            }));
+
+            notify('success', 'Driver Assigned', `${driver?.name || 'Driver'} assigned to Trip #${tripId.toUpperCase()}`);
         } catch (error) {
             console.error('Assignment persistence failed', error);
+            notify('error', 'Assignment Failed', error instanceof Error ? error.message : 'Unable to assign trip.');
         }
     },
 
@@ -418,18 +441,22 @@ export const useStore = create<AppState>((set, get) => ({
             startTime: new Date().toISOString()
         };
 
-        // Optimistic update
+        try {
+            await request('/api/trips', {
+                method: 'PATCH',
+                body: JSON.stringify({ id: tripId, updates })
+            });
+        } catch (error) {
+            console.error('Trip start persistence failed', error);
+            notify('error', 'Trip Start Failed', error instanceof Error ? error.message : 'Unable to start trip.');
+            return;
+        }
+
         set((state) => ({
             trips: state.trips.map(t => t.id === tripId ? { ...t, ...updates } : t)
         }));
 
         notify('success', 'Trip Started', `Trip #${tripId.toUpperCase()} is now in progress.`);
-
-        await fetch('/api/trips', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: tripId, updates })
-        });
 
         if (trip.driverId) {
             const driverUpdates: Partial<Driver> = {

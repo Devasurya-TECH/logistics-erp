@@ -18,7 +18,13 @@ export async function POST(request: Request) {
         const newAlert = (await request.json()) as Alert;
         const db = await getDbData();
         db.alerts = [newAlert, ...(db.alerts || [])];
-        await writeDbData(db);
+        const persisted = await writeDbData(db);
+        if (!persisted) {
+            return NextResponse.json(
+                { error: 'Persistence unavailable. Use local server or configure persistent database.' },
+                { status: 503 },
+            );
+        }
         return NextResponse.json(newAlert, { status: 201 });
     } catch {
         return NextResponse.json({ error: 'Failed to create alert' }, { status: 500 });
@@ -39,10 +45,15 @@ export async function PATCH(request: Request) {
         }
 
         db.alerts[index] = { ...db.alerts[index], ...updates };
-        await writeDbData(db);
+        const persisted = await writeDbData(db);
+        if (!persisted) {
+            return NextResponse.json(
+                { error: 'Persistence unavailable. Use local server or configure persistent database.' },
+                { status: 503 },
+            );
+        }
         return NextResponse.json(db.alerts[index]);
     } catch {
         return NextResponse.json({ error: 'Failed to update alert' }, { status: 500 });
     }
 }
-

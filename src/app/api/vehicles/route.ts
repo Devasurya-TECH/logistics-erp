@@ -27,10 +27,15 @@ export async function PATCH(request: Request) {
         }
 
         db.vehicles[index] = { ...db.vehicles[index], ...updates };
-        await writeDbData(db);
+        const persisted = await writeDbData(db);
+        if (!persisted) {
+            return NextResponse.json(
+                { error: 'Persistence unavailable. Use local server or configure persistent database.' },
+                { status: 503 },
+            );
+        }
         return NextResponse.json(db.vehicles[index]);
     } catch {
         return NextResponse.json({ error: 'Failed to update vehicle' }, { status: 500 });
     }
 }
-

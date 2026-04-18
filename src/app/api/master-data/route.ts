@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDbData } from '@/lib/db-utils';
+import { getDbData, getDbStorageInfo } from '@/lib/db-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,6 +12,7 @@ export async function GET() {
             users: db.users,
             fuelEntries: db.fuelEntries || [],
             alerts: db.alerts || [],
+            storage: getDbStorageInfo(),
         };
         return NextResponse.json(data);
     } catch (error) {

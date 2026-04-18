@@ -18,7 +18,13 @@ export async function POST(request: Request) {
         const newEntry = (await request.json()) as FuelEntry;
         const db = await getDbData();
         db.fuelEntries = [...(db.fuelEntries || []), newEntry];
-        await writeDbData(db);
+        const persisted = await writeDbData(db);
+        if (!persisted) {
+            return NextResponse.json(
+                { error: 'Persistence unavailable. Use local server or configure persistent database.' },
+                { status: 503 },
+            );
+        }
         return NextResponse.json(newEntry, { status: 201 });
     } catch {
         return NextResponse.json({ error: 'Failed to create fuel entry' }, { status: 500 });
@@ -39,10 +45,15 @@ export async function PATCH(request: Request) {
         }
 
         db.fuelEntries[index] = { ...db.fuelEntries[index], ...updates };
-        await writeDbData(db);
+        const persisted = await writeDbData(db);
+        if (!persisted) {
+            return NextResponse.json(
+                { error: 'Persistence unavailable. Use local server or configure persistent database.' },
+                { status: 503 },
+            );
+        }
         return NextResponse.json(db.fuelEntries[index]);
     } catch {
         return NextResponse.json({ error: 'Failed to update fuel entry' }, { status: 500 });
     }
 }
-

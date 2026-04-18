@@ -8,18 +8,39 @@ export function StoreInitializer() {
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     useEffect(() => {
-        // Initial fetch
-        fetchInitialData();
+        const runSync = () => {
+            void fetchInitialData();
+        };
 
-        // Poll every 3 seconds so driver sees new trips assigned by supervisor
-        intervalRef.current = setInterval(() => {
-            fetchInitialData();
-        }, 3000);
+        const startPolling = () => {
+            if (intervalRef.current) {
+                clearInterval(intervalRef.current);
+            }
+            const intervalMs = document.visibilityState === "visible" ? 2000 : 8000;
+            intervalRef.current = setInterval(runSync, intervalMs);
+        };
+
+        runSync();
+        startPolling();
+
+        const handleVisibility = () => {
+            runSync();
+            startPolling();
+        };
+
+        const handleFocus = () => {
+            runSync();
+        };
+
+        document.addEventListener("visibilitychange", handleVisibility);
+        window.addEventListener("focus", handleFocus);
 
         return () => {
             if (intervalRef.current) {
                 clearInterval(intervalRef.current);
             }
+            document.removeEventListener("visibilitychange", handleVisibility);
+            window.removeEventListener("focus", handleFocus);
         };
     }, [fetchInitialData]);
 
