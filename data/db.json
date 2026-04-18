@@ -23,8 +23,8 @@
       "dutyStatus": "on-duty",
       "onBreak": false,
       "totalBreakMinutes": 0,
-      "lastActivityAt": "2026-04-18T07:21:17.312Z",
-      "lastLocationUpdate": "2026-04-18T07:21:17.314Z"
+      "lastActivityAt": "2026-04-18T07:26:44.134Z",
+      "lastLocationUpdate": "2026-04-18T07:26:44.134Z"
     },
     {
       "id": "u4",
@@ -37,8 +37,8 @@
       "dutyStatus": "on-duty",
       "onBreak": false,
       "totalBreakMinutes": 0,
-      "lastActivityAt": "2026-04-18T07:21:17.314Z",
-      "lastLocationUpdate": "2026-04-18T07:21:17.314Z"
+      "lastActivityAt": "2026-04-18T07:26:44.134Z",
+      "lastLocationUpdate": "2026-04-18T07:26:44.134Z"
     },
     {
       "id": "u5",
@@ -48,11 +48,11 @@
       "isLive": true,
       "licenseNumber": "KL-DL-2019-9012",
       "status": "available",
-      "lastLocationUpdate": "2026-04-16T20:02:51.530Z",
+      "lastLocationUpdate": "2026-04-18T07:26:44.134Z",
       "dutyStatus": "on-duty",
       "onBreak": false,
       "totalBreakMinutes": 0,
-      "lastActivityAt": "2026-04-18T07:21:17.314Z"
+      "lastActivityAt": "2026-04-18T07:26:44.134Z"
     },
     {
       "id": "u6",
@@ -65,8 +65,8 @@
       "dutyStatus": "on-duty",
       "onBreak": false,
       "totalBreakMinutes": 0,
-      "lastActivityAt": "2026-04-18T07:21:17.314Z",
-      "lastLocationUpdate": "2026-04-18T07:21:17.314Z"
+      "lastActivityAt": "2026-04-18T07:26:44.134Z",
+      "lastLocationUpdate": "2026-04-18T07:26:44.134Z"
     },
     {
       "id": "u7",
@@ -76,11 +76,11 @@
       "isLive": true,
       "licenseNumber": "KL-DL-2020-7890",
       "status": "available",
-      "lastLocationUpdate": "2026-04-16T19:47:06.412Z",
+      "lastLocationUpdate": "2026-04-18T07:26:44.134Z",
       "dutyStatus": "on-duty",
       "onBreak": false,
       "totalBreakMinutes": 0,
-      "lastActivityAt": "2026-04-18T07:21:17.314Z"
+      "lastActivityAt": "2026-04-18T07:26:44.134Z"
     },
     {
       "id": "u8",
@@ -93,8 +93,8 @@
       "dutyStatus": "on-duty",
       "onBreak": false,
       "totalBreakMinutes": 0,
-      "lastActivityAt": "2026-04-18T07:21:17.314Z",
-      "lastLocationUpdate": "2026-04-18T07:21:17.314Z"
+      "lastActivityAt": "2026-04-18T07:26:44.134Z",
+      "lastLocationUpdate": "2026-04-18T07:26:44.134Z"
     },
     {
       "id": "u9",
@@ -107,8 +107,8 @@
       "dutyStatus": "on-duty",
       "onBreak": false,
       "totalBreakMinutes": 0,
-      "lastActivityAt": "2026-04-18T07:21:17.314Z",
-      "lastLocationUpdate": "2026-04-18T07:21:17.314Z"
+      "lastActivityAt": "2026-04-18T07:26:44.134Z",
+      "lastLocationUpdate": "2026-04-18T07:26:44.134Z"
     },
     {
       "id": "u10",
@@ -121,8 +121,8 @@
       "dutyStatus": "on-duty",
       "onBreak": false,
       "totalBreakMinutes": 0,
-      "lastActivityAt": "2026-04-18T07:21:17.314Z",
-      "lastLocationUpdate": "2026-04-18T07:21:17.314Z"
+      "lastActivityAt": "2026-04-18T07:26:44.134Z",
+      "lastLocationUpdate": "2026-04-18T07:26:44.134Z"
     },
     {
       "id": "u11",
@@ -135,8 +135,8 @@
       "dutyStatus": "on-duty",
       "onBreak": false,
       "totalBreakMinutes": 0,
-      "lastActivityAt": "2026-04-18T07:21:17.314Z",
-      "lastLocationUpdate": "2026-04-18T07:21:17.314Z"
+      "lastActivityAt": "2026-04-18T07:26:44.134Z",
+      "lastLocationUpdate": "2026-04-18T07:26:44.134Z"
     },
     {
       "id": "u12",
@@ -149,8 +149,8 @@
       "dutyStatus": "on-duty",
       "onBreak": false,
       "totalBreakMinutes": 0,
-      "lastActivityAt": "2026-04-18T07:21:17.314Z",
-      "lastLocationUpdate": "2026-04-18T07:21:17.314Z"
+      "lastActivityAt": "2026-04-18T07:26:44.134Z",
+      "lastLocationUpdate": "2026-04-18T07:26:44.134Z"
     }
   ],
   "vehicles": [
@@ -253,291 +253,7 @@
       "fuelType": "diesel"
     }
   ],
-  "trips": [
-    {
-      "id": "t1",
-      "vehicleId": "v1",
-      "driverId": "u3",
-      "supervisorId": "u2",
-      "status": "completed",
-      "startLocation": {
-        "lat": 9.9312,
-        "lng": 76.2673,
-        "address": "Cochin Port Trust, Willingdon Island"
-      },
-      "drops": [
-        {
-          "id": "d1",
-          "address": "Lulu Mall Logistics Dock, Edappally, Kochi, 682024",
-          "lat": 10.0276,
-          "lng": 76.3082,
-          "customerName": "Lulu Hypermarket",
-          "customerPhone": "9847012345",
-          "status": "delivered",
-          "estimatedArrival": "2026-02-15T10:00:00Z",
-          "actualArrival": "2026-02-15T09:45:00Z"
-        },
-        {
-          "id": "d2",
-          "address": "Infopark Phase 2, Kakkanad, Kochi, 682030",
-          "lat": 10.0094,
-          "lng": 76.3765,
-          "customerName": "Tech Valet Services",
-          "customerPhone": "9447123456",
-          "status": "delivered",
-          "estimatedArrival": "2026-02-15T14:00:00Z",
-          "actualArrival": "2026-02-15T13:30:00Z"
-        }
-      ],
-      "estimatedDistance": 45,
-      "actualDistance": 43,
-      "startTime": "2026-02-15T06:00:00Z",
-      "endTime": "2026-02-15T15:00:00Z"
-    },
-    {
-      "id": "t2",
-      "vehicleId": "v2",
-      "driverId": "u4",
-      "supervisorId": "u2",
-      "status": "completed",
-      "startLocation": {
-        "lat": 8.5241,
-        "lng": 76.9366,
-        "address": "Technopark Campus, Trivandrum"
-      },
-      "drops": [
-        {
-          "id": "d3",
-          "address": "Leela Raviz, Kovalam Beach, Trivandrum",
-          "lat": 8.3988,
-          "lng": 76.982,
-          "customerName": "Mr. Rajesh (Manager)",
-          "customerPhone": "9995544332",
-          "status": "delivered",
-          "estimatedArrival": "2026-02-19T09:00:00Z",
-          "actualArrival": "2026-02-19T08:50:00Z"
-        },
-        {
-          "id": "d4",
-          "address": "Vizhinjam International Sea Port Area",
-          "lat": 8.381,
-          "lng": 76.96,
-          "customerName": "Capt. Suresh Pillai",
-          "customerPhone": "9008877665",
-          "status": "delivered",
-          "estimatedArrival": "2026-02-19T11:00:00Z",
-          "actualArrival": "2026-02-21T14:34:49.608Z"
-        },
-        {
-          "id": "d5",
-          "address": "UST Global, Technopark Phase 2, Trivandrum",
-          "lat": 8.556,
-          "lng": 76.88,
-          "customerName": "Facility Manager",
-          "customerPhone": "9846055443",
-          "status": "delivered",
-          "estimatedArrival": "2026-02-19T14:00:00Z",
-          "actualArrival": "2026-02-21T14:34:52.560Z"
-        }
-      ],
-      "estimatedDistance": 55,
-      "startTime": "2026-02-19T07:00:00Z",
-      "endTime": "2026-02-21T14:34:52.560Z"
-    },
-    {
-      "id": "t5",
-      "supervisorId": "u2",
-      "status": "planned",
-      "startLocation": {
-        "lat": 11.2588,
-        "lng": 75.7804,
-        "address": "Kozhikode Central Warehouse"
-      },
-      "drops": [
-        {
-          "id": "d11",
-          "address": "SM Street Market, Palayam, Kozhikode, 673001",
-          "lat": 11.248,
-          "lng": 75.7713,
-          "customerName": "Calicut Spices (Wholesale)",
-          "customerPhone": "9846011223",
-          "status": "pending",
-          "estimatedArrival": "2026-02-20T10:00:00Z"
-        },
-        {
-          "id": "d12",
-          "address": "Hilite Mall Logistics Area, Kozhikode, 673016",
-          "lat": 11.2336,
-          "lng": 75.8264,
-          "customerName": "Reliance Retail HUB",
-          "customerPhone": "9447055667",
-          "status": "pending",
-          "estimatedArrival": "2026-02-20T12:00:00Z"
-        }
-      ],
-      "estimatedDistance": 18
-    },
-    {
-      "id": "t8",
-      "supervisorId": "u2",
-      "status": "planned",
-      "startLocation": {
-        "lat": 9.9312,
-        "lng": 76.2673,
-        "address": "Cochin Port Trust"
-      },
-      "drops": [
-        {
-          "id": "d18",
-          "address": "Kerala Industrial Infrastructure Development Corp, Aluva",
-          "lat": 10.11,
-          "lng": 76.35,
-          "customerName": "Mr. Vinu (Logistics)",
-          "customerPhone": "9895012344",
-          "status": "pending",
-          "estimatedArrival": "2026-02-21T09:00:00Z"
-        },
-        {
-          "id": "d19",
-          "address": "Angamaly Produce Market, Kochi-Salem Hwy",
-          "lat": 10.1964,
-          "lng": 76.3869,
-          "customerName": "Angamaly Fresh Co-op",
-          "customerPhone": "9400122334",
-          "status": "pending",
-          "estimatedArrival": "2026-02-21T11:00:00Z"
-        }
-      ],
-      "estimatedDistance": 38
-    },
-    {
-      "id": "TRIP-1851",
-      "status": "planned",
-      "startLocation": {
-        "lat": 9.9648247,
-        "lng": 76.2721278,
-        "address": "Kochi Port, Kochi, Kerala"
-      },
-      "drops": [
-        {
-          "id": "d-1771684513181",
-          "orderId": "ORD-583",
-          "address": "Mattancherry Wharf, Indira Gandhi Road, Kochi",
-          "lat": 9.9605209,
-          "lng": 76.2672219,
-          "customerName": "idrees",
-          "status": "pending",
-          "priority": "medium",
-          "deadline": "2026-02-22"
-        },
-        {
-          "id": "d-1771684529522",
-          "orderId": "ORD-627",
-          "address": "Central Orchard-Pattambi, Pattambi, Kerala",
-          "lat": 10.8068903,
-          "lng": 76.2002735,
-          "customerName": "linshad",
-          "status": "pending",
-          "priority": "medium",
-          "deadline": "2026-02-22"
-        },
-        {
-          "id": "d-1771684545895",
-          "orderId": "ORD-37",
-          "address": "Kottarakara - Kollam road, Kollam, Kadappakkada",
-          "lat": 8.8927184,
-          "lng": 76.6050722,
-          "customerName": "deva",
-          "status": "pending",
-          "priority": "medium",
-          "deadline": "2026-02-22"
-        }
-      ],
-      "estimatedDistance": 312.5
-    },
-    {
-      "id": "t-69521939",
-      "status": "planned",
-      "supervisorId": "u2",
-      "startLocation": {
-        "address": "Maradu, Thrippunithura, Kerala",
-        "lat": 9.9397588,
-        "lng": 76.3286304
-      },
-      "drops": [
-        {
-          "id": "d-1776369521939-0",
-          "customerName": "devasurya",
-          "address": "Pattazhy Vadakkekkara, Kerala",
-          "lat": 9.0969438,
-          "lng": 76.8065967,
-          "priority": "high",
-          "status": "pending",
-          "distanceFromPrev": 107.4
-        }
-      ],
-      "estimatedDistance": 107.4
-    },
-    {
-      "id": "t-69725395",
-      "status": "planned",
-      "supervisorId": "u2",
-      "startLocation": {
-        "address": "Kochi Dispatch Hub",
-        "lat": 9.9312,
-        "lng": 76.2673
-      },
-      "drops": [
-        {
-          "id": "d-1776369725395-0",
-          "customerName": "linshad",
-          "address": "Maradu, Thrippunithura, Kerala",
-          "lat": 9.9397588,
-          "lng": 76.3286304,
-          "priority": "low",
-          "status": "pending",
-          "distanceFromPrev": 6.8
-        }
-      ],
-      "estimatedDistance": 6.8
-    }
-  ],
-  "fuelEntries": [
-    {
-      "id": "f1",
-      "tripId": "t3",
-      "driverId": "u5",
-      "vehicleId": "v4",
-      "amount": 45,
-      "cost": 4300,
-      "currency": "INR",
-      "odometer": 12050,
-      "location": "Indian Oil, Kunnamkulam",
-      "timestamp": "2026-02-14T09:30:00Z",
-      "status": "approved",
-      "verifiedBy": "u2",
-      "approvedBy": "u1"
-    }
-  ],
-  "alerts": [
-    {
-      "id": "a1",
-      "type": "geofence",
-      "severity": "high",
-      "message": "Vehicle KL-07-CB-1234 diverted from MG Road route.",
-      "timestamp": "2026-02-19T08:45:00Z",
-      "vehicleId": "v1",
-      "tripId": "t4",
-      "resolved": false
-    },
-    {
-      "id": "a4",
-      "type": "fuel-theft",
-      "severity": "critical",
-      "message": "Suspicious fuel drop detected on KL-01-AZ-5678.",
-      "timestamp": "2026-02-19T10:15:00Z",
-      "vehicleId": "v2",
-      "resolved": false
-    }
-  ]
+  "trips": [],
+  "fuelEntries": [],
+  "alerts": []
 }

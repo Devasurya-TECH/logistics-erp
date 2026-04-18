@@ -1,308 +1,213 @@
-import { User, Driver, Vehicle, Trip, DropPoint, FuelEntry, Expense, Alert } from './types';
+import { Alert, Driver, FuelEntry, Trip, User, Vehicle } from './types';
 
 // Users
 export const users: User[] = [
     { id: 'u1', name: 'Arjun Menon', email: 'manager@logistics.com', role: 'manager' },
     { id: 'u2', name: 'Lakshmi Nair', email: 'supervisor@logistics.com', role: 'supervisor' },
-    { id: 'u3', name: 'Rahul Krishnan', email: 'driver@logistics.com', role: 'driver', isLive: true, status: 'available', licenseNumber: 'KL-DL-2020-1234' } as Driver,
-    { id: 'u4', name: 'Vishnu Das', email: 'driver2@logistics.com', role: 'driver', isLive: true, status: 'available', licenseNumber: 'KL-DL-2021-5678' } as Driver,
-    { id: 'u5', name: 'Mohammed Fasil', email: 'driver3@logistics.com', role: 'driver', isLive: true, status: 'available', licenseNumber: 'KL-DL-2019-9012' } as Driver,
-    { id: 'u6', name: 'Anoop Kumar', email: 'driver4@logistics.com', role: 'driver', isLive: true, status: 'available', licenseNumber: 'KL-DL-2022-3456' } as Driver,
-    { id: 'u7', name: 'Sreekanth Pillai', email: 'driver5@logistics.com', role: 'driver', isLive: true, status: 'available', licenseNumber: 'KL-DL-2020-7890' } as Driver,
-    { id: 'u8', name: 'Deepak Raj', email: 'driver6@logistics.com', role: 'driver', isLive: true, status: 'available', licenseNumber: 'KL-DL-2021-2345' } as Driver,
-    { id: 'u9', name: 'Nithin Babu', email: 'driver7@logistics.com', role: 'driver', isLive: true, status: 'available', licenseNumber: 'KL-DL-2018-6789' } as Driver,
-    { id: 'u10', name: 'Sajith Mohan', email: 'driver8@logistics.com', role: 'driver', isLive: true, status: 'available', licenseNumber: 'KL-DL-2023-0123' } as Driver,
-    { id: 'u11', name: 'Rakesh Menon', email: 'driver9@logistics.com', role: 'driver', isLive: true, status: 'available', licenseNumber: 'KL-DL-2024-4567' } as Driver,
-    { id: 'u12', name: 'Anand S', email: 'driver10@logistics.com', role: 'driver', isLive: true, status: 'available', licenseNumber: 'KL-DL-2024-8881' } as Driver,
+    {
+        id: 'u3',
+        name: 'Rahul Krishnan',
+        email: 'driver@logistics.com',
+        role: 'driver',
+        isLive: true,
+        status: 'available',
+        licenseNumber: 'KL-DL-2020-1234',
+        dutyStatus: 'on-duty',
+        onBreak: false,
+        totalBreakMinutes: 0,
+    } as Driver,
+    {
+        id: 'u4',
+        name: 'Vishnu Das',
+        email: 'driver2@logistics.com',
+        role: 'driver',
+        isLive: true,
+        status: 'available',
+        licenseNumber: 'KL-DL-2021-5678',
+        dutyStatus: 'on-duty',
+        onBreak: false,
+        totalBreakMinutes: 0,
+    } as Driver,
+    {
+        id: 'u5',
+        name: 'Mohammed Fasil',
+        email: 'driver3@logistics.com',
+        role: 'driver',
+        isLive: true,
+        status: 'available',
+        licenseNumber: 'KL-DL-2019-9012',
+        dutyStatus: 'on-duty',
+        onBreak: false,
+        totalBreakMinutes: 0,
+    } as Driver,
+    {
+        id: 'u6',
+        name: 'Anoop Kumar',
+        email: 'driver4@logistics.com',
+        role: 'driver',
+        isLive: true,
+        status: 'available',
+        licenseNumber: 'KL-DL-2022-3456',
+        dutyStatus: 'on-duty',
+        onBreak: false,
+        totalBreakMinutes: 0,
+    } as Driver,
+    {
+        id: 'u7',
+        name: 'Sreekanth Pillai',
+        email: 'driver5@logistics.com',
+        role: 'driver',
+        isLive: true,
+        status: 'available',
+        licenseNumber: 'KL-DL-2020-7890',
+        dutyStatus: 'on-duty',
+        onBreak: false,
+        totalBreakMinutes: 0,
+    } as Driver,
+    {
+        id: 'u8',
+        name: 'Deepak Raj',
+        email: 'driver6@logistics.com',
+        role: 'driver',
+        isLive: true,
+        status: 'available',
+        licenseNumber: 'KL-DL-2021-2345',
+        dutyStatus: 'on-duty',
+        onBreak: false,
+        totalBreakMinutes: 0,
+    } as Driver,
+    {
+        id: 'u9',
+        name: 'Nithin Babu',
+        email: 'driver7@logistics.com',
+        role: 'driver',
+        isLive: true,
+        status: 'available',
+        licenseNumber: 'KL-DL-2018-6789',
+        dutyStatus: 'on-duty',
+        onBreak: false,
+        totalBreakMinutes: 0,
+    } as Driver,
+    {
+        id: 'u10',
+        name: 'Sajith Mohan',
+        email: 'driver8@logistics.com',
+        role: 'driver',
+        isLive: true,
+        status: 'available',
+        licenseNumber: 'KL-DL-2023-0123',
+        dutyStatus: 'on-duty',
+        onBreak: false,
+        totalBreakMinutes: 0,
+    } as Driver,
+    {
+        id: 'u11',
+        name: 'Rakesh Menon',
+        email: 'driver9@logistics.com',
+        role: 'driver',
+        isLive: true,
+        status: 'available',
+        licenseNumber: 'KL-DL-2024-4567',
+        dutyStatus: 'on-duty',
+        onBreak: false,
+        totalBreakMinutes: 0,
+    } as Driver,
+    {
+        id: 'u12',
+        name: 'Anand S',
+        email: 'driver10@logistics.com',
+        role: 'driver',
+        isLive: true,
+        status: 'available',
+        licenseNumber: 'KL-DL-2024-8881',
+        dutyStatus: 'on-duty',
+        onBreak: false,
+        totalBreakMinutes: 0,
+    } as Driver,
 ];
 
 // Vehicles
 export const vehicles: Vehicle[] = [
-    { id: 'v1', plateNumber: 'KL-07-CB-1234', model: 'Ashok Leyland Dost', status: 'active', fuelLevel: 75, mileage: 120500, location: { lat: 9.9312, lng: 76.2673 }, lastServiceDate: '2025-12-01', fuelType: 'diesel' },
-    { id: 'v2', plateNumber: 'KL-01-AZ-5678', model: 'Tata Ace Gold', status: 'active', fuelLevel: 45, mileage: 98000, location: { lat: 8.5241, lng: 76.9366 }, lastServiceDate: '2026-01-15', fuelType: 'diesel' },
-    { id: 'v3', plateNumber: 'KL-11-BE-9012', model: 'Mahindra Bolero Pickup', status: 'maintenance', fuelLevel: 20, mileage: 45000, location: { lat: 11.2588, lng: 75.7804 }, lastServiceDate: '2026-02-10', fuelType: 'diesel' },
-    { id: 'v4', plateNumber: 'KL-08-DD-3456', model: 'Eicher Pro 2049', status: 'active', fuelLevel: 90, mileage: 12000, location: { lat: 10.5276, lng: 76.2144 }, lastServiceDate: '2026-01-20', fuelType: 'diesel' },
-    { id: 'v5', plateNumber: 'KL-13-XX-7890', model: 'BharatBenz 1217C', status: 'active', fuelLevel: 60, mileage: 150000, location: { lat: 11.8745, lng: 75.3704 }, lastServiceDate: '2025-11-05', fuelType: 'diesel' },
-    { id: 'v6', plateNumber: 'KL-17-AA-3344', model: 'Tata Intra V50', status: 'active', fuelLevel: 82, mileage: 22000, location: { lat: 9.9882, lng: 76.2951 }, lastServiceDate: '2026-03-02', fuelType: 'diesel' },
-    { id: 'v7', plateNumber: 'KL-22-CP-7781', model: 'Mahindra Jeeto', status: 'active', fuelLevel: 68, mileage: 34000, location: { lat: 9.9312, lng: 76.2673 }, lastServiceDate: '2026-02-26', fuelType: 'diesel' },
+    {
+        id: 'v1',
+        plateNumber: 'KL-07-CB-1234',
+        model: 'Ashok Leyland Dost',
+        status: 'active',
+        fuelLevel: 75,
+        mileage: 120500,
+        location: { lat: 9.9312, lng: 76.2673 },
+        lastServiceDate: '2025-12-01',
+        fuelType: 'diesel',
+    },
+    {
+        id: 'v2',
+        plateNumber: 'KL-01-AZ-5678',
+        model: 'Tata Ace Gold',
+        status: 'active',
+        fuelLevel: 45,
+        mileage: 98000,
+        location: { lat: 8.5241, lng: 76.9366 },
+        lastServiceDate: '2026-01-15',
+        fuelType: 'diesel',
+    },
+    {
+        id: 'v3',
+        plateNumber: 'KL-11-BE-9012',
+        model: 'Mahindra Bolero Pickup',
+        status: 'maintenance',
+        fuelLevel: 20,
+        mileage: 45000,
+        location: { lat: 11.2588, lng: 75.7804 },
+        lastServiceDate: '2026-02-10',
+        fuelType: 'diesel',
+    },
+    {
+        id: 'v4',
+        plateNumber: 'KL-08-DD-3456',
+        model: 'Eicher Pro 2049',
+        status: 'active',
+        fuelLevel: 90,
+        mileage: 12000,
+        location: { lat: 10.5276, lng: 76.2144 },
+        lastServiceDate: '2026-01-20',
+        fuelType: 'diesel',
+    },
+    {
+        id: 'v5',
+        plateNumber: 'KL-13-XX-7890',
+        model: 'BharatBenz 1217C',
+        status: 'active',
+        fuelLevel: 60,
+        mileage: 150000,
+        location: { lat: 11.8745, lng: 75.3704 },
+        lastServiceDate: '2025-11-05',
+        fuelType: 'diesel',
+    },
+    {
+        id: 'v6',
+        plateNumber: 'KL-17-AA-3344',
+        model: 'Tata Intra V50',
+        status: 'active',
+        fuelLevel: 82,
+        mileage: 22000,
+        location: { lat: 9.9882, lng: 76.2951 },
+        lastServiceDate: '2026-03-02',
+        fuelType: 'diesel',
+    },
+    {
+        id: 'v7',
+        plateNumber: 'KL-22-CP-7781',
+        model: 'Mahindra Jeeto',
+        status: 'active',
+        fuelLevel: 68,
+        mileage: 34000,
+        location: { lat: 9.9312, lng: 76.2673 },
+        lastServiceDate: '2026-02-26',
+        fuelType: 'diesel',
+    },
 ];
 
-// Extended Trips — 10 trips with various statuses
-export const trips: Trip[] = [
-    {
-        id: 't1',
-        vehicleId: 'v1',
-        driverId: 'u3',
-        supervisorId: 'u2',
-        status: 'completed',
-        startLocation: { lat: 9.9312, lng: 76.2673, address: 'Cochin Port Trust, Willingdon Island' },
-        drops: [
-            { id: 'd1', address: 'Lulu Mall Logistics Dock, Edappally, Kochi, 682024', lat: 10.0276, lng: 76.3082, customerName: 'Lulu Hypermarket', customerPhone: '9847012345', status: 'delivered', estimatedArrival: '2026-02-15T10:00:00Z', actualArrival: '2026-02-15T09:45:00Z' },
-            { id: 'd2', address: 'Infopark Phase 2, Kakkanad, Kochi, 682030', lat: 10.0094, lng: 76.3765, customerName: 'Tech Valet Services', customerPhone: '9447123456', status: 'delivered', estimatedArrival: '2026-02-15T14:00:00Z', actualArrival: '2026-02-15T13:30:00Z' }
-        ],
-        estimatedDistance: 45,
-        actualDistance: 43,
-        startTime: '2026-02-15T06:00:00Z',
-        endTime: '2026-02-15T15:00:00Z'
-    },
-    {
-        id: 't2',
-        supervisorId: 'u2',
-        status: 'planned',
-        startLocation: { lat: 8.5241, lng: 76.9366, address: 'Technopark Campus, Trivandrum' },
-        drops: [
-            { id: 'd3', address: 'Leela Raviz, Kovalam Beach, Trivandrum', lat: 8.3988, lng: 76.9820, customerName: 'Mr. Rajesh (Manager)', customerPhone: '9995544332', status: 'pending', estimatedArrival: '2026-02-19T09:00:00Z' },
-            { id: 'd4', address: 'Vizhinjam International Sea Port Area', lat: 8.3810, lng: 76.9600, customerName: 'Capt. Suresh Pillai', customerPhone: '9008877665', status: 'pending', estimatedArrival: '2026-02-19T11:00:00Z' },
-            { id: 'd5', address: 'UST Global, Technopark Phase 2, Trivandrum', lat: 8.5560, lng: 76.8800, customerName: 'Facility Manager', customerPhone: '9846055443', status: 'pending', estimatedArrival: '2026-02-19T14:00:00Z' }
-        ],
-        estimatedDistance: 55
-    },
-    {
-        id: 't3',
-        vehicleId: 'v4',
-        driverId: 'u5',
-        supervisorId: 'u2',
-        status: 'completed',
-        startLocation: { lat: 10.5276, lng: 76.2144, address: 'Thrissur Round North' },
-        drops: [
-            { id: 'd6', address: 'Guruvayur Temple Devaswom', lat: 10.5952, lng: 76.0369, customerName: 'Temple Stores', status: 'delivered', estimatedArrival: '2026-02-14T11:00:00Z', actualArrival: '2026-02-14T10:55:00Z' }
-        ],
-        estimatedDistance: 28,
-        startTime: '2026-02-14T08:00:00Z',
-        endTime: '2026-02-14T12:00:00Z',
-        actualDistance: 30
-    },
-    {
-        id: 't4',
-        supervisorId: 'u2',
-        status: 'planned',
-        startLocation: { lat: 9.9312, lng: 76.2673, address: 'Kochi Warehouse Hub' },
-        drops: [
-            { id: 'd7', address: 'Marine Drive Commercial Complex', lat: 9.9716, lng: 76.2792, customerName: 'Kerala Traders', status: 'pending', estimatedArrival: '2026-02-19T09:30:00Z' },
-            { id: 'd8', address: 'Fort Kochi Bazaar Rd', lat: 9.9638, lng: 76.2420, customerName: 'Heritage Crafts', status: 'pending', estimatedArrival: '2026-02-19T11:30:00Z' },
-            { id: 'd9', address: 'MG Road Ernakulam', lat: 9.9677, lng: 76.2867, customerName: 'Metro Pharma', status: 'pending', estimatedArrival: '2026-02-19T13:00:00Z' },
-            { id: 'd10', address: 'Kaloor Stadium Road', lat: 9.9957, lng: 76.3002, customerName: 'Sports Arena', status: 'pending', estimatedArrival: '2026-02-19T15:00:00Z' }
-        ],
-        estimatedDistance: 32
-    },
-    {
-        id: 't5',
-        supervisorId: 'u2',
-        status: 'planned',
-        startLocation: { lat: 11.2588, lng: 75.7804, address: 'Kozhikode Central Warehouse' },
-        drops: [
-            { id: 'd11', address: 'SM Street Market, Palayam, Kozhikode, 673001', lat: 11.2480, lng: 75.7713, customerName: 'Calicut Spices (Wholesale)', customerPhone: '9846011223', status: 'pending', estimatedArrival: '2026-02-20T10:00:00Z' },
-            { id: 'd12', address: 'Hilite Mall Logistics Area, Kozhikode, 673016', lat: 11.2336, lng: 75.8264, customerName: 'Reliance Retail HUB', customerPhone: '9447055667', status: 'pending', estimatedArrival: '2026-02-20T12:00:00Z' }
-        ],
-        estimatedDistance: 18
-    },
-    {
-        id: 't6',
-        vehicleId: 'v4',
-        driverId: 'u8',
-        supervisorId: 'u2',
-        status: 'completed',
-        startLocation: { lat: 9.5916, lng: 76.5222, address: 'Kottayam Bus Stand' },
-        drops: [
-            { id: 'd13', address: 'Kumarakom Lake Resort', lat: 9.6029, lng: 76.4239, customerName: 'Lake Resort Group', status: 'delivered', estimatedArrival: '2026-02-13T09:00:00Z', actualArrival: '2026-02-13T08:45:00Z' },
-            { id: 'd14', address: 'Changanassery Market', lat: 9.4433, lng: 76.5389, customerName: 'Fresh Veggies Ltd', status: 'delivered', estimatedArrival: '2026-02-13T11:00:00Z', actualArrival: '2026-02-13T11:10:00Z' }
-        ],
-        estimatedDistance: 40,
-        actualDistance: 42,
-        startTime: '2026-02-13T07:00:00Z',
-        endTime: '2026-02-13T12:30:00Z'
-    },
-    {
-        id: 't7',
-        vehicleId: 'v2',
-        driverId: 'u9',
-        supervisorId: 'u2',
-        status: 'completed',
-        startLocation: { lat: 10.7867, lng: 76.6548, address: 'Palakkad Gateway' },
-        drops: [
-            { id: 'd15', address: 'Malampuzha Garden Area', lat: 10.8328, lng: 76.6838, customerName: 'Tourism Board', status: 'delivered', estimatedArrival: '2026-02-12T08:00:00Z', actualArrival: '2026-02-12T07:50:00Z' },
-            { id: 'd16', address: 'Ottappalam Town', lat: 10.7702, lng: 76.3831, customerName: 'Agri Supplies', status: 'delivered', estimatedArrival: '2026-02-12T10:00:00Z', actualArrival: '2026-02-12T10:20:00Z' },
-            { id: 'd17', address: 'Shoranur Junction', lat: 10.7618, lng: 76.2805, customerName: 'Railway Canteen', status: 'delivered', estimatedArrival: '2026-02-12T12:00:00Z', actualArrival: '2026-02-12T11:45:00Z' }
-        ],
-        estimatedDistance: 65,
-        actualDistance: 63,
-        startTime: '2026-02-12T06:30:00Z',
-        endTime: '2026-02-12T13:00:00Z'
-    },
-    {
-        id: 't8',
-        supervisorId: 'u2',
-        status: 'planned',
-        startLocation: { lat: 9.9312, lng: 76.2673, address: 'Cochin Port Trust' },
-        drops: [
-            { id: 'd18', address: 'Kerala Industrial Infrastructure Development Corp, Aluva', lat: 10.1100, lng: 76.3500, customerName: 'Mr. Vinu (Logistics)', customerPhone: '9895012344', status: 'pending', estimatedArrival: '2026-02-21T09:00:00Z' },
-            { id: 'd19', address: 'Angamaly Produce Market, Kochi-Salem Hwy', lat: 10.1964, lng: 76.3869, customerName: 'Angamaly Fresh Co-op', customerPhone: '9400122334', status: 'pending', estimatedArrival: '2026-02-21T11:00:00Z' }
-        ],
-        estimatedDistance: 38
-    },
-    {
-        id: 't9',
-        vehicleId: 'v5',
-        driverId: 'u3',
-        supervisorId: 'u2',
-        status: 'completed',
-        startLocation: { lat: 11.8745, lng: 75.3704, address: 'Kannur City Centre' },
-        drops: [
-            { id: 'd20', address: 'Thalassery Pier', lat: 11.7480, lng: 75.4890, customerName: 'Fish Exports Kerala', status: 'delivered', estimatedArrival: '2026-02-11T08:00:00Z', actualArrival: '2026-02-11T07:55:00Z' },
-            { id: 'd21', address: 'Payyanur Bus Station', lat: 12.0946, lng: 75.2050, customerName: 'North Kerala Traders', status: 'delivered', estimatedArrival: '2026-02-11T11:00:00Z', actualArrival: '2026-02-11T11:15:00Z' }
-        ],
-        estimatedDistance: 70,
-        actualDistance: 72,
-        startTime: '2026-02-11T06:00:00Z',
-        endTime: '2026-02-11T13:00:00Z'
-    },
-    {
-        id: 't10',
-        vehicleId: 'v4',
-        driverId: 'u5',
-        supervisorId: 'u2',
-        status: 'cancelled',
-        startLocation: { lat: 9.4981, lng: 76.3388, address: 'Alappuzha Boat Jetty' },
-        drops: [
-            { id: 'd22', address: 'Houseboat Terminal', lat: 9.4897, lng: 76.3286, customerName: 'Backwater Tourism', status: 'skipped' }
-        ],
-        estimatedDistance: 5
-    }
-];
-
-// Fuel Entries
-export const fuelEntries: FuelEntry[] = [
-    {
-        id: 'f1',
-        tripId: 't3',
-        driverId: 'u5',
-        vehicleId: 'v4',
-        amount: 45,
-        cost: 4300,
-        currency: 'INR',
-        odometer: 12050,
-        location: 'Indian Oil, Kunnamkulam',
-        timestamp: '2026-02-14T09:30:00Z',
-        status: 'approved',
-        verifiedBy: 'u2',
-        approvedBy: 'u1'
-    },
-    {
-        id: 'f2',
-        tripId: 't1',
-        driverId: 'u3',
-        vehicleId: 'v1',
-        amount: 60,
-        cost: 5800,
-        currency: 'INR',
-        odometer: 120600,
-        location: 'Bharat Petroleum, Vyttila',
-        timestamp: '2026-02-15T08:15:00Z',
-        status: 'pending'
-    },
-    {
-        id: 'f3',
-        tripId: 't2',
-        driverId: 'u4',
-        vehicleId: 'v2',
-        amount: 35,
-        cost: 3400,
-        currency: 'INR',
-        odometer: 98200,
-        location: 'HP Petrol, Kazhakoottam',
-        timestamp: '2026-02-19T07:30:00Z',
-        status: 'pending'
-    },
-    {
-        id: 'f4',
-        tripId: 't4',
-        driverId: 'u6',
-        vehicleId: 'v1',
-        amount: 50,
-        cost: 4800,
-        currency: 'INR',
-        odometer: 120700,
-        location: 'Indian Oil, Edappally',
-        timestamp: '2026-02-19T08:00:00Z',
-        status: 'pending'
-    },
-    {
-        id: 'f5',
-        tripId: 't6',
-        driverId: 'u8',
-        vehicleId: 'v4',
-        amount: 40,
-        cost: 3900,
-        currency: 'INR',
-        odometer: 12200,
-        location: 'BPCL, Kottayam',
-        timestamp: '2026-02-13T07:15:00Z',
-        status: 'verified',
-        verifiedBy: 'u2'
-    },
-    {
-        id: 'f6',
-        tripId: 't7',
-        driverId: 'u9',
-        vehicleId: 'v2',
-        amount: 55,
-        cost: 5350,
-        currency: 'INR',
-        odometer: 98400,
-        location: 'Indian Oil, Palakkad',
-        timestamp: '2026-02-12T06:45:00Z',
-        status: 'approved',
-        verifiedBy: 'u2',
-        approvedBy: 'u1'
-    }
-];
-
-// Alerts
-export const alerts: Alert[] = [
-    {
-        id: 'a1',
-        type: 'geofence',
-        severity: 'high',
-        message: 'Vehicle KL-07-CB-1234 diverted from MG Road route.',
-        timestamp: '2026-02-19T08:45:00Z',
-        vehicleId: 'v1',
-        tripId: 't4',
-        resolved: false
-    },
-    {
-        id: 'a2',
-        type: 'maintenance',
-        severity: 'medium',
-        message: 'KL-11-BE-9012 requires brake inspection.',
-        timestamp: '2026-02-14T10:00:00Z',
-        vehicleId: 'v3',
-        resolved: false
-    },
-    {
-        id: 'a3',
-        type: 'delay',
-        severity: 'medium',
-        message: 'Trip T2 delivery to Port Authority delayed by 30 min.',
-        timestamp: '2026-02-19T11:30:00Z',
-        tripId: 't2',
-        resolved: false
-    },
-    {
-        id: 'a4',
-        type: 'fuel-theft',
-        severity: 'critical',
-        message: 'Suspicious fuel drop detected on KL-01-AZ-5678.',
-        timestamp: '2026-02-19T10:15:00Z',
-        vehicleId: 'v2',
-        resolved: false
-    },
-    {
-        id: 'a5',
-        type: 'geofence',
-        severity: 'low',
-        message: 'Vehicle KL-08-DD-3456 entered Thrissur municipal zone.',
-        timestamp: '2026-02-19T07:00:00Z',
-        vehicleId: 'v4',
-        resolved: true
-    }
-];
+// Clean baseline for testing
+export const trips: Trip[] = [];
+export const fuelEntries: FuelEntry[] = [];
+export const alerts: Alert[] = [];
