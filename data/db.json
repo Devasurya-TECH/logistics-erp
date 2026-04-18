@@ -23,8 +23,8 @@
       "dutyStatus": "on-duty",
       "onBreak": false,
       "totalBreakMinutes": 0,
-      "lastActivityAt": "2026-04-18T07:26:44.134Z",
-      "lastLocationUpdate": "2026-04-18T07:26:44.134Z"
+      "lastActivityAt": "2026-04-18T07:41:10.894Z",
+      "lastLocationUpdate": "2026-04-18T07:41:10.894Z"
     },
     {
       "id": "u4",
@@ -37,8 +37,8 @@
       "dutyStatus": "on-duty",
       "onBreak": false,
       "totalBreakMinutes": 0,
-      "lastActivityAt": "2026-04-18T07:26:44.134Z",
-      "lastLocationUpdate": "2026-04-18T07:26:44.134Z"
+      "lastActivityAt": "2026-04-18T07:41:10.894Z",
+      "lastLocationUpdate": "2026-04-18T07:41:10.894Z"
     },
     {
       "id": "u5",
@@ -48,11 +48,11 @@
       "isLive": true,
       "licenseNumber": "KL-DL-2019-9012",
       "status": "available",
-      "lastLocationUpdate": "2026-04-18T07:26:44.134Z",
+      "lastLocationUpdate": "2026-04-18T07:41:10.894Z",
       "dutyStatus": "on-duty",
       "onBreak": false,
       "totalBreakMinutes": 0,
-      "lastActivityAt": "2026-04-18T07:26:44.134Z"
+      "lastActivityAt": "2026-04-18T07:41:10.894Z"
     },
     {
       "id": "u6",
@@ -65,8 +65,8 @@
       "dutyStatus": "on-duty",
       "onBreak": false,
       "totalBreakMinutes": 0,
-      "lastActivityAt": "2026-04-18T07:26:44.134Z",
-      "lastLocationUpdate": "2026-04-18T07:26:44.134Z"
+      "lastActivityAt": "2026-04-18T07:41:10.894Z",
+      "lastLocationUpdate": "2026-04-18T07:41:10.894Z"
     },
     {
       "id": "u7",
@@ -76,11 +76,11 @@
       "isLive": true,
       "licenseNumber": "KL-DL-2020-7890",
       "status": "available",
-      "lastLocationUpdate": "2026-04-18T07:26:44.134Z",
+      "lastLocationUpdate": "2026-04-18T07:41:10.894Z",
       "dutyStatus": "on-duty",
       "onBreak": false,
       "totalBreakMinutes": 0,
-      "lastActivityAt": "2026-04-18T07:26:44.134Z"
+      "lastActivityAt": "2026-04-18T07:41:10.894Z"
     },
     {
       "id": "u8",
@@ -93,8 +93,8 @@
       "dutyStatus": "on-duty",
       "onBreak": false,
       "totalBreakMinutes": 0,
-      "lastActivityAt": "2026-04-18T07:26:44.134Z",
-      "lastLocationUpdate": "2026-04-18T07:26:44.134Z"
+      "lastActivityAt": "2026-04-18T07:41:10.894Z",
+      "lastLocationUpdate": "2026-04-18T07:41:10.894Z"
     },
     {
       "id": "u9",
@@ -107,8 +107,8 @@
       "dutyStatus": "on-duty",
       "onBreak": false,
       "totalBreakMinutes": 0,
-      "lastActivityAt": "2026-04-18T07:26:44.134Z",
-      "lastLocationUpdate": "2026-04-18T07:26:44.134Z"
+      "lastActivityAt": "2026-04-18T07:41:10.894Z",
+      "lastLocationUpdate": "2026-04-18T07:41:10.894Z"
     },
     {
       "id": "u10",
@@ -121,8 +121,8 @@
       "dutyStatus": "on-duty",
       "onBreak": false,
       "totalBreakMinutes": 0,
-      "lastActivityAt": "2026-04-18T07:26:44.134Z",
-      "lastLocationUpdate": "2026-04-18T07:26:44.134Z"
+      "lastActivityAt": "2026-04-18T07:41:10.894Z",
+      "lastLocationUpdate": "2026-04-18T07:41:10.894Z"
     },
     {
       "id": "u11",
@@ -135,8 +135,8 @@
       "dutyStatus": "on-duty",
       "onBreak": false,
       "totalBreakMinutes": 0,
-      "lastActivityAt": "2026-04-18T07:26:44.134Z",
-      "lastLocationUpdate": "2026-04-18T07:26:44.134Z"
+      "lastActivityAt": "2026-04-18T07:41:10.894Z",
+      "lastLocationUpdate": "2026-04-18T07:41:10.894Z"
     },
     {
       "id": "u12",
@@ -149,8 +149,8 @@
       "dutyStatus": "on-duty",
       "onBreak": false,
       "totalBreakMinutes": 0,
-      "lastActivityAt": "2026-04-18T07:26:44.134Z",
-      "lastLocationUpdate": "2026-04-18T07:26:44.134Z"
+      "lastActivityAt": "2026-04-18T07:41:10.894Z",
+      "lastLocationUpdate": "2026-04-18T07:41:10.894Z"
     }
   ],
   "vehicles": [

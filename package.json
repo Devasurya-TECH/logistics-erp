@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "reset:data": "node scripts/reset-data.js"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
