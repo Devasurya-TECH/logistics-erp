@@ -19,16 +19,26 @@
       "role": "driver",
       "isLive": true,
       "licenseNumber": "KL-DL-2020-1234",
-      "status": "on-trip"
+      "status": "available",
+      "dutyStatus": "on-duty",
+      "onBreak": false,
+      "totalBreakMinutes": 0,
+      "lastActivityAt": "2026-04-18T07:21:17.312Z",
+      "lastLocationUpdate": "2026-04-18T07:21:17.314Z"
     },
     {
       "id": "u4",
       "name": "Vishnu Das",
       "email": "driver2@logistics.com",
       "role": "driver",
-      "isLive": false,
+      "isLive": true,
       "licenseNumber": "KL-DL-2021-5678",
-      "status": "on-trip"
+      "status": "available",
+      "dutyStatus": "on-duty",
+      "onBreak": false,
+      "totalBreakMinutes": 0,
+      "lastActivityAt": "2026-04-18T07:21:17.314Z",
+      "lastLocationUpdate": "2026-04-18T07:21:17.314Z"
     },
     {
       "id": "u5",
@@ -37,18 +47,26 @@
       "role": "driver",
       "isLive": true,
       "licenseNumber": "KL-DL-2019-9012",
-      "status": "on-trip",
-      "currentVehicleId": "v1",
-      "lastLocationUpdate": "2026-04-16T20:02:51.530Z"
+      "status": "available",
+      "lastLocationUpdate": "2026-04-16T20:02:51.530Z",
+      "dutyStatus": "on-duty",
+      "onBreak": false,
+      "totalBreakMinutes": 0,
+      "lastActivityAt": "2026-04-18T07:21:17.314Z"
     },
     {
       "id": "u6",
       "name": "Anoop Kumar",
       "email": "driver4@logistics.com",
       "role": "driver",
-      "isLive": false,
+      "isLive": true,
       "licenseNumber": "KL-DL-2022-3456",
-      "status": "on-trip"
+      "status": "available",
+      "dutyStatus": "on-duty",
+      "onBreak": false,
+      "totalBreakMinutes": 0,
+      "lastActivityAt": "2026-04-18T07:21:17.314Z",
+      "lastLocationUpdate": "2026-04-18T07:21:17.314Z"
     },
     {
       "id": "u7",
@@ -58,7 +76,11 @@
       "isLive": true,
       "licenseNumber": "KL-DL-2020-7890",
       "status": "available",
-      "lastLocationUpdate": "2026-04-16T19:47:06.412Z"
+      "lastLocationUpdate": "2026-04-16T19:47:06.412Z",
+      "dutyStatus": "on-duty",
+      "onBreak": false,
+      "totalBreakMinutes": 0,
+      "lastActivityAt": "2026-04-18T07:21:17.314Z"
     },
     {
       "id": "u8",
@@ -66,8 +88,13 @@
       "email": "driver6@logistics.com",
       "role": "driver",
       "licenseNumber": "KL-DL-2021-2345",
-      "status": "on-trip",
-      "currentVehicleId": "v4"
+      "status": "available",
+      "isLive": true,
+      "dutyStatus": "on-duty",
+      "onBreak": false,
+      "totalBreakMinutes": 0,
+      "lastActivityAt": "2026-04-18T07:21:17.314Z",
+      "lastLocationUpdate": "2026-04-18T07:21:17.314Z"
     },
     {
       "id": "u9",
@@ -75,7 +102,13 @@
       "email": "driver7@logistics.com",
       "role": "driver",
       "licenseNumber": "KL-DL-2018-6789",
-      "status": "available"
+      "status": "available",
+      "isLive": true,
+      "dutyStatus": "on-duty",
+      "onBreak": false,
+      "totalBreakMinutes": 0,
+      "lastActivityAt": "2026-04-18T07:21:17.314Z",
+      "lastLocationUpdate": "2026-04-18T07:21:17.314Z"
     },
     {
       "id": "u10",
@@ -83,8 +116,13 @@
       "email": "driver8@logistics.com",
       "role": "driver",
       "licenseNumber": "KL-DL-2023-0123",
-      "status": "on-trip",
-      "currentVehicleId": "v5"
+      "status": "available",
+      "isLive": true,
+      "dutyStatus": "on-duty",
+      "onBreak": false,
+      "totalBreakMinutes": 0,
+      "lastActivityAt": "2026-04-18T07:21:17.314Z",
+      "lastLocationUpdate": "2026-04-18T07:21:17.314Z"
     },
     {
       "id": "u11",
@@ -93,7 +131,12 @@
       "role": "driver",
       "isLive": true,
       "licenseNumber": "KL-DL-2024-4567",
-      "status": "available"
+      "status": "available",
+      "dutyStatus": "on-duty",
+      "onBreak": false,
+      "totalBreakMinutes": 0,
+      "lastActivityAt": "2026-04-18T07:21:17.314Z",
+      "lastLocationUpdate": "2026-04-18T07:21:17.314Z"
     },
     {
       "id": "u12",
@@ -102,7 +145,12 @@
       "role": "driver",
       "isLive": true,
       "licenseNumber": "KL-DL-2024-8881",
-      "status": "available"
+      "status": "available",
+      "dutyStatus": "on-duty",
+      "onBreak": false,
+      "totalBreakMinutes": 0,
+      "lastActivityAt": "2026-04-18T07:21:17.314Z",
+      "lastLocationUpdate": "2026-04-18T07:21:17.314Z"
     }
   ],
   "vehicles": [
@@ -298,10 +346,8 @@
     },
     {
       "id": "t5",
-      "vehicleId": "v5",
-      "driverId": "u7",
       "supervisorId": "u2",
-      "status": "assigned",
+      "status": "planned",
       "startLocation": {
         "lat": 11.2588,
         "lng": 75.7804,
@@ -333,10 +379,8 @@
     },
     {
       "id": "t8",
-      "vehicleId": "v5",
-      "driverId": "u10",
       "supervisorId": "u2",
-      "status": "assigned",
+      "status": "planned",
       "startLocation": {
         "lat": 9.9312,
         "lng": 76.2673,
@@ -368,7 +412,7 @@
     },
     {
       "id": "TRIP-1851",
-      "status": "in-progress",
+      "status": "planned",
       "startLocation": {
         "lat": 9.9648247,
         "lng": 76.2721278,
@@ -409,14 +453,11 @@
           "deadline": "2026-02-22"
         }
       ],
-      "estimatedDistance": 312.5,
-      "vehicleId": "v2",
-      "driverId": "u4",
-      "startTime": "2026-02-21T14:36:22.940Z"
+      "estimatedDistance": 312.5
     },
     {
       "id": "t-69521939",
-      "status": "assigned",
+      "status": "planned",
       "supervisorId": "u2",
       "startLocation": {
         "address": "Maradu, Thrippunithura, Kerala",
@@ -435,13 +476,11 @@
           "distanceFromPrev": 107.4
         }
       ],
-      "estimatedDistance": 107.4,
-      "driverId": "u8",
-      "vehicleId": "v4"
+      "estimatedDistance": 107.4
     },
     {
       "id": "t-69725395",
-      "status": "in-progress",
+      "status": "planned",
       "supervisorId": "u2",
       "startLocation": {
         "address": "Kochi Dispatch Hub",
@@ -460,10 +499,7 @@
           "distanceFromPrev": 6.8
         }
       ],
-      "estimatedDistance": 6.8,
-      "driverId": "u5",
-      "vehicleId": "v1",
-      "startTime": "2026-04-16T20:02:37.171Z"
+      "estimatedDistance": 6.8
     }
   ],
   "fuelEntries": [

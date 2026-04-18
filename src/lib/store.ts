@@ -18,7 +18,15 @@ interface AppState {
         tripId: string,
         dropId: string,
         status: 'delivered' | 'failed',
-        details?: { proofImage?: string; failureReason?: string; notes?: string }
+        details?: {
+            proofImage?: string;
+            proofCapturedAt?: string;
+            proofLat?: number;
+            proofLng?: number;
+            proofLocation?: string;
+            failureReason?: string;
+            notes?: string;
+        }
     ) => Promise<void>;
 
     // Other actions remain local for now or can be hooked up similarly
@@ -196,6 +204,23 @@ export const useStore = create<AppState>((set, get) => ({
     updateDropStatus: async (tripId, dropId, status, details) => {
         const currentTrip = get().trips.find(t => t.id === tripId);
         if (!currentTrip) return;
+        const now = new Date().toISOString();
+
+        if (status === 'delivered') {
+            const hasPhoto = Boolean(details?.proofImage);
+            const hasGeo =
+                typeof details?.proofLat === 'number' &&
+                typeof details?.proofLng === 'number' &&
+                Boolean(details?.proofLocation?.trim());
+            if (!hasPhoto || !hasGeo) {
+                notify(
+                    'warning',
+                    'Delivery Proof Required',
+                    'Upload delivery photo and enable location before marking delivered.'
+                );
+                return;
+            }
+        }
 
         const drop = currentTrip.drops.find(d => d.id === dropId);
         const newDrops = currentTrip.drops.map(d =>
@@ -203,8 +228,12 @@ export const useStore = create<AppState>((set, get) => ({
                 ? {
                     ...d,
                     status,
-                    actualArrival: new Date().toISOString(),
+                    actualArrival: now,
                     proofImage: details?.proofImage || d.proofImage,
+                    proofCapturedAt: details?.proofCapturedAt || d.proofCapturedAt || now,
+                    proofLat: typeof details?.proofLat === 'number' ? details.proofLat : d.proofLat,
+                    proofLng: typeof details?.proofLng === 'number' ? details.proofLng : d.proofLng,
+                    proofLocation: details?.proofLocation || d.proofLocation,
                     failureReason: details?.failureReason || d.failureReason,
                     notes: details?.notes || d.notes,
                 }
@@ -240,15 +269,43 @@ export const useStore = create<AppState>((set, get) => ({
             body: JSON.stringify({ id: tripId, updates: tripUpdates })
         });
 
-        if (allDone && currentTrip.driverId) {
+        const hasProofGeoForThisDrop =
+            status === 'delivered' &&
+            typeof details?.proofLat === 'number' &&
+            typeof details?.proofLng === 'number' &&
+            Boolean(details?.proofLocation?.trim());
+
+        if (currentTrip.driverId && (allDone || hasProofGeoForThisDrop)) {
             const driverUpdates: Partial<Driver> = {
-                status: 'available',
-                currentVehicleId: undefined,
-                onBreak: false,
-                breakStartedAt: undefined,
-                breakType: undefined,
-                lastActivityAt: new Date().toISOString(),
+                lastActivityAt: now,
             };
+
+            if (hasProofGeoForThisDrop) {
+                driverUpdates.lastLocationUpdate = now;
+                driverUpdates.currentLocation = {
+                    lat: details!.proofLat as number,
+                    lng: details!.proofLng as number,
+                    address: details!.proofLocation as string,
+                    updatedAt: details!.proofCapturedAt || now,
+                };
+                driverUpdates.lastDeliveryProof = {
+                    tripId,
+                    dropId,
+                    capturedAt: details!.proofCapturedAt || now,
+                    lat: details!.proofLat as number,
+                    lng: details!.proofLng as number,
+                    address: details!.proofLocation as string,
+                    image: details!.proofImage,
+                };
+            }
+
+            if (allDone) {
+                driverUpdates.status = 'available';
+                driverUpdates.currentVehicleId = undefined;
+                driverUpdates.onBreak = false;
+                driverUpdates.breakStartedAt = undefined;
+                driverUpdates.breakType = undefined;
+            }
 
             set((state) => ({
                 drivers: state.drivers.map((driver) =>
@@ -262,7 +319,32 @@ export const useStore = create<AppState>((set, get) => ({
                     body: JSON.stringify({ id: currentTrip.driverId, updates: driverUpdates }),
                 });
             } catch (error) {
-                console.error('Driver completion persistence failed', error);
+                console.error('Driver drop persistence failed', error);
+            }
+        }
+
+        if (currentTrip.vehicleId && hasProofGeoForThisDrop) {
+            const location = {
+                lat: details!.proofLat as number,
+                lng: details!.proofLng as number,
+            };
+
+            set((state) => ({
+                vehicles: state.vehicles.map((vehicle) =>
+                    vehicle.id === currentTrip.vehicleId ? { ...vehicle, location } : vehicle
+                ),
+            }));
+
+            try {
+                await request('/api/vehicles', {
+                    method: 'PATCH',
+                    body: JSON.stringify({
+                        id: currentTrip.vehicleId,
+                        updates: { location },
+                    }),
+                });
+            } catch (error) {
+                console.error('Vehicle drop-location persistence failed', error);
             }
         }
     },

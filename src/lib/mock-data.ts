@@ -4,14 +4,14 @@ import { User, Driver, Vehicle, Trip, DropPoint, FuelEntry, Expense, Alert } fro
 export const users: User[] = [
     { id: 'u1', name: 'Arjun Menon', email: 'manager@logistics.com', role: 'manager' },
     { id: 'u2', name: 'Lakshmi Nair', email: 'supervisor@logistics.com', role: 'supervisor' },
-    { id: 'u3', name: 'Rahul Krishnan', email: 'driver@logistics.com', role: 'driver', isLive: true, status: 'on-trip', licenseNumber: 'KL-DL-2020-1234' } as Driver,
-    { id: 'u4', name: 'Vishnu Das', email: 'driver2@logistics.com', role: 'driver', isLive: false, status: 'on-trip', licenseNumber: 'KL-DL-2021-5678' } as Driver,
-    { id: 'u5', name: 'Mohammed Fasil', email: 'driver3@logistics.com', role: 'driver', isLive: true, status: 'on-trip', licenseNumber: 'KL-DL-2019-9012' } as Driver,
-    { id: 'u6', name: 'Anoop Kumar', email: 'driver4@logistics.com', role: 'driver', isLive: false, status: 'on-trip', licenseNumber: 'KL-DL-2022-3456' } as Driver,
+    { id: 'u3', name: 'Rahul Krishnan', email: 'driver@logistics.com', role: 'driver', isLive: true, status: 'available', licenseNumber: 'KL-DL-2020-1234' } as Driver,
+    { id: 'u4', name: 'Vishnu Das', email: 'driver2@logistics.com', role: 'driver', isLive: true, status: 'available', licenseNumber: 'KL-DL-2021-5678' } as Driver,
+    { id: 'u5', name: 'Mohammed Fasil', email: 'driver3@logistics.com', role: 'driver', isLive: true, status: 'available', licenseNumber: 'KL-DL-2019-9012' } as Driver,
+    { id: 'u6', name: 'Anoop Kumar', email: 'driver4@logistics.com', role: 'driver', isLive: true, status: 'available', licenseNumber: 'KL-DL-2022-3456' } as Driver,
     { id: 'u7', name: 'Sreekanth Pillai', email: 'driver5@logistics.com', role: 'driver', isLive: true, status: 'available', licenseNumber: 'KL-DL-2020-7890' } as Driver,
-    { id: 'u8', name: 'Deepak Raj', email: 'driver6@logistics.com', role: 'driver', isLive: true, status: 'on-trip', licenseNumber: 'KL-DL-2021-2345' } as Driver,
+    { id: 'u8', name: 'Deepak Raj', email: 'driver6@logistics.com', role: 'driver', isLive: true, status: 'available', licenseNumber: 'KL-DL-2021-2345' } as Driver,
     { id: 'u9', name: 'Nithin Babu', email: 'driver7@logistics.com', role: 'driver', isLive: true, status: 'available', licenseNumber: 'KL-DL-2018-6789' } as Driver,
-    { id: 'u10', name: 'Sajith Mohan', email: 'driver8@logistics.com', role: 'driver', isLive: true, status: 'on-trip', licenseNumber: 'KL-DL-2023-0123' } as Driver,
+    { id: 'u10', name: 'Sajith Mohan', email: 'driver8@logistics.com', role: 'driver', isLive: true, status: 'available', licenseNumber: 'KL-DL-2023-0123' } as Driver,
     { id: 'u11', name: 'Rakesh Menon', email: 'driver9@logistics.com', role: 'driver', isLive: true, status: 'available', licenseNumber: 'KL-DL-2024-4567' } as Driver,
     { id: 'u12', name: 'Anand S', email: 'driver10@logistics.com', role: 'driver', isLive: true, status: 'available', licenseNumber: 'KL-DL-2024-8881' } as Driver,
 ];
@@ -47,18 +47,15 @@ export const trips: Trip[] = [
     },
     {
         id: 't2',
-        vehicleId: 'v2',
-        driverId: 'u4',
         supervisorId: 'u2',
-        status: 'in-progress',
+        status: 'planned',
         startLocation: { lat: 8.5241, lng: 76.9366, address: 'Technopark Campus, Trivandrum' },
         drops: [
-            { id: 'd3', address: 'Leela Raviz, Kovalam Beach, Trivandrum', lat: 8.3988, lng: 76.9820, customerName: 'Mr. Rajesh (Manager)', customerPhone: '9995544332', status: 'delivered', estimatedArrival: '2026-02-19T09:00:00Z', actualArrival: '2026-02-19T08:50:00Z' },
+            { id: 'd3', address: 'Leela Raviz, Kovalam Beach, Trivandrum', lat: 8.3988, lng: 76.9820, customerName: 'Mr. Rajesh (Manager)', customerPhone: '9995544332', status: 'pending', estimatedArrival: '2026-02-19T09:00:00Z' },
             { id: 'd4', address: 'Vizhinjam International Sea Port Area', lat: 8.3810, lng: 76.9600, customerName: 'Capt. Suresh Pillai', customerPhone: '9008877665', status: 'pending', estimatedArrival: '2026-02-19T11:00:00Z' },
             { id: 'd5', address: 'UST Global, Technopark Phase 2, Trivandrum', lat: 8.5560, lng: 76.8800, customerName: 'Facility Manager', customerPhone: '9846055443', status: 'pending', estimatedArrival: '2026-02-19T14:00:00Z' }
         ],
-        estimatedDistance: 55,
-        startTime: '2026-02-19T07:00:00Z'
+        estimatedDistance: 55
     },
     {
         id: 't3',
@@ -77,26 +74,21 @@ export const trips: Trip[] = [
     },
     {
         id: 't4',
-        vehicleId: 'v1',
-        driverId: 'u6',
         supervisorId: 'u2',
-        status: 'in-progress',
+        status: 'planned',
         startLocation: { lat: 9.9312, lng: 76.2673, address: 'Kochi Warehouse Hub' },
         drops: [
-            { id: 'd7', address: 'Marine Drive Commercial Complex', lat: 9.9716, lng: 76.2792, customerName: 'Kerala Traders', status: 'delivered', estimatedArrival: '2026-02-19T09:30:00Z', actualArrival: '2026-02-19T09:20:00Z' },
+            { id: 'd7', address: 'Marine Drive Commercial Complex', lat: 9.9716, lng: 76.2792, customerName: 'Kerala Traders', status: 'pending', estimatedArrival: '2026-02-19T09:30:00Z' },
             { id: 'd8', address: 'Fort Kochi Bazaar Rd', lat: 9.9638, lng: 76.2420, customerName: 'Heritage Crafts', status: 'pending', estimatedArrival: '2026-02-19T11:30:00Z' },
             { id: 'd9', address: 'MG Road Ernakulam', lat: 9.9677, lng: 76.2867, customerName: 'Metro Pharma', status: 'pending', estimatedArrival: '2026-02-19T13:00:00Z' },
             { id: 'd10', address: 'Kaloor Stadium Road', lat: 9.9957, lng: 76.3002, customerName: 'Sports Arena', status: 'pending', estimatedArrival: '2026-02-19T15:00:00Z' }
         ],
-        estimatedDistance: 32,
-        startTime: '2026-02-19T08:00:00Z'
+        estimatedDistance: 32
     },
     {
         id: 't5',
-        vehicleId: 'v5',
-        driverId: 'u7',
         supervisorId: 'u2',
-        status: 'assigned',
+        status: 'planned',
         startLocation: { lat: 11.2588, lng: 75.7804, address: 'Kozhikode Central Warehouse' },
         drops: [
             { id: 'd11', address: 'SM Street Market, Palayam, Kozhikode, 673001', lat: 11.2480, lng: 75.7713, customerName: 'Calicut Spices (Wholesale)', customerPhone: '9846011223', status: 'pending', estimatedArrival: '2026-02-20T10:00:00Z' },
@@ -139,8 +131,6 @@ export const trips: Trip[] = [
     },
     {
         id: 't8',
-        vehicleId: 'v1',
-        driverId: 'u10',
         supervisorId: 'u2',
         status: 'planned',
         startLocation: { lat: 9.9312, lng: 76.2673, address: 'Cochin Port Trust' },

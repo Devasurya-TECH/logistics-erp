@@ -8,6 +8,12 @@ import { useStore } from "@/lib/store";
 import type { FuelEntry } from "@/lib/types";
 
 type DriverTab = "overview" | "fuel";
+type DeliveryProofTarget = {
+    tripId: string;
+    dropId: string;
+    customerName: string;
+    address: string;
+};
 type VehicleIssueType =
     | "engine-check"
     | "flat-tyre"
@@ -45,6 +51,43 @@ function formatMinutes(totalMinutes: number) {
     return `${hours}h ${mins}m`;
 }
 
+function getCurrentPosition() {
+    return new Promise<GeolocationPosition>((resolve, reject) => {
+        if (typeof window === "undefined" || !navigator.geolocation) {
+            reject(new Error("Geolocation unavailable"));
+            return;
+        }
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 12000,
+            maximumAge: 30000,
+        });
+    });
+}
+
+async function reverseGeocode(lat: number, lng: number) {
+    try {
+        const params = new URLSearchParams({
+            format: "json",
+            lat: String(lat),
+            lon: String(lng),
+            zoom: "17",
+            addressdetails: "1",
+        });
+        const response = await fetch(`https://nominatim.openstreetmap.org/reverse?${params.toString()}`, {
+            headers: {
+                Accept: "application/json",
+                "User-Agent": "LogisticsERP/1.0",
+            },
+        });
+        if (!response.ok) return "";
+        const data = await response.json();
+        return String(data?.display_name || "").trim();
+    } catch {
+        return "";
+    }
+}
+
 export default function DriverDashboardPage() {
     const { user } = useAuth();
     const searchParams = useSearchParams();
@@ -80,6 +123,15 @@ export default function DriverDashboardPage() {
 
     const [selectedTripId, setSelectedTripId] = useState<string | null>(activeTrips[0]?.id || null);
     const activeTrip = activeTrips.find((trip) => trip.id === selectedTripId) || activeTrips[0] || null;
+    const [proofTarget, setProofTarget] = useState<DeliveryProofTarget | null>(null);
+    const [deliveryProofImage, setDeliveryProofImage] = useState("");
+    const [deliveryProofNotes, setDeliveryProofNotes] = useState("");
+    const [deliveryProofLocation, setDeliveryProofLocation] = useState("");
+    const [deliveryProofLat, setDeliveryProofLat] = useState<number | null>(null);
+    const [deliveryProofLng, setDeliveryProofLng] = useState<number | null>(null);
+    const [deliveryProofError, setDeliveryProofError] = useState("");
+    const [deliveryProofLoadingLocation, setDeliveryProofLoadingLocation] = useState(false);
+    const [deliveryProofSubmitting, setDeliveryProofSubmitting] = useState(false);
 
     const [fuelAmount, setFuelAmount] = useState("20");
     const [fuelCost, setFuelCost] = useState("2200");
@@ -137,6 +189,80 @@ export default function DriverDashboardPage() {
 
         return () => window.clearInterval(monitor);
     }, [me, activeTrip, startDriverBreak]);
+
+    const captureDeliveryLocation = async () => {
+        setDeliveryProofLoadingLocation(true);
+        setDeliveryProofError("");
+        try {
+            const position = await getCurrentPosition();
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            setDeliveryProofLat(lat);
+            setDeliveryProofLng(lng);
+            const resolvedAddress = await reverseGeocode(lat, lng);
+            setDeliveryProofLocation(
+                resolvedAddress ||
+                    `Lat ${lat.toFixed(6)}, Lng ${lng.toFixed(6)}`,
+            );
+        } catch {
+            setDeliveryProofError("Location access failed. Enable location permission and try again.");
+        } finally {
+            setDeliveryProofLoadingLocation(false);
+        }
+    };
+
+    const openDeliveryProofModal = (target: DeliveryProofTarget) => {
+        setProofTarget(target);
+        setDeliveryProofImage("");
+        setDeliveryProofNotes("");
+        setDeliveryProofLocation("");
+        setDeliveryProofLat(null);
+        setDeliveryProofLng(null);
+        setDeliveryProofError("");
+        void captureDeliveryLocation();
+    };
+
+    const closeDeliveryProofModal = () => {
+        setProofTarget(null);
+        setDeliveryProofImage("");
+        setDeliveryProofNotes("");
+        setDeliveryProofLocation("");
+        setDeliveryProofLat(null);
+        setDeliveryProofLng(null);
+        setDeliveryProofError("");
+        setDeliveryProofSubmitting(false);
+    };
+
+    const submitDeliveryProof = async () => {
+        if (!proofTarget || !me) return;
+
+        if (!deliveryProofImage) {
+            setDeliveryProofError("Delivery photo is required.");
+            return;
+        }
+        if (deliveryProofLat === null || deliveryProofLng === null || !deliveryProofLocation.trim()) {
+            setDeliveryProofError("Delivery location is required. Fetch current location and retry.");
+            return;
+        }
+
+        setDeliveryProofSubmitting(true);
+        setDeliveryProofError("");
+
+        try {
+            await updateDropStatus(proofTarget.tripId, proofTarget.dropId, "delivered", {
+                proofImage: deliveryProofImage,
+                proofCapturedAt: new Date().toISOString(),
+                proofLat: deliveryProofLat,
+                proofLng: deliveryProofLng,
+                proofLocation: deliveryProofLocation.trim(),
+                notes: deliveryProofNotes.trim() || undefined,
+            });
+            await registerDriverActivity(me.id);
+            closeDeliveryProofModal();
+        } finally {
+            setDeliveryProofSubmitting(false);
+        }
+    };
 
     return (
         <div className="space-y-5">
@@ -315,13 +441,16 @@ export default function DriverDashboardPage() {
                                                     type="button"
                                                     disabled={!dayStarted || onBreak}
                                                     onClick={() => {
-                                                        if (!me) return;
-                                                        void updateDropStatus(activeTrip.id, drop.id, "delivered");
-                                                        void registerDriverActivity(me.id);
+                                                        openDeliveryProofModal({
+                                                            tripId: activeTrip.id,
+                                                            dropId: drop.id,
+                                                            customerName: drop.customerName,
+                                                            address: drop.address,
+                                                        });
                                                     }}
                                                     className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
                                                 >
-                                                    Mark Delivered
+                                                    Upload Proof & Deliver
                                                 </button>
                                                 <button
                                                     type="button"
@@ -472,6 +601,105 @@ export default function DriverDashboardPage() {
                         </div>
                     </article>
                 </section>
+            )}
+
+            {proofTarget && (
+                <div className="fixed inset-0 z-50 bg-black/35 p-4 flex items-center justify-center">
+                    <article className="w-full max-w-xl rounded-xl bg-white border border-gray-200 p-4">
+                        <h3 className="text-lg font-bold text-slate-900">Delivery Proof Required</h3>
+                        <p className="text-xs text-slate-500 mt-1">
+                            Customer: {proofTarget.customerName} • Upload photo and confirm capture location.
+                        </p>
+
+                        <div className="mt-3 space-y-3">
+                            <div>
+                                <label className="block text-xs text-slate-600 mb-1">Delivery Photo</label>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    capture="environment"
+                                    onChange={(event) => {
+                                        const file = event.target.files?.[0];
+                                        if (!file) return;
+                                        const reader = new FileReader();
+                                        reader.onload = () => {
+                                            const image = typeof reader.result === "string" ? reader.result : "";
+                                            setDeliveryProofImage(image);
+                                        };
+                                        reader.readAsDataURL(file);
+                                    }}
+                                    className="block w-full text-xs text-slate-600 file:mr-3 file:px-3 file:py-2 file:border-0 file:rounded-lg file:bg-emerald-600 file:text-white file:text-xs file:font-semibold hover:file:bg-emerald-700"
+                                />
+                                {deliveryProofImage && (
+                                    <img
+                                        src={deliveryProofImage}
+                                        alt="Delivery proof preview"
+                                        className="mt-2 w-56 h-36 object-cover rounded-lg border border-gray-200"
+                                    />
+                                )}
+                            </div>
+
+                            <div className="border border-gray-200 rounded-lg p-3 space-y-2 bg-slate-50">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <p className="text-xs font-semibold text-slate-700">Capture Location</p>
+                                    <button
+                                        type="button"
+                                        disabled={deliveryProofLoadingLocation}
+                                        onClick={() => {
+                                            void captureDeliveryLocation();
+                                        }}
+                                        className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                                    >
+                                        {deliveryProofLoadingLocation ? "Fetching..." : "Use Current Location"}
+                                    </button>
+                                </div>
+                                <p className="text-xs text-slate-600">
+                                    {deliveryProofLocation || "No location captured yet."}
+                                </p>
+                                {deliveryProofLat !== null && deliveryProofLng !== null && (
+                                    <p className="text-[11px] text-slate-500">
+                                        Lat: {deliveryProofLat.toFixed(6)} | Lng: {deliveryProofLng.toFixed(6)}
+                                    </p>
+                                )}
+                            </div>
+
+                            <div>
+                                <label className="block text-xs text-slate-600 mb-1">Proof Notes (optional)</label>
+                                <textarea
+                                    value={deliveryProofNotes}
+                                    onChange={(event) => setDeliveryProofNotes(event.target.value)}
+                                    rows={2}
+                                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                                    placeholder="Gate pass number, receiver info, etc."
+                                />
+                            </div>
+
+                            {deliveryProofError && (
+                                <p className="text-xs font-semibold text-rose-700">{deliveryProofError}</p>
+                            )}
+                        </div>
+
+                        <div className="mt-4 flex justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={closeDeliveryProofModal}
+                                className="px-3 py-2 rounded-lg border border-gray-200 text-sm font-semibold text-slate-600"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    void submitDeliveryProof();
+                                }}
+                                disabled={deliveryProofSubmitting}
+                                className="px-3 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50"
+                            >
+                                {deliveryProofSubmitting ? "Submitting..." : "Submit Proof & Deliver"}
+                            </button>
+                        </div>
+                    </article>
+                </div>
             )}
 
             {showSosModal && (

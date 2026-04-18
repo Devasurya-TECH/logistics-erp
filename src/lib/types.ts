@@ -34,6 +34,21 @@ export interface Driver extends User {
     breakType?: 'informed' | 'uninformed';
     totalBreakMinutes?: number;
     lastActivityAt?: string;
+    currentLocation?: {
+        lat: number;
+        lng: number;
+        address?: string;
+        updatedAt?: string;
+    };
+    lastDeliveryProof?: {
+        tripId: string;
+        dropId: string;
+        capturedAt: string;
+        lat: number;
+        lng: number;
+        address: string;
+        image?: string;
+    };
 }
 
 export type TripStatus = 'planned' | 'assigned' | 'in-progress' | 'completed' | 'cancelled';
@@ -53,6 +68,10 @@ export interface DropPoint {
     actualArrival?: string;
     distanceFromPrev?: number; // km
     proofImage?: string;
+    proofCapturedAt?: string;
+    proofLat?: number;
+    proofLng?: number;
+    proofLocation?: string;
     failureReason?: string;
     notes?: string;
 }

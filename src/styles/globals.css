@@ -369,18 +369,18 @@ body {
    ============================== */
 
 .map-container {
-  min-height: 280px;
+  height: 280px;
 }
 
 @media (min-width: 768px) {
   .map-container {
-    min-height: 400px;
+    height: 400px;
   }
 }
 
 @media (min-width: 1024px) {
   .map-container {
-    min-height: 500px;
+    height: 500px;
   }
 }
 

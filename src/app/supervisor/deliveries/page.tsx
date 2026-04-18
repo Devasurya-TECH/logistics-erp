@@ -543,6 +543,30 @@ export default function SupervisorDeliveriesPage() {
                             <p className="text-xs text-slate-500 mt-1">
                                 Trip #{delivery.tripId.toUpperCase()} • {delivery.tripStatus}
                             </p>
+                            {delivery.proofLocation && (
+                                <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 p-2">
+                                    <p className="text-[11px] font-semibold text-emerald-700">
+                                        Proof Location: {delivery.proofLocation}
+                                    </p>
+                                    {typeof delivery.proofLat === "number" && typeof delivery.proofLng === "number" && (
+                                        <p className="text-[11px] text-emerald-700 mt-0.5">
+                                            Lat {delivery.proofLat.toFixed(6)} | Lng {delivery.proofLng.toFixed(6)}
+                                        </p>
+                                    )}
+                                    {delivery.proofCapturedAt && (
+                                        <p className="text-[11px] text-emerald-700 mt-0.5">
+                                            Captured: {new Date(delivery.proofCapturedAt).toLocaleString()}
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+                            {delivery.proofImage && (
+                                <img
+                                    src={delivery.proofImage}
+                                    alt={`Proof ${delivery.tripId}-${delivery.id}`}
+                                    className="mt-2 h-24 w-40 object-cover rounded-lg border border-gray-200"
+                                />
+                            )}
                         </div>
                     ))}
                 </div>
