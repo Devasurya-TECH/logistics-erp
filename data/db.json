@@ -85,6 +85,24 @@
       "licenseNumber": "KL-DL-2023-0123",
       "status": "on-trip",
       "currentVehicleId": "v5"
+    },
+    {
+      "id": "u11",
+      "name": "Rakesh Menon",
+      "email": "driver9@logistics.com",
+      "role": "driver",
+      "isLive": true,
+      "licenseNumber": "KL-DL-2024-4567",
+      "status": "available"
+    },
+    {
+      "id": "u12",
+      "name": "Anand S",
+      "email": "driver10@logistics.com",
+      "role": "driver",
+      "isLive": true,
+      "licenseNumber": "KL-DL-2024-8881",
+      "status": "available"
     }
   ],
   "vehicles": [
@@ -156,6 +174,34 @@
         "lng": 75.3704
       },
       "lastServiceDate": "2025-11-05",
+      "fuelType": "diesel"
+    },
+    {
+      "id": "v6",
+      "plateNumber": "KL-17-AA-3344",
+      "model": "Tata Intra V50",
+      "status": "active",
+      "fuelLevel": 82,
+      "mileage": 22000,
+      "location": {
+        "lat": 9.9882,
+        "lng": 76.2951
+      },
+      "lastServiceDate": "2026-03-02",
+      "fuelType": "diesel"
+    },
+    {
+      "id": "v7",
+      "plateNumber": "KL-22-CP-7781",
+      "model": "Mahindra Jeeto",
+      "status": "active",
+      "fuelLevel": 68,
+      "mileage": 34000,
+      "location": {
+        "lat": 9.9312,
+        "lng": 76.2673
+      },
+      "lastServiceDate": "2026-02-26",
       "fuelType": "diesel"
     }
   ],

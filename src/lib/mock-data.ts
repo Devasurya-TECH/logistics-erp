@@ -4,11 +4,16 @@ import { User, Driver, Vehicle, Trip, DropPoint, FuelEntry, Expense, Alert } fro
 export const users: User[] = [
     { id: 'u1', name: 'Arjun Menon', email: 'manager@logistics.com', role: 'manager' },
     { id: 'u2', name: 'Lakshmi Nair', email: 'supervisor@logistics.com', role: 'supervisor' },
-    { id: 'u3', name: 'Rahul Krishnan', email: 'driver@logistics.com', role: 'driver', isLive: true } as Driver,
-    { id: 'u4', name: 'Vishnu Das', email: 'driver2@logistics.com', role: 'driver', isLive: false } as Driver,
-    { id: 'u5', name: 'Mohammed Fasil', email: 'driver3@logistics.com', role: 'driver', isLive: true } as Driver,
-    { id: 'u6', name: 'Anoop Kumar', email: 'driver4@logistics.com', role: 'driver', isLive: false } as Driver,
-    { id: 'u7', name: 'Sreekanth Pillai', email: 'driver5@logistics.com', role: 'driver', isLive: false } as Driver,
+    { id: 'u3', name: 'Rahul Krishnan', email: 'driver@logistics.com', role: 'driver', isLive: true, status: 'on-trip', licenseNumber: 'KL-DL-2020-1234' } as Driver,
+    { id: 'u4', name: 'Vishnu Das', email: 'driver2@logistics.com', role: 'driver', isLive: false, status: 'on-trip', licenseNumber: 'KL-DL-2021-5678' } as Driver,
+    { id: 'u5', name: 'Mohammed Fasil', email: 'driver3@logistics.com', role: 'driver', isLive: true, status: 'on-trip', licenseNumber: 'KL-DL-2019-9012' } as Driver,
+    { id: 'u6', name: 'Anoop Kumar', email: 'driver4@logistics.com', role: 'driver', isLive: false, status: 'on-trip', licenseNumber: 'KL-DL-2022-3456' } as Driver,
+    { id: 'u7', name: 'Sreekanth Pillai', email: 'driver5@logistics.com', role: 'driver', isLive: true, status: 'available', licenseNumber: 'KL-DL-2020-7890' } as Driver,
+    { id: 'u8', name: 'Deepak Raj', email: 'driver6@logistics.com', role: 'driver', isLive: true, status: 'on-trip', licenseNumber: 'KL-DL-2021-2345' } as Driver,
+    { id: 'u9', name: 'Nithin Babu', email: 'driver7@logistics.com', role: 'driver', isLive: true, status: 'available', licenseNumber: 'KL-DL-2018-6789' } as Driver,
+    { id: 'u10', name: 'Sajith Mohan', email: 'driver8@logistics.com', role: 'driver', isLive: true, status: 'on-trip', licenseNumber: 'KL-DL-2023-0123' } as Driver,
+    { id: 'u11', name: 'Rakesh Menon', email: 'driver9@logistics.com', role: 'driver', isLive: true, status: 'available', licenseNumber: 'KL-DL-2024-4567' } as Driver,
+    { id: 'u12', name: 'Anand S', email: 'driver10@logistics.com', role: 'driver', isLive: true, status: 'available', licenseNumber: 'KL-DL-2024-8881' } as Driver,
 ];
 
 // Vehicles
@@ -18,6 +23,8 @@ export const vehicles: Vehicle[] = [
     { id: 'v3', plateNumber: 'KL-11-BE-9012', model: 'Mahindra Bolero Pickup', status: 'maintenance', fuelLevel: 20, mileage: 45000, location: { lat: 11.2588, lng: 75.7804 }, lastServiceDate: '2026-02-10', fuelType: 'diesel' },
     { id: 'v4', plateNumber: 'KL-08-DD-3456', model: 'Eicher Pro 2049', status: 'active', fuelLevel: 90, mileage: 12000, location: { lat: 10.5276, lng: 76.2144 }, lastServiceDate: '2026-01-20', fuelType: 'diesel' },
     { id: 'v5', plateNumber: 'KL-13-XX-7890', model: 'BharatBenz 1217C', status: 'active', fuelLevel: 60, mileage: 150000, location: { lat: 11.8745, lng: 75.3704 }, lastServiceDate: '2025-11-05', fuelType: 'diesel' },
+    { id: 'v6', plateNumber: 'KL-17-AA-3344', model: 'Tata Intra V50', status: 'active', fuelLevel: 82, mileage: 22000, location: { lat: 9.9882, lng: 76.2951 }, lastServiceDate: '2026-03-02', fuelType: 'diesel' },
+    { id: 'v7', plateNumber: 'KL-22-CP-7781', model: 'Mahindra Jeeto', status: 'active', fuelLevel: 68, mileage: 34000, location: { lat: 9.9312, lng: 76.2673 }, lastServiceDate: '2026-02-26', fuelType: 'diesel' },
 ];
 
 // Extended Trips — 10 trips with various statuses
