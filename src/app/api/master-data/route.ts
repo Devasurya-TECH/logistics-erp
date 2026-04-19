@@ -1,21 +1,27 @@
-import { NextResponse } from 'next/server';
-import { getDbData, getDbStorageInfo } from '@/lib/db-utils';
+import { listAlerts, listFuelEntries, listProfiles, listVehicles, STORAGE_INFO } from '@/lib/supabase-data';
+import { getRequestContext, toErrorResponse } from '@/lib/server-session';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
     try {
-        const db = await getDbData();
-        const data = {
-            drivers: db.users.filter((u: any) => u.role === 'driver'),
-            vehicles: db.vehicles,
-            users: db.users,
-            fuelEntries: db.fuelEntries || [],
-            alerts: db.alerts || [],
-            storage: getDbStorageInfo(),
-        };
-        return NextResponse.json(data);
+        const { supabase } = await getRequestContext();
+        const [users, vehicles, fuelEntries, alerts] = await Promise.all([
+            listProfiles(supabase),
+            listVehicles(supabase),
+            listFuelEntries(supabase),
+            listAlerts(supabase),
+        ]);
+
+        return Response.json({
+            drivers: users.filter((user) => user.role === 'driver'),
+            vehicles,
+            users,
+            fuelEntries,
+            alerts,
+            storage: STORAGE_INFO,
+        });
     } catch (error) {
-        return NextResponse.json({ error: 'Failed to fetch master data' }, { status: 500 });
+        return toErrorResponse(error, 'Failed to fetch master data');
     }
 }

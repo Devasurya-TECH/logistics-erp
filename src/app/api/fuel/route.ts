@@ -1,47 +1,66 @@
-import { NextResponse } from 'next/server';
-import { getDbData, writeDbData } from '@/lib/db-utils';
+import { listFuelEntries, mapFuelEntryRow, mapFuelInputToRow } from '@/lib/supabase-data';
+import { getRequestContext, toErrorResponse } from '@/lib/server-session';
 import type { FuelEntry } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
     try {
-        const db = await getDbData();
-        return NextResponse.json(db.fuelEntries || []);
-    } catch {
-        return NextResponse.json({ error: 'Failed to fetch fuel entries' }, { status: 500 });
+        const { supabase } = await getRequestContext();
+        return Response.json(await listFuelEntries(supabase));
+    } catch (error) {
+        return toErrorResponse(error, 'Failed to fetch fuel entries');
     }
 }
 
 export async function POST(request: Request) {
     try {
+        const context = await getRequestContext();
         const newEntry = (await request.json()) as FuelEntry;
-        const db = await getDbData();
-        db.fuelEntries = [...(db.fuelEntries || []), newEntry];
-        await writeDbData(db);
-        return NextResponse.json(newEntry, { status: 201 });
-    } catch {
-        return NextResponse.json({ error: 'Failed to create fuel entry' }, { status: 500 });
+        const { data, error } = await context.supabase
+            .from('fuel_entries')
+            .insert({
+                ...mapFuelInputToRow(newEntry),
+                created_by: context.authUser.id,
+            })
+            .select('*')
+            .single();
+
+        if (error || !data) {
+            throw error || new Error('Failed to create fuel entry');
+        }
+
+        return Response.json(mapFuelEntryRow(data), { status: 201 });
+    } catch (error) {
+        return toErrorResponse(error, 'Failed to create fuel entry');
     }
 }
 
 export async function PATCH(request: Request) {
     try {
+        const context = await getRequestContext();
         const { id, updates } = (await request.json()) as {
             id: string;
             updates: Partial<FuelEntry>;
         };
 
-        const db = await getDbData();
-        const index = db.fuelEntries.findIndex((item: FuelEntry) => item.id === id);
-        if (index < 0) {
-            return NextResponse.json({ error: 'Fuel entry not found' }, { status: 404 });
+        if (!id || !updates || typeof updates !== 'object') {
+            return Response.json({ error: 'Invalid fuel update payload' }, { status: 400 });
         }
 
-        db.fuelEntries[index] = { ...db.fuelEntries[index], ...updates };
-        await writeDbData(db);
-        return NextResponse.json(db.fuelEntries[index]);
-    } catch {
-        return NextResponse.json({ error: 'Failed to update fuel entry' }, { status: 500 });
+        const { data, error } = await context.supabase
+            .from('fuel_entries')
+            .update(mapFuelInputToRow(updates))
+            .eq('id', id)
+            .select('*')
+            .single();
+
+        if (error || !data) {
+            return Response.json({ error: 'Fuel entry not found' }, { status: 404 });
+        }
+
+        return Response.json(mapFuelEntryRow(data));
+    } catch (error) {
+        return toErrorResponse(error, 'Failed to update fuel entry');
     }
 }

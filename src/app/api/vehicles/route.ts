@@ -1,35 +1,43 @@
-import { NextResponse } from 'next/server';
-import { getDbData, writeDbData } from '@/lib/db-utils';
+import { listVehicles, mapVehicleRow, mapVehicleUpdatesToRow } from '@/lib/supabase-data';
+import { getRequestContext, toErrorResponse } from '@/lib/server-session';
 import type { Vehicle } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
     try {
-        const db = await getDbData();
-        return NextResponse.json(db.vehicles || []);
-    } catch {
-        return NextResponse.json({ error: 'Failed to fetch vehicles' }, { status: 500 });
+        const { supabase } = await getRequestContext();
+        return Response.json(await listVehicles(supabase));
+    } catch (error) {
+        return toErrorResponse(error, 'Failed to fetch vehicles');
     }
 }
 
 export async function PATCH(request: Request) {
     try {
+        const context = await getRequestContext();
         const { id, updates } = (await request.json()) as {
             id: string;
             updates: Partial<Vehicle>;
         };
 
-        const db = await getDbData();
-        const index = db.vehicles.findIndex((vehicle: Vehicle) => vehicle.id === id);
-        if (index < 0) {
-            return NextResponse.json({ error: 'Vehicle not found' }, { status: 404 });
+        if (!id || !updates || typeof updates !== 'object') {
+            return Response.json({ error: 'Invalid vehicle update payload' }, { status: 400 });
         }
 
-        db.vehicles[index] = { ...db.vehicles[index], ...updates };
-        await writeDbData(db);
-        return NextResponse.json(db.vehicles[index]);
-    } catch {
-        return NextResponse.json({ error: 'Failed to update vehicle' }, { status: 500 });
+        const { data, error } = await context.supabase
+            .from('vehicles')
+            .update(mapVehicleUpdatesToRow(updates))
+            .eq('id', id)
+            .select('*')
+            .single();
+
+        if (error || !data) {
+            return Response.json({ error: 'Vehicle not found' }, { status: 404 });
+        }
+
+        return Response.json(mapVehicleRow(data));
+    } catch (error) {
+        return toErrorResponse(error, 'Failed to update vehicle');
     }
 }

@@ -2,12 +2,25 @@
 
 import { useStore } from "@/lib/store";
 import { useEffect, useRef } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 
 export function StoreInitializer() {
-    const { fetchInitialData } = useStore();
+    const { fetchInitialData, clearData } = useStore();
+    const { user, isLoading } = useAuth();
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     useEffect(() => {
+        if (isLoading) return;
+
+        if (!user) {
+            if (intervalRef.current) {
+                clearInterval(intervalRef.current);
+                intervalRef.current = null;
+            }
+            clearData();
+            return;
+        }
+
         const runSync = () => {
             void fetchInitialData();
         };
@@ -42,7 +55,7 @@ export function StoreInitializer() {
             document.removeEventListener("visibilitychange", handleVisibility);
             window.removeEventListener("focus", handleFocus);
         };
-    }, [fetchInitialData]);
+    }, [clearData, fetchInitialData, isLoading, user]);
 
     return null;
 }

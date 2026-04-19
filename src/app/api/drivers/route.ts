@@ -1,38 +1,49 @@
-import { NextResponse } from 'next/server';
-import { getDbData, writeDbData } from '@/lib/db-utils';
+import { listProfiles, mapDriverUpdatesToRow } from '@/lib/supabase-data';
+import { getRequestContext, toErrorResponse } from '@/lib/server-session';
 import type { Driver } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
     try {
-        const db = await getDbData();
-        const drivers = (db.users || []).filter((user: Driver) => user.role === 'driver');
-        return NextResponse.json(drivers);
-    } catch {
-        return NextResponse.json({ error: 'Failed to fetch drivers' }, { status: 500 });
+        const { supabase } = await getRequestContext();
+        const profiles = await listProfiles(supabase);
+        return Response.json(profiles.filter((user): user is Driver => user.role === 'driver'));
+    } catch (error) {
+        return toErrorResponse(error, 'Failed to fetch drivers');
     }
 }
 
 export async function PATCH(request: Request) {
     try {
+        const context = await getRequestContext();
         const { id, updates } = (await request.json()) as {
             id: string;
             updates: Partial<Driver>;
         };
 
-        const db = await getDbData();
-        const users = db.users || [];
-        const index = users.findIndex((user: Driver) => user.id === id && user.role === 'driver');
-        if (index < 0) {
-            return NextResponse.json({ error: 'Driver not found' }, { status: 404 });
+        if (!id || !updates || typeof updates !== 'object') {
+            return Response.json({ error: 'Invalid driver update payload' }, { status: 400 });
         }
 
-        users[index] = { ...users[index], ...updates };
-        db.users = users;
-        await writeDbData(db);
-        return NextResponse.json(users[index]);
-    } catch {
-        return NextResponse.json({ error: 'Failed to update driver' }, { status: 500 });
+        if (!context.isAdmin && context.authUser.id !== id) {
+            return Response.json({ error: 'Forbidden' }, { status: 403 });
+        }
+
+        const { data, error } = await context.supabase
+            .from('profiles')
+            .update(mapDriverUpdatesToRow(updates))
+            .eq('id', id)
+            .eq('role', 'driver')
+            .select('*')
+            .single();
+
+        if (error || !data) {
+            return Response.json({ error: 'Driver not found' }, { status: 404 });
+        }
+
+        return Response.json(data);
+    } catch (error) {
+        return toErrorResponse(error, 'Failed to update driver');
     }
 }

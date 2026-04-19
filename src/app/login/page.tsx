@@ -61,16 +61,22 @@ const quickLoginStyles: Record<string, { active: string; inactive: string }> = {
 };
 
 export default function LoginPage() {
-    const { login } = useAuth();
+    const { login, signup } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [name, setName] = useState('');
+    const [licenseNumber, setLicenseNumber] = useState('');
     const [role, setRole] = useState<UserRole>(APP_ROLE || 'manager');
+    const [mode, setMode] = useState<'login' | 'signup'>('login');
     const [error, setError] = useState('');
+    const [info, setInfo] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const router = useRouter();
 
     const isSingleRole = APP_ROLE !== null;
-    const config = roleConfig[role];
+    const activeRole = mode === 'signup' ? 'driver' : role;
+    const config = roleConfig[activeRole];
+    const canShowSignup = APP_ROLE === null || APP_ROLE === 'driver';
 
     useEffect(() => {
         const initialRole = APP_ROLE || role;
@@ -81,27 +87,41 @@ export default function LoginPage() {
         // Auto-fill first user for the active role for easier demo access
         const firstUser = roleConfig[initialRole].users[0];
         if (firstUser) setEmail(firstUser.email);
-    }, []);
+    }, [role]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (password !== 'demo123') {
-            setError('Invalid password. Try "demo123"');
-            return;
-        }
 
         setIsLoading(true);
         setError('');
+        setInfo('');
 
         try {
-            const success = await login(email, role);
+            if (mode === 'signup') {
+                const result = await signup({
+                    name,
+                    email,
+                    password,
+                    licenseNumber,
+                });
+
+                if (result.requiresEmailConfirmation) {
+                    setInfo('Driver account created. Confirm the email in Supabase if email confirmation is enabled, then sign in.');
+                    setMode('login');
+                } else {
+                    router.push(roleToPath('driver'));
+                }
+                return;
+            }
+
+            const success = await login(email, password, role);
             if (success) {
                 router.push(roleToPath(role));
             } else {
-                setError('User not found. Check credentials.');
+                setError('Login failed. Check email, password, and role.');
             }
-        } catch (err) {
-            setError('Login failed');
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : 'Authentication failed');
         } finally {
             setIsLoading(false);
         }
@@ -118,6 +138,7 @@ export default function LoginPage() {
         if (firstUser) setEmail(firstUser.email);
         setPassword('');
         setError('');
+        setInfo('');
     };
 
     return (
@@ -144,7 +165,7 @@ export default function LoginPage() {
                     <form onSubmit={handleSubmit} className="space-y-5">
 
                         {/* Role Selector — only shown in unified mode (local dev) */}
-                        {!isSingleRole && (
+                        {!isSingleRole && mode === 'login' && (
                             <div>
                                 <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Select Panel</label>
                                 <div className="grid grid-cols-3 gap-2 bg-gray-50 p-1.5 rounded-2xl">
@@ -167,7 +188,7 @@ export default function LoginPage() {
                         )}
 
                         {/* Quick login for multi-user roles */}
-                        {config.users.length > 1 && (
+                        {mode === 'login' && config.users.length > 1 && (
                             <div>
                                 <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Quick Login</label>
                                 <div className="flex gap-2 flex-wrap">
@@ -186,6 +207,32 @@ export default function LoginPage() {
                                     ))}
                                 </div>
                             </div>
+                        )}
+
+                        {mode === 'signup' && (
+                            <>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-600 mb-1.5">Driver Name</label>
+                                    <input
+                                        type="text"
+                                        value={name}
+                                        onChange={(e) => setName(e.target.value)}
+                                        placeholder="Enter driver name"
+                                        className="w-full px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-800 placeholder-gray-300 outline-none transition-all text-sm font-medium"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-600 mb-1.5">License Number</label>
+                                    <input
+                                        type="text"
+                                        value={licenseNumber}
+                                        onChange={(e) => setLicenseNumber(e.target.value)}
+                                        placeholder="Optional"
+                                        className="w-full px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-800 placeholder-gray-300 outline-none transition-all text-sm font-medium"
+                                    />
+                                </div>
+                            </>
                         )}
 
                         {/* Email */}
@@ -208,7 +255,7 @@ export default function LoginPage() {
                                 type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                placeholder="Enter demo123"
+                                placeholder={mode === 'signup' ? 'Create a password' : 'Enter your password'}
                                 className="w-full px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-800 placeholder-gray-300 outline-none transition-all text-sm font-medium"
                                 required
                             />
@@ -218,6 +265,11 @@ export default function LoginPage() {
                         {error && (
                             <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-red-600 text-xs flex items-center gap-2 font-medium animate-fade-in">
                                 <span>⚠️</span> {error}
+                            </div>
+                        )}
+                        {info && (
+                            <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl text-emerald-700 text-xs flex items-center gap-2 font-medium animate-fade-in">
+                                <span>ℹ️</span> {info}
                             </div>
                         )}
 
@@ -230,7 +282,7 @@ export default function LoginPage() {
                             {isLoading ? (
                                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                             ) : (
-                                <>Access {config.label} Dashboard</>
+                                <>{mode === 'signup' ? 'Create Driver Account' : `Access ${config.label} Dashboard`}</>
                             )}
                         </button>
                     </form>
@@ -238,8 +290,26 @@ export default function LoginPage() {
                     {/* Demo hint */}
                     <div className="mt-5 pt-4 border-t border-gray-100 text-center">
                         <p className="text-[10px] text-slate-300 font-medium uppercase tracking-wider">
-                            Demo credentials · Password: demo123
+                            {mode === 'signup' ? 'New signups create driver accounts only' : 'Use your Supabase Auth credentials'}
                         </p>
+                        {canShowSignup && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const nextMode = mode === 'login' ? 'signup' : 'login';
+                                    setMode(nextMode);
+                                    setError('');
+                                    setInfo('');
+                                    setPassword('');
+                                    if (nextMode === 'signup') {
+                                        setRole('driver');
+                                    }
+                                }}
+                                className="mt-3 text-xs font-semibold text-blue-600 hover:text-blue-700"
+                            >
+                                {mode === 'login' ? 'Create driver account' : 'Back to sign in'}
+                            </button>
+                        )}
                     </div>
                 </div>
 

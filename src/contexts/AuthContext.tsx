@@ -2,87 +2,178 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, UserRole } from '@/lib/types';
-import { users } from '@/lib/mock-data';
 import { useRouter } from 'next/navigation';
 import { normalizeRole, roleToPath } from '@/lib/roles';
+import { createClient } from '@/utils/supabase/client';
+import { mapProfileRow } from '@/lib/supabase-data';
 
 interface AuthContextType {
     user: User | null;
-    login: (email: string, role: UserRole) => Promise<boolean>;
-    logout: () => void;
+    login: (email: string, password: string, role: UserRole) => Promise<boolean>;
+    signup: (input: {
+        name: string;
+        email: string;
+        password: string;
+        licenseNumber?: string;
+    }) => Promise<{ success: boolean; requiresEmailConfirmation: boolean }>;
+    logout: () => Promise<void>;
+    refreshUser: () => Promise<void>;
     isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const supabase = createClient();
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
 
-    useEffect(() => {
-        // Check localStorage for persisted session
-        const storedUser = localStorage.getItem('logistics_user');
-        if (storedUser) {
-            try {
-                const parsed = JSON.parse(storedUser) as Partial<User> | null;
-                const normalizedRole = normalizeRole(parsed?.role);
-                if (
-                    parsed &&
-                    typeof parsed.id === 'string' &&
-                    typeof parsed.name === 'string' &&
-                    typeof parsed.email === 'string' &&
-                    normalizedRole
-                ) {
-                    const normalizedUser: User = {
-                        id: parsed.id,
-                        name: parsed.name,
-                        email: parsed.email,
-                        role: normalizedRole,
-                        avatar: parsed.avatar,
-                    };
-                    setUser(normalizedUser);
-                    localStorage.setItem('logistics_user', JSON.stringify(normalizedUser));
-                } else {
-                    localStorage.removeItem('logistics_user');
-                }
-            } catch {
-                localStorage.removeItem('logistics_user');
-            }
+    const refreshUser = async () => {
+        const {
+            data: { session },
+        } = await supabase.auth.getSession();
+
+        if (!session?.user) {
+            setUser(null);
+            return;
         }
-        setIsLoading(false);
+
+        const { data: profileRow, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+
+        if (error || !profileRow) {
+            setUser(null);
+            return;
+        }
+
+        const profile = mapProfileRow(profileRow);
+        setUser({
+            id: profile.id,
+            name: profile.name,
+            email: profile.email,
+            role: profile.role,
+            avatar: profile.avatar,
+        });
+    };
+
+    useEffect(() => {
+        let active = true;
+
+        const load = async () => {
+            try {
+                await refreshUser();
+            } finally {
+                if (active) {
+                    setIsLoading(false);
+                }
+            }
+        };
+
+        void load();
+
+        const {
+            data: { subscription },
+        } = supabase.auth.onAuthStateChange(() => {
+            void refreshUser();
+        });
+
+        return () => {
+            active = false;
+            subscription.unsubscribe();
+        };
     }, []);
 
-    const login = async (email: string, role: UserRole) => {
-        // Mock login delay
-        await new Promise(resolve => setTimeout(resolve, 500));
-
+    const login = async (email: string, password: string, role: UserRole) => {
         const normalizedRole = normalizeRole(role);
         if (!normalizedRole) return false;
 
-        const foundUser = users.find(u => u.email === email && u.role === normalizedRole);
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+        });
 
-        if (foundUser) {
-            const normalizedUser: User = { ...foundUser, role: normalizedRole };
-            setUser(normalizedUser);
-            localStorage.setItem('logistics_user', JSON.stringify(normalizedUser));
-
-            // Redirect based on role
-            router.push(roleToPath(normalizedRole));
-            return true;
+        if (error || !data.user) {
+            return false;
         }
 
-        return false;
+        const { data: profileRow, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', data.user.id)
+            .single();
+
+        if (profileError || !profileRow) {
+            await supabase.auth.signOut();
+            return false;
+        }
+
+        const profile = mapProfileRow(profileRow);
+        if (profile.role !== normalizedRole) {
+            await supabase.auth.signOut();
+            return false;
+        }
+
+        setUser({
+            id: profile.id,
+            name: profile.name,
+            email: profile.email,
+            role: profile.role,
+            avatar: profile.avatar,
+        });
+
+        router.push(roleToPath(profile.role));
+        return true;
     };
 
-    const logout = () => {
+    const signup = async ({
+        name,
+        email,
+        password,
+        licenseNumber,
+    }: {
+        name: string;
+        email: string;
+        password: string;
+        licenseNumber?: string;
+    }) => {
+        const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+                data: {
+                    name,
+                    role: 'driver',
+                    license_number: licenseNumber || '',
+                },
+            },
+        });
+
+        if (error) {
+            throw error;
+        }
+
+        if (data.session) {
+            await refreshUser();
+        }
+
+        return {
+            success: true,
+            requiresEmailConfirmation: !data.session,
+        };
+    };
+
+    const logout = async () => {
+        await supabase.auth.signOut();
         setUser(null);
-        localStorage.removeItem('logistics_user');
         router.push('/login');
     };
 
     return (
-        <AuthContext.Provider value={{ user, login, logout, isLoading }}>
+        <AuthContext.Provider value={{ user, login, signup, logout, refreshUser, isLoading }}>
             {children}
         </AuthContext.Provider>
     );

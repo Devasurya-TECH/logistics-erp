@@ -2,8 +2,6 @@ import { create } from 'zustand';
 import { Trip, Vehicle, Driver, FuelEntry, Alert } from './types';
 import { useNotifications } from './notifications';
 
-let warnedNonPersistentStorage = false;
-
 interface AppState {
     trips: Trip[];
     vehicles: Vehicle[];
@@ -13,6 +11,7 @@ interface AppState {
     isLoading: boolean;
 
     // Actions
+    clearData: () => void;
     fetchInitialData: () => Promise<void>;
     addTrip: (trip: Trip) => Promise<void>;
     updateTripStatus: (tripId: string, status: Trip['status']) => Promise<void>;
@@ -69,10 +68,11 @@ const notify = (type: 'success' | 'error' | 'warning' | 'info', title: string, m
 const request = async (url: string, init: RequestInit) => {
     const response = await fetch(url, {
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         ...init,
     });
 
-    let payload: any = null;
+    let payload: { error?: string } | null = null;
     try {
         payload = await response.json();
     } catch {
@@ -107,26 +107,57 @@ export const useStore = create<AppState>((set, get) => ({
     alerts: [],
     isLoading: true,
 
+    clearData: () => {
+        set({
+            trips: [],
+            vehicles: [],
+            drivers: [],
+            fuelEntries: [],
+            alerts: [],
+            isLoading: false,
+        });
+    },
+
     fetchInitialData: async () => {
         try {
+            set({ isLoading: true });
+
             // Fetch trips
-            const tripsRes = await fetch('/api/trips');
+            const tripsRes = await fetch('/api/trips', {
+                cache: 'no-store',
+                credentials: 'include',
+            });
+            if (tripsRes.status === 401) {
+                set({
+                    trips: [],
+                    vehicles: [],
+                    drivers: [],
+                    fuelEntries: [],
+                    alerts: [],
+                    isLoading: false,
+                });
+                return;
+            }
             const tripsPayload = await tripsRes.json();
             const trips = Array.isArray(tripsPayload) ? tripsPayload : (tripsPayload?.data || []);
 
             // Fetch master data
-            const masterRes = await fetch('/api/master-data');
-            const masterData = await masterRes.json();
-
-            const storageInfo = masterData?.storage || tripsPayload?.storage;
-            if (storageInfo?.persistent === false && !warnedNonPersistentStorage) {
-                warnedNonPersistentStorage = true;
-                notify(
-                    'warning',
-                    'Non-Persistent Backend',
-                    'Server storage is temporary. For multi-device live sync, use localhost or configure a persistent database.'
-                );
+            const masterRes = await fetch('/api/master-data', {
+                cache: 'no-store',
+                credentials: 'include',
+            });
+            if (masterRes.status === 401) {
+                set({
+                    trips: [],
+                    vehicles: [],
+                    drivers: [],
+                    fuelEntries: [],
+                    alerts: [],
+                    isLoading: false,
+                });
+                return;
             }
+            const masterData = await masterRes.json();
 
             set({
                 trips,
@@ -145,6 +176,7 @@ export const useStore = create<AppState>((set, get) => ({
             });
         } catch (error) {
             console.error("Failed to load data", error);
+            set({ isLoading: false });
             notify('error', 'Connection Error', 'Failed to load fleet data. Retrying...');
         }
     },

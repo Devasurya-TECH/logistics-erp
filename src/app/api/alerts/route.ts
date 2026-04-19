@@ -1,47 +1,66 @@
-import { NextResponse } from 'next/server';
-import { getDbData, writeDbData } from '@/lib/db-utils';
+import { listAlerts, mapAlertInputToRow, mapAlertRow } from '@/lib/supabase-data';
+import { getRequestContext, toErrorResponse } from '@/lib/server-session';
 import type { Alert } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
     try {
-        const db = await getDbData();
-        return NextResponse.json(db.alerts || []);
-    } catch {
-        return NextResponse.json({ error: 'Failed to fetch alerts' }, { status: 500 });
+        const { supabase } = await getRequestContext();
+        return Response.json(await listAlerts(supabase));
+    } catch (error) {
+        return toErrorResponse(error, 'Failed to fetch alerts');
     }
 }
 
 export async function POST(request: Request) {
     try {
+        const context = await getRequestContext();
         const newAlert = (await request.json()) as Alert;
-        const db = await getDbData();
-        db.alerts = [newAlert, ...(db.alerts || [])];
-        await writeDbData(db);
-        return NextResponse.json(newAlert, { status: 201 });
-    } catch {
-        return NextResponse.json({ error: 'Failed to create alert' }, { status: 500 });
+        const { data, error } = await context.supabase
+            .from('alerts')
+            .insert({
+                ...mapAlertInputToRow(newAlert),
+                created_by: context.authUser.id,
+            })
+            .select('*')
+            .single();
+
+        if (error || !data) {
+            throw error || new Error('Failed to create alert');
+        }
+
+        return Response.json(mapAlertRow(data), { status: 201 });
+    } catch (error) {
+        return toErrorResponse(error, 'Failed to create alert');
     }
 }
 
 export async function PATCH(request: Request) {
     try {
+        const context = await getRequestContext();
         const { id, updates } = (await request.json()) as {
             id: string;
             updates: Partial<Alert>;
         };
 
-        const db = await getDbData();
-        const index = db.alerts.findIndex((item: Alert) => item.id === id);
-        if (index < 0) {
-            return NextResponse.json({ error: 'Alert not found' }, { status: 404 });
+        if (!id || !updates || typeof updates !== 'object') {
+            return Response.json({ error: 'Invalid alert update payload' }, { status: 400 });
         }
 
-        db.alerts[index] = { ...db.alerts[index], ...updates };
-        await writeDbData(db);
-        return NextResponse.json(db.alerts[index]);
-    } catch {
-        return NextResponse.json({ error: 'Failed to update alert' }, { status: 500 });
+        const { data, error } = await context.supabase
+            .from('alerts')
+            .update(mapAlertInputToRow(updates))
+            .eq('id', id)
+            .select('*')
+            .single();
+
+        if (error || !data) {
+            return Response.json({ error: 'Alert not found' }, { status: 404 });
+        }
+
+        return Response.json(mapAlertRow(data));
+    } catch (error) {
+        return toErrorResponse(error, 'Failed to update alert');
     }
 }
