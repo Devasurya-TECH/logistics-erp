@@ -118,6 +118,8 @@ const getDriverById = (drivers: Driver[], driverId?: string) =>
 const isDriverOnBreak = (drivers: Driver[], driverId?: string) =>
     Boolean(getDriverById(drivers, driverId)?.onBreak);
 
+let lastSyncErrorAt = 0;
+
 export const useStore = create<AppState>((set, get) => ({
     trips: [],
     vehicles: [],
@@ -139,7 +141,15 @@ export const useStore = create<AppState>((set, get) => ({
 
     fetchInitialData: async () => {
         try {
-            set({ isLoading: true });
+            const current = get();
+            const isFirstLoad =
+                current.isLoading &&
+                current.trips.length === 0 &&
+                current.vehicles.length === 0 &&
+                current.drivers.length === 0;
+            if (isFirstLoad) {
+                set({ isLoading: true });
+            }
 
             // Fetch trips
             const tripsRes = await fetch('/api/trips', {
@@ -196,7 +206,10 @@ export const useStore = create<AppState>((set, get) => ({
         } catch (error) {
             console.error("Failed to load data", error);
             set({ isLoading: false });
-            notify('error', 'Connection Error', 'Failed to load fleet data. Retrying...');
+            if (Date.now() - lastSyncErrorAt > 15000) {
+                lastSyncErrorAt = Date.now();
+                notify('error', 'Connection Error', 'Failed to load fleet data. Retrying...');
+            }
         }
     },
 
