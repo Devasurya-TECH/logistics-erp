@@ -79,7 +79,7 @@ export function mapTripRow(row: Record<string, unknown>): Trip {
         row.start_location,
         { lat: 0, lng: 0, address: "" },
     );
-    const { startProof, ...startLocation } = rawStartLocation;
+    const { startProof, endProof, ...startLocation } = rawStartLocation;
 
     return {
         id: asString(row.id),
@@ -96,6 +96,7 @@ export function mapTripRow(row: Record<string, unknown>): Trip {
             ? undefined
             : asNumber(row.actual_distance),
         startProof: startProof as Trip["startProof"] | undefined,
+        endProof: endProof as Trip["endProof"] | undefined,
     };
 }
 
@@ -143,10 +144,11 @@ export function mapTripInputToRow(input: Partial<Trip>) {
     if ("supervisorId" in input) row.supervisor_id = input.supervisorId ?? null;
     if ("status" in input) row.status = input.status;
     if ("startLocation" in input) row.start_location = input.startLocation ?? null;
-    if ("startProof" in input) {
+    if ("startProof" in input || "endProof" in input) {
         row.start_location = {
             ...((input.startLocation || {}) as Record<string, unknown>),
-            startProof: input.startProof ?? null,
+            ...(input.startProof !== undefined ? { startProof: input.startProof ?? null } : {}),
+            ...(input.endProof !== undefined ? { endProof: input.endProof ?? null } : {}),
         };
     }
     if ("drops" in input) row.drops = input.drops ?? [];

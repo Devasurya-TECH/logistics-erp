@@ -32,6 +32,7 @@ function reviewStats(trip: Trip) {
     const resolved = delivered + failed;
     const allStopsResolved = trip.drops.length > 0 && pending === 0;
     const startProofVerified = Boolean(trip.startProof?.verifiedAt);
+    const endProofVerified = Boolean(trip.endProof?.verifiedAt);
     const allStopsReviewed =
         trip.drops.length > 0 &&
         trip.drops.every((drop) => {
@@ -47,11 +48,12 @@ function reviewStats(trip: Trip) {
         trip.status === "in-progress" &&
         allStopsResolved &&
         startProofVerified &&
+        endProofVerified &&
         allStopsReviewed;
     const needsReview =
         trip.status === "in-progress" &&
         allStopsResolved &&
-        (!startProofVerified || !allStopsReviewed);
+        (!startProofVerified || !endProofVerified || !allStopsReviewed);
 
     return {
         delivered,
@@ -60,6 +62,7 @@ function reviewStats(trip: Trip) {
         resolved,
         allStopsResolved,
         startProofVerified,
+        endProofVerified,
         allStopsReviewed,
         readyForCompletion,
         needsReview,
@@ -84,6 +87,7 @@ export default function SupervisorTripsPage() {
         vehicles,
         updateTripStatus,
         verifyTripStartProof,
+        verifyTripEndProof,
         verifyDropReview,
     } = useStore();
     const [filter, setFilter] = useState<TripFilter>("all");
@@ -228,6 +232,18 @@ export default function SupervisorTripsPage() {
                                     <p>Vehicle: {vehicle?.plateNumber || "Unassigned"}</p>
                                     <p>Distance: {trip.actualDistance || trip.estimatedDistance} km</p>
                                     <p>Drops: {stats.delivered} delivered / {stats.failed} failed / {stats.pending} pending</p>
+                                    <p>
+                                        Start fuel:{" "}
+                                        <span className="font-semibold text-slate-700">
+                                            {trip.startProof ? trip.startProof.fuelReading : "NA"}
+                                        </span>
+                                    </p>
+                                    <p>
+                                        End fuel:{" "}
+                                        <span className="font-semibold text-slate-700">
+                                            {trip.endProof ? trip.endProof.fuelReading : "NA"}
+                                        </span>
+                                    </p>
                                 </div>
 
                                 {(stats.needsReview || stats.readyForCompletion) && (
@@ -283,7 +299,7 @@ export default function SupervisorTripsPage() {
                                 <div className="flex flex-wrap items-center justify-between gap-2">
                                     <div>
                                         <p className="text-sm font-semibold text-slate-900">Trip Start Proof</p>
-                                        <p className="text-xs text-slate-500 mt-1">Odometer, fuel reading, image, and start location.</p>
+                                        <p className="text-xs text-slate-500 mt-1">Starting odometer, fuel reading, image, and location.</p>
                                     </div>
                                     {selectedTrip.startProof?.verifiedAt ? (
                                         <span className="text-[11px] px-2 py-1 rounded-full font-semibold bg-emerald-100 text-emerald-700">
@@ -330,6 +346,57 @@ export default function SupervisorTripsPage() {
                                 )}
                             </section>
 
+                            <section className="border border-gray-200 rounded-xl p-3">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <div>
+                                        <p className="text-sm font-semibold text-slate-900">Trip End Proof</p>
+                                        <p className="text-xs text-slate-500 mt-1">Ending odometer, fuel reading, image, and location from End Day.</p>
+                                    </div>
+                                    {selectedTrip.endProof?.verifiedAt ? (
+                                        <span className="text-[11px] px-2 py-1 rounded-full font-semibold bg-emerald-100 text-emerald-700">
+                                            verified
+                                        </span>
+                                    ) : (
+                                        <span className="text-[11px] px-2 py-1 rounded-full font-semibold bg-amber-100 text-amber-700">
+                                            pending
+                                        </span>
+                                    )}
+                                </div>
+
+                                {!selectedTrip.endProof ? (
+                                    <p className="mt-3 text-xs text-rose-700 bg-rose-50 border border-rose-100 rounded-lg px-3 py-2">
+                                        Missing end proof. Driver must submit closing odometer/fuel photo and location when ending the day.
+                                    </p>
+                                ) : (
+                                    <div className="mt-3 space-y-2">
+                                        <div className="grid grid-cols-2 gap-2 text-xs text-slate-600">
+                                            <p>Odometer: <span className="font-semibold text-slate-900">{selectedTrip.endProof.odometer}</span></p>
+                                            <p>Fuel: <span className="font-semibold text-slate-900">{selectedTrip.endProof.fuelReading}</span></p>
+                                            <p className="col-span-2">Location: {selectedTrip.endProof.location}</p>
+                                            <p className="col-span-2">
+                                                Lat: {selectedTrip.endProof.lat.toFixed(6)} | Lng: {selectedTrip.endProof.lng.toFixed(6)}
+                                            </p>
+                                        </div>
+                                        <img
+                                            src={selectedTrip.endProof.image}
+                                            alt="Trip end proof"
+                                            className="w-full max-w-xs h-40 object-cover rounded-lg border border-gray-200"
+                                        />
+                                        {!selectedTrip.endProof.verifiedAt && user?.id && (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    void verifyTripEndProof(selectedTrip.id, user.id);
+                                                }}
+                                                className="px-3 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700"
+                                            >
+                                                Verify End Proof
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
+                            </section>
+
                             <section className="space-y-3">
                                 <h3 className="text-sm font-semibold text-slate-900">Delivery Proof Review</h3>
                                 {selectedTrip.drops.map((drop, index) => (
@@ -355,19 +422,27 @@ export default function SupervisorTripsPage() {
                                         {drop.status === "delivered" && (
                                             <div className="mt-3 space-y-2">
                                                 {drop.proofImage ? (
-                                                    <img
-                                                        src={drop.proofImage}
-                                                        alt={`Delivery proof ${drop.id}`}
-                                                        className="w-full max-w-xs h-40 object-cover rounded-lg border border-gray-200"
-                                                    />
+                                                    <div className="grid gap-2 md:grid-cols-[220px_minmax(0,1fr)]">
+                                                        <img
+                                                            src={drop.proofImage}
+                                                            alt={`Delivery proof ${drop.id}`}
+                                                            className="w-full max-w-xs h-40 object-cover rounded-lg border border-gray-200"
+                                                        />
+                                                        <div className="space-y-2 rounded-lg bg-slate-50 border border-slate-200 p-3">
+                                                            <p className="text-xs font-semibold text-slate-700">Image captured for this stop</p>
+                                                            <p className="text-xs text-slate-600">Proof location: {drop.proofLocation || "Missing"}</p>
+                                                            {typeof drop.proofLat === "number" && typeof drop.proofLng === "number" && (
+                                                                <p className="text-[11px] text-slate-500">
+                                                                    Lat: {drop.proofLat.toFixed(6)} | Lng: {drop.proofLng.toFixed(6)}
+                                                                </p>
+                                                            )}
+                                                            {drop.notes && (
+                                                                <p className="text-xs text-slate-600">Notes: {drop.notes}</p>
+                                                            )}
+                                                        </div>
+                                                    </div>
                                                 ) : (
                                                     <p className="text-xs text-rose-700">Missing delivery image.</p>
-                                                )}
-                                                <p className="text-xs text-slate-600">Proof location: {drop.proofLocation || "Missing"}</p>
-                                                {typeof drop.proofLat === "number" && typeof drop.proofLng === "number" && (
-                                                    <p className="text-[11px] text-slate-500">
-                                                        Lat: {drop.proofLat.toFixed(6)} | Lng: {drop.proofLng.toFixed(6)}
-                                                    </p>
                                                 )}
                                             </div>
                                         )}
@@ -414,7 +489,7 @@ export default function SupervisorTripsPage() {
                                     <div className="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2">
                                         <p className="text-xs font-semibold text-slate-700">Completion locked</p>
                                         <p className="text-xs text-slate-500 mt-1">
-                                            Completion unlocks only after all stops are resolved, start proof is verified, and each delivery/failure is reviewed.
+                                            Completion unlocks only after all stops are resolved, start proof is verified, end proof is verified, and each delivery/failure is reviewed.
                                         </p>
                                     </div>
                                 )}

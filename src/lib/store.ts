@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Trip, Vehicle, Driver, FuelEntry, Alert, TripStartProof } from './types';
+import { Trip, Vehicle, Driver, FuelEntry, Alert, TripStartProof, TripEndProof } from './types';
 import { useNotifications } from './notifications';
 
 interface AppState {
@@ -48,7 +48,7 @@ interface AppState {
         }
     ) => Promise<void>;
     startDriverDay: (driverId: string) => Promise<void>;
-    endDriverDay: (driverId: string) => Promise<void>;
+    endDriverDay: (driverId: string, endProof?: TripEndProof) => Promise<void>;
     startDriverBreak: (driverId: string, informed?: boolean) => Promise<void>;
     endDriverBreak: (driverId: string) => Promise<void>;
     registerDriverActivity: (driverId: string) => Promise<void>;
@@ -56,6 +56,7 @@ interface AppState {
     verifyFuelEntry: (entryId: string, supervisorId: string) => Promise<void>;
     rejectFuelEntry: (entryId: string, supervisorId: string) => Promise<void>;
     approveFuelEntry: (entryId: string, managerId: string) => Promise<void>;
+    verifyTripEndProof: (tripId: string, supervisorId: string) => Promise<void>;
     updateVehicleLocation: (vehicleId: string, location: { lat: number; lng: number }) => Promise<void>;
     resolveAlert: (alertId: string) => Promise<void>;
 }
@@ -102,6 +103,14 @@ const calculateBreakMinutes = (startedAt?: string) => {
     const diffMs = Date.now() - new Date(startedAt).getTime();
     return Math.max(0, Math.round(diffMs / 60000));
 };
+
+const hasValidTripProof = (proof?: TripStartProof | TripEndProof) =>
+    Boolean(proof?.image) &&
+    Number.isFinite(proof?.odometer) &&
+    Number.isFinite(proof?.fuelReading) &&
+    Number.isFinite(proof?.lat) &&
+    Number.isFinite(proof?.lng) &&
+    Boolean(proof?.location?.trim());
 
 const getDriverById = (drivers: Driver[], driverId?: string) =>
     driverId ? drivers.find((driver) => driver.id === driverId) : undefined;
@@ -260,6 +269,7 @@ export const useStore = create<AppState>((set, get) => ({
                 drop.status === 'delivered' || drop.status === 'failed'
             );
             const startProofVerified = Boolean(trip.startProof?.verifiedAt);
+            const endProofVerified = Boolean(trip.endProof?.verifiedAt);
             const allStopsReviewed = trip.drops.every((drop) => {
                 if (drop.status === 'delivered') {
                     return Boolean(drop.proofImage && drop.proofLocation && drop.proofVerifiedAt);
@@ -270,11 +280,11 @@ export const useStore = create<AppState>((set, get) => ({
                 return false;
             });
 
-            if (!allStopsResolved || !startProofVerified || !allStopsReviewed) {
+            if (!allStopsResolved || !startProofVerified || !endProofVerified || !allStopsReviewed) {
                 notify(
                     'warning',
                     'Supervisor Verification Required',
-                    'Verify trip start proof and every delivered/failed stop before marking the trip completed.'
+                    'Verify trip start proof, end proof, and every delivered/failed stop before marking the trip completed.'
                 );
                 return;
             }
@@ -311,8 +321,9 @@ export const useStore = create<AppState>((set, get) => ({
         });
 
         if (trip.driverId && (status === 'completed' || status === 'cancelled')) {
+            const currentDriver = get().drivers.find((driver) => driver.id === trip.driverId);
             const driverUpdates: Partial<Driver> = {
-                status: 'available',
+                status: currentDriver?.dutyStatus === 'off-duty' ? 'off-duty' : 'available',
                 currentVehicleId: undefined,
                 onBreak: false,
                 breakStartedAt: undefined,
@@ -543,13 +554,7 @@ export const useStore = create<AppState>((set, get) => ({
             notify('warning', 'Break Active', 'End the current break before starting the trip.');
             return;
         }
-        const hasValidStartProof =
-            Boolean(startProof?.image) &&
-            Number.isFinite(startProof?.odometer) &&
-            Number.isFinite(startProof?.fuelReading) &&
-            Number.isFinite(startProof?.lat) &&
-            Number.isFinite(startProof?.lng) &&
-            Boolean(startProof?.location?.trim());
+        const hasValidStartProof = hasValidTripProof(startProof);
         if (!hasValidStartProof) {
             notify(
                 'warning',
@@ -634,6 +639,34 @@ export const useStore = create<AppState>((set, get) => ({
         });
 
         notify('success', 'Start Proof Verified', `Trip #${tripId.toUpperCase()} start proof verified.`);
+    },
+
+    verifyTripEndProof: async (tripId, supervisorId) => {
+        const trip = get().trips.find((item) => item.id === tripId);
+        if (!trip || !trip.endProof) return;
+
+        const endProof = {
+            ...trip.endProof,
+            verifiedAt: new Date().toISOString(),
+            verifiedBy: supervisorId,
+        };
+        const updates: Partial<Trip> = {
+            startLocation: trip.startLocation,
+            endProof,
+        };
+
+        set((state) => ({
+            trips: state.trips.map((item) =>
+                item.id === tripId ? { ...item, endProof } : item
+            ),
+        }));
+
+        await request('/api/trips', {
+            method: 'PATCH',
+            body: JSON.stringify({ id: tripId, updates }),
+        });
+
+        notify('success', 'End Proof Verified', `Trip #${tripId.toUpperCase()} end proof verified.`);
     },
 
     verifyDropReview: async (tripId, dropId, supervisorId) => {
@@ -789,14 +822,33 @@ export const useStore = create<AppState>((set, get) => ({
         }
     },
 
-    endDriverDay: async (driverId) => {
+    endDriverDay: async (driverId, endProof) => {
         const state = get();
         const driver = state.drivers.find((item) => item.id === driverId);
         if (!driver) return;
 
-        if (hasActiveTrip(state.trips, driverId)) {
-            notify('warning', 'Trip Active', 'Complete the active trip before ending the day.');
+        const openTrips = state.trips.filter((trip) => trip.driverId === driverId && isOpenTrip(trip));
+        const reviewReadyTrip = openTrips.find((trip) =>
+            trip.status === 'in-progress' &&
+            trip.drops.length > 0 &&
+            trip.drops.every((drop) => drop.status === 'delivered' || drop.status === 'failed')
+        );
+        const hasBlockingOpenTrip = openTrips.some((trip) => trip.id !== reviewReadyTrip?.id);
+
+        if (hasBlockingOpenTrip) {
+            notify('warning', 'Trip Active', 'Finish the current trip before ending the day.');
             return;
+        }
+
+        if (reviewReadyTrip) {
+            if (!hasValidTripProof(endProof)) {
+                notify(
+                    'warning',
+                    'End Proof Required',
+                    'Upload closing odometer/fuel photo and capture location before ending the day.'
+                );
+                return;
+            }
         }
 
         const now = new Date().toISOString();
@@ -813,18 +865,43 @@ export const useStore = create<AppState>((set, get) => ({
             lastLocationUpdate: now,
         };
 
-        set((state) => ({
-            drivers: state.drivers.map((item) =>
-                item.id === driverId ? { ...item, ...updates } : item
-            ),
-        }));
-        notify('info', 'Duty Ended', 'Driver day has been closed.');
-
         try {
+            if (reviewReadyTrip && endProof) {
+                const tripUpdates: Partial<Trip> = {
+                    startLocation: reviewReadyTrip.startLocation,
+                    endProof,
+                };
+
+                await request('/api/trips', {
+                    method: 'PATCH',
+                    body: JSON.stringify({ id: reviewReadyTrip.id, updates: tripUpdates }),
+                });
+
+                set((storeState) => ({
+                    trips: storeState.trips.map((trip) =>
+                        trip.id === reviewReadyTrip.id ? { ...trip, endProof } : trip
+                    ),
+                }));
+            }
+
             await request('/api/drivers', {
                 method: 'PATCH',
                 body: JSON.stringify({ id: driverId, updates }),
             });
+
+            set((storeState) => ({
+                drivers: storeState.drivers.map((item) =>
+                    item.id === driverId ? { ...item, ...updates } : item
+                ),
+            }));
+
+            notify(
+                'info',
+                'Duty Ended',
+                reviewReadyTrip
+                    ? 'Driver day has been closed. Trip closing proof is ready for supervisor review.'
+                    : 'Driver day has been closed.'
+            );
         } catch (error) {
             console.error('End day persistence failed', error);
         }

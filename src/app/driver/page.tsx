@@ -125,6 +125,7 @@ export default function DriverDashboardPage() {
     const [selectedTripId, setSelectedTripId] = useState<string | null>(activeTrips[0]?.id || null);
     const activeTrip = activeTrips.find((trip) => trip.id === selectedTripId) || activeTrips[0] || null;
     const [startProofTripId, setStartProofTripId] = useState<string | null>(null);
+    const [endProofTripId, setEndProofTripId] = useState<string | null>(null);
     const [proofTarget, setProofTarget] = useState<DeliveryProofTarget | null>(null);
     const [deliveryProofImage, setDeliveryProofImage] = useState("");
     const [deliveryProofNotes, setDeliveryProofNotes] = useState("");
@@ -165,6 +166,7 @@ export default function DriverDashboardPage() {
             activeTrip.drops.length > 0 &&
             activeTrip.drops.every((drop) => drop.status === "delivered" || drop.status === "failed"),
     );
+    const needsEndDayProof = Boolean(activeTripDone && activeTrip?.status === "in-progress" && !activeTrip?.endProof);
 
     const currentBreakMinutes =
         me?.onBreak && me.breakStartedAt
@@ -273,6 +275,15 @@ export default function DriverDashboardPage() {
         }
     };
 
+    const handleEndDay = () => {
+        if (!me) return;
+        if (needsEndDayProof && activeTrip) {
+            setEndProofTripId(activeTrip.id);
+            return;
+        }
+        void endDriverDay(me.id);
+    };
+
     return (
         <div className="space-y-5">
             <section className="flex flex-wrap gap-2">
@@ -363,7 +374,7 @@ export default function DriverDashboardPage() {
                                         <button
                                             type="button"
                                             onClick={() => {
-                                                void endDriverDay(me.id);
+                                                handleEndDay();
                                             }}
                                             className="rounded-xl bg-white/10 px-4 py-3 text-sm font-black text-white ring-1 ring-white/25 active:scale-95"
                                         >
@@ -396,7 +407,7 @@ export default function DriverDashboardPage() {
                                         <p className="text-[11px] font-bold uppercase text-blue-100">Trip Status</p>
                                         <p className="mt-1 text-sm font-bold capitalize">{activeTrip.status.replace("-", " ")}</p>
                                         <p className="mt-1 text-xs text-blue-100">
-                                            {activeTripDone ? "Submitted for review" : "Continue deliveries"}
+                                    {activeTripDone ? "Submitted for review" : "Continue deliveries"}
                                         </p>
                                     </div>
                                     <div className="rounded-xl bg-white/10 p-3 ring-1 ring-white/10">
@@ -405,6 +416,11 @@ export default function DriverDashboardPage() {
                                         <p className="mt-1 text-xs text-blue-100">{onBreak ? "Break active" : "Available"}</p>
                                     </div>
                                 </div>
+                            )}
+                            {needsEndDayProof && (
+                                <p className="mt-4 text-xs font-semibold text-amber-100">
+                                    End Day will ask for closing odometer, fuel reading, image, and location before duty is closed.
+                                </p>
                             )}
                         </div>
                     </article>
@@ -726,6 +742,17 @@ export default function DriverDashboardPage() {
                     onSubmit={async (proof) => {
                         await acceptTrip(startProofTripId, proof);
                         if (me) await registerDriverActivity(me.id);
+                    }}
+                />
+            )}
+
+            {endProofTripId && me && (
+                <TripStartProofModal
+                    tripId={endProofTripId}
+                    mode="end"
+                    onClose={() => setEndProofTripId(null)}
+                    onSubmit={async (proof) => {
+                        await endDriverDay(me.id, proof);
                     }}
                 />
             )}
