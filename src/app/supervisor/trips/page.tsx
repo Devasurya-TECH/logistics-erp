@@ -345,19 +345,21 @@ export default function SupervisorTripsPage() {
                             <section className="border border-gray-200 rounded-xl p-3">
                                 <div className="flex flex-wrap items-center justify-between gap-2">
                                     <div>
-                                        <p className="text-sm font-semibold text-slate-900">Trip End Proof</p>
-                                        <p className="text-xs text-slate-500 mt-1">Ending odometer, fuel reading, image, and location from End Day.</p>
+                                        <p className="text-sm font-semibold text-slate-900">Day End Proof</p>
+                                        <p className="text-xs text-slate-500 mt-1">
+                                            Ending odometer, fuel reading, image, and location from End Day. Visible here, but not required to complete the trip.
+                                        </p>
                                     </div>
                                     <span className={`text-[11px] px-2 py-1 rounded-full font-semibold ${
-                                        selectedTrip.endProof ? "bg-blue-100 text-blue-700" : "bg-amber-100 text-amber-700"
+                                        selectedTrip.endProof ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-600"
                                     }`}>
-                                        {selectedTrip.endProof ? "submitted" : "pending"}
+                                        {selectedTrip.endProof ? "submitted" : "optional"}
                                     </span>
                                 </div>
 
                                 {!selectedTrip.endProof ? (
-                                    <p className="mt-3 text-xs text-rose-700 bg-rose-50 border border-rose-100 rounded-lg px-3 py-2">
-                                        Missing end proof. Driver must submit closing odometer/fuel photo and location when ending the day.
+                                    <p className="mt-3 text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+                                        No End Day proof uploaded yet. This does not block trip completion.
                                     </p>
                                 ) : (
                                     <div className="mt-3 space-y-2">
