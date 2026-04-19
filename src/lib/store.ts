@@ -56,7 +56,6 @@ interface AppState {
     verifyFuelEntry: (entryId: string, supervisorId: string) => Promise<void>;
     rejectFuelEntry: (entryId: string, supervisorId: string) => Promise<void>;
     approveFuelEntry: (entryId: string, managerId: string) => Promise<void>;
-    verifyTripEndProof: (tripId: string, supervisorId: string) => Promise<void>;
     updateVehicleLocation: (vehicleId: string, location: { lat: number; lng: number }) => Promise<void>;
     resolveAlert: (alertId: string) => Promise<void>;
 }
@@ -282,7 +281,6 @@ export const useStore = create<AppState>((set, get) => ({
                 drop.status === 'delivered' || drop.status === 'failed'
             );
             const startProofVerified = Boolean(trip.startProof?.verifiedAt);
-            const endProofVerified = Boolean(trip.endProof?.verifiedAt);
             const allStopsReviewed = trip.drops.every((drop) => {
                 if (drop.status === 'delivered') {
                     return Boolean(drop.proofImage && drop.proofLocation && drop.proofVerifiedAt);
@@ -293,11 +291,11 @@ export const useStore = create<AppState>((set, get) => ({
                 return false;
             });
 
-            if (!allStopsResolved || !startProofVerified || !endProofVerified || !allStopsReviewed) {
+            if (!allStopsResolved || !startProofVerified || !allStopsReviewed) {
                 notify(
                     'warning',
                     'Supervisor Verification Required',
-                    'Verify trip start proof, end proof, and every delivered/failed stop before marking the trip completed.'
+                    'Verify trip start proof and every delivered/failed stop before marking the trip completed.'
                 );
                 return;
             }
@@ -652,34 +650,6 @@ export const useStore = create<AppState>((set, get) => ({
         });
 
         notify('success', 'Start Proof Verified', `Trip #${tripId.toUpperCase()} start proof verified.`);
-    },
-
-    verifyTripEndProof: async (tripId, supervisorId) => {
-        const trip = get().trips.find((item) => item.id === tripId);
-        if (!trip || !trip.endProof) return;
-
-        const endProof = {
-            ...trip.endProof,
-            verifiedAt: new Date().toISOString(),
-            verifiedBy: supervisorId,
-        };
-        const updates: Partial<Trip> = {
-            startLocation: trip.startLocation,
-            endProof,
-        };
-
-        set((state) => ({
-            trips: state.trips.map((item) =>
-                item.id === tripId ? { ...item, endProof } : item
-            ),
-        }));
-
-        await request('/api/trips', {
-            method: 'PATCH',
-            body: JSON.stringify({ id: tripId, updates }),
-        });
-
-        notify('success', 'End Proof Verified', `Trip #${tripId.toUpperCase()} end proof verified.`);
     },
 
     verifyDropReview: async (tripId, dropId, supervisorId) => {

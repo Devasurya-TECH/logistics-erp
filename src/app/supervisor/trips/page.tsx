@@ -32,7 +32,6 @@ function reviewStats(trip: Trip) {
     const resolved = delivered + failed;
     const allStopsResolved = trip.drops.length > 0 && pending === 0;
     const startProofVerified = Boolean(trip.startProof?.verifiedAt);
-    const endProofVerified = Boolean(trip.endProof?.verifiedAt);
     const allStopsReviewed =
         trip.drops.length > 0 &&
         trip.drops.every((drop) => {
@@ -48,12 +47,11 @@ function reviewStats(trip: Trip) {
         trip.status === "in-progress" &&
         allStopsResolved &&
         startProofVerified &&
-        endProofVerified &&
         allStopsReviewed;
     const needsReview =
         trip.status === "in-progress" &&
         allStopsResolved &&
-        (!startProofVerified || !endProofVerified || !allStopsReviewed);
+        (!startProofVerified || !allStopsReviewed);
 
     return {
         delivered,
@@ -62,7 +60,6 @@ function reviewStats(trip: Trip) {
         resolved,
         allStopsResolved,
         startProofVerified,
-        endProofVerified,
         allStopsReviewed,
         readyForCompletion,
         needsReview,
@@ -87,7 +84,6 @@ export default function SupervisorTripsPage() {
         vehicles,
         updateTripStatus,
         verifyTripStartProof,
-        verifyTripEndProof,
         verifyDropReview,
     } = useStore();
     const [filter, setFilter] = useState<TripFilter>("all");
@@ -352,15 +348,11 @@ export default function SupervisorTripsPage() {
                                         <p className="text-sm font-semibold text-slate-900">Trip End Proof</p>
                                         <p className="text-xs text-slate-500 mt-1">Ending odometer, fuel reading, image, and location from End Day.</p>
                                     </div>
-                                    {selectedTrip.endProof?.verifiedAt ? (
-                                        <span className="text-[11px] px-2 py-1 rounded-full font-semibold bg-emerald-100 text-emerald-700">
-                                            verified
-                                        </span>
-                                    ) : (
-                                        <span className="text-[11px] px-2 py-1 rounded-full font-semibold bg-amber-100 text-amber-700">
-                                            pending
-                                        </span>
-                                    )}
+                                    <span className={`text-[11px] px-2 py-1 rounded-full font-semibold ${
+                                        selectedTrip.endProof ? "bg-blue-100 text-blue-700" : "bg-amber-100 text-amber-700"
+                                    }`}>
+                                        {selectedTrip.endProof ? "submitted" : "pending"}
+                                    </span>
                                 </div>
 
                                 {!selectedTrip.endProof ? (
@@ -382,17 +374,6 @@ export default function SupervisorTripsPage() {
                                             alt="Trip end proof"
                                             className="w-full max-w-xs h-40 object-cover rounded-lg border border-gray-200"
                                         />
-                                        {!selectedTrip.endProof.verifiedAt && user?.id && (
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    void verifyTripEndProof(selectedTrip.id, user.id);
-                                                }}
-                                                className="px-3 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700"
-                                            >
-                                                Verify End Proof
-                                            </button>
-                                        )}
                                     </div>
                                 )}
                             </section>
@@ -489,7 +470,7 @@ export default function SupervisorTripsPage() {
                                     <div className="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2">
                                         <p className="text-xs font-semibold text-slate-700">Completion locked</p>
                                         <p className="text-xs text-slate-500 mt-1">
-                                            Completion unlocks only after all stops are resolved, start proof is verified, end proof is verified, and each delivery/failure is reviewed.
+                                            Completion unlocks only after all stops are resolved, start proof is verified, and each delivery/failure is reviewed.
                                         </p>
                                     </div>
                                 )}
