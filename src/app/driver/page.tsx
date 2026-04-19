@@ -156,6 +156,7 @@ export default function DriverDashboardPage() {
     const canSubmitFuel = Boolean(activeTrip && user);
     const dayStarted = me?.dutyStatus !== "off-duty";
     const onBreak = Boolean(me?.onBreak);
+    const driverLockedByBreak = onBreak;
 
     const currentBreakMinutes =
         me?.onBreak && me.breakStartedAt
@@ -270,23 +271,57 @@ export default function DriverDashboardPage() {
                 {tabs.map((tab) => (
                     <Link
                         key={tab}
-                        href={`/driver?tab=${tab}`}
+                        href={driverLockedByBreak ? "#" : `/driver?tab=${tab}`}
+                        onClick={(event) => {
+                            if (driverLockedByBreak) {
+                                event.preventDefault();
+                            }
+                        }}
+                        aria-disabled={driverLockedByBreak}
                         className={`px-3 py-2 rounded-lg text-sm font-semibold ${
                             activeTab === tab
                                 ? "bg-blue-600 text-white"
                                 : "bg-white border border-gray-200 text-slate-700 hover:bg-slate-100"
-                        }`}
+                        } ${driverLockedByBreak ? "pointer-events-none opacity-50" : ""}`}
                     >
                         {tabLabel(tab)}
                     </Link>
                 ))}
                 <Link
-                    href="/driver/routes"
-                    className="px-3 py-2 rounded-lg text-sm font-semibold bg-white border border-gray-200 text-slate-700 hover:bg-slate-100"
+                    href={driverLockedByBreak ? "#" : "/driver/routes"}
+                    onClick={(event) => {
+                        if (driverLockedByBreak) {
+                            event.preventDefault();
+                        }
+                    }}
+                    aria-disabled={driverLockedByBreak}
+                    className={`px-3 py-2 rounded-lg text-sm font-semibold bg-white border border-gray-200 text-slate-700 hover:bg-slate-100 ${
+                        driverLockedByBreak ? "pointer-events-none opacity-50" : ""
+                    }`}
                 >
                     Routes
                 </Link>
             </section>
+
+            {onBreak && me && (
+                <section className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <p className="text-sm font-semibold text-amber-900">Break is active</p>
+                        <p className="text-xs text-amber-700 mt-1">
+                            Only <span className="font-semibold">End Break</span> is available now. All other driver operations stay locked until the break is closed.
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            void endDriverBreak(me.id);
+                        }}
+                        className="px-3 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700"
+                    >
+                        End Break
+                    </button>
+                </section>
+            )}
 
             {activeTab === "overview" && (
                 <section className="space-y-4">
@@ -317,26 +352,30 @@ export default function DriverDashboardPage() {
                             If vehicle inactivity crosses 8 minutes during an in-progress trip without informed break, it auto-registers as uninformed break.
                         </p>
                         <div className="mt-3 flex flex-wrap gap-2">
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    if (!me) return;
-                                    void startDriverDay(me.id);
-                                }}
-                                className="px-3 py-2 rounded-lg text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700"
-                            >
-                                Start Day
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    if (!me) return;
-                                    void endDriverDay(me.id);
-                                }}
-                                className="px-3 py-2 rounded-lg text-sm font-semibold bg-slate-700 text-white hover:bg-slate-800"
-                            >
-                                End Day
-                            </button>
+                            {!onBreak && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (!me) return;
+                                        void startDriverDay(me.id);
+                                    }}
+                                    className="px-3 py-2 rounded-lg text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700"
+                                >
+                                    Start Day
+                                </button>
+                            )}
+                            {!onBreak && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (!me) return;
+                                        void endDriverDay(me.id);
+                                    }}
+                                    className="px-3 py-2 rounded-lg text-sm font-semibold bg-slate-700 text-white hover:bg-slate-800"
+                                >
+                                    End Day
+                                </button>
+                            )}
                             {!onBreak ? (
                                 <button
                                     type="button"
@@ -360,13 +399,15 @@ export default function DriverDashboardPage() {
                                     End Break
                                 </button>
                             )}
-                            <button
-                                type="button"
-                                onClick={() => setShowSosModal(true)}
-                                className="px-3 py-2 rounded-lg text-sm font-semibold bg-rose-600 text-white hover:bg-rose-700"
-                            >
-                                SOS / Report Issue
-                            </button>
+                            {!onBreak && (
+                                <button
+                                    type="button"
+                                    onClick={() => setShowSosModal(true)}
+                                    className="px-3 py-2 rounded-lg text-sm font-semibold bg-rose-600 text-white hover:bg-rose-700"
+                                >
+                                    SOS / Report Issue
+                                </button>
+                            )}
                         </div>
                         {onBreak && (
                             <p className="mt-2 text-xs font-semibold text-amber-700">
@@ -380,12 +421,13 @@ export default function DriverDashboardPage() {
                             <button
                                 key={trip.id}
                                 type="button"
+                                disabled={onBreak}
                                 onClick={() => setSelectedTripId(trip.id)}
                                 className={`px-3 py-2 rounded-lg text-sm font-semibold ${
                                     activeTrip?.id === trip.id
                                         ? "bg-blue-600 text-white"
                                         : "bg-white border border-gray-200 text-slate-700 hover:bg-slate-100"
-                                }`}
+                                } ${onBreak ? "opacity-50 cursor-not-allowed" : ""}`}
                             >
                                 Trip #{trip.id.toUpperCase()}
                             </button>

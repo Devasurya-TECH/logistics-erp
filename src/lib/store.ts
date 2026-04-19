@@ -99,6 +99,12 @@ const calculateBreakMinutes = (startedAt?: string) => {
     return Math.max(0, Math.round(diffMs / 60000));
 };
 
+const getDriverById = (drivers: Driver[], driverId?: string) =>
+    driverId ? drivers.find((driver) => driver.id === driverId) : undefined;
+
+const isDriverOnBreak = (drivers: Driver[], driverId?: string) =>
+    Boolean(getDriverById(drivers, driverId)?.onBreak);
+
 export const useStore = create<AppState>((set, get) => ({
     trips: [],
     vehicles: [],
@@ -199,6 +205,10 @@ export const useStore = create<AppState>((set, get) => ({
     updateTripStatus: async (tripId, status) => {
         const trip = get().trips.find((item) => item.id === tripId);
         if (!trip) return;
+        if (isDriverOnBreak(get().drivers, trip.driverId)) {
+            notify('warning', 'Break Active', 'End the current break before updating the trip.');
+            return;
+        }
 
         const tripUpdates: Partial<Trip> = { status };
         if (status === 'in-progress' && !trip.startTime) {
@@ -260,6 +270,10 @@ export const useStore = create<AppState>((set, get) => ({
     updateDropStatus: async (tripId, dropId, status, details) => {
         const currentTrip = get().trips.find(t => t.id === tripId);
         if (!currentTrip) return;
+        if (isDriverOnBreak(get().drivers, currentTrip.driverId)) {
+            notify('warning', 'Break Active', 'End the current break before updating delivery status.');
+            return;
+        }
         const now = new Date().toISOString();
 
         if (status === 'delivered') {
@@ -468,6 +482,10 @@ export const useStore = create<AppState>((set, get) => ({
     acceptTrip: async (tripId) => {
         const trip = get().trips.find((item) => item.id === tripId);
         if (!trip) return;
+        if (isDriverOnBreak(get().drivers, trip.driverId)) {
+            notify('warning', 'Break Active', 'End the current break before starting the trip.');
+            return;
+        }
         const updates = {
             status: 'in-progress' as const,
             startTime: new Date().toISOString()
@@ -542,6 +560,10 @@ export const useStore = create<AppState>((set, get) => ({
 
     triggerEmergency: async (driverId, tripId, details) => {
         const driver = get().drivers.find(d => d.id === driverId);
+        if (driver?.onBreak) {
+            notify('warning', 'Break Active', 'End the current break before performing other driver actions.');
+            return;
+        }
         const issueType = details?.issueType || 'vehicle issue';
         const etaText =
             typeof details?.etaMinutes === 'number' && details.etaMinutes > 0
@@ -794,6 +816,10 @@ export const useStore = create<AppState>((set, get) => ({
     },
 
     addFuelEntry: async (entry) => {
+        if (isDriverOnBreak(get().drivers, entry.driverId)) {
+            notify('warning', 'Break Active', 'End the current break before submitting fuel.');
+            return;
+        }
         const now = new Date().toISOString();
         set((state) => ({
             fuelEntries: [...state.fuelEntries, entry],

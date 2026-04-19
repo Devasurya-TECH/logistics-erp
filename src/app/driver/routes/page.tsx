@@ -60,7 +60,9 @@ function statusClass(status: string) {
 
 export default function DriverRoutesPage() {
     const { user } = useAuth();
-    const { trips, acceptTrip, updateDropStatus, registerDriverActivity } = useStore();
+    const { trips, drivers, acceptTrip, updateDropStatus, registerDriverActivity, endDriverBreak } = useStore();
+    const me = drivers.find((driver) => driver.id === user?.id);
+    const onBreak = Boolean(me?.onBreak);
 
     const activeTrips = useMemo(
         () =>
@@ -223,6 +225,26 @@ export default function DriverRoutesPage() {
                 </p>
             </section>
 
+            {onBreak && me && (
+                <section className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <p className="text-sm font-semibold text-amber-900">Break is active</p>
+                        <p className="text-xs text-amber-700 mt-1">
+                            Route actions are locked during break. End break first to continue trip operations.
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            void endDriverBreak(me.id);
+                        }}
+                        className="px-3 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700"
+                    >
+                        End Break
+                    </button>
+                </section>
+            )}
+
             {activeTrips.length === 0 && (
                 <article className="bg-white border border-gray-200 rounded-xl p-6">
                     <p className="text-slate-700 font-semibold">No active trip assigned.</p>
@@ -281,11 +303,12 @@ export default function DriverRoutesPage() {
                                     {activeTrip.status === "assigned" && (
                                         <button
                                             type="button"
+                                            disabled={onBreak}
                                             onClick={() => {
                                                 void acceptTrip(activeTrip.id);
                                                 if (user?.id) void registerDriverActivity(user.id);
                                             }}
-                                            className="px-3 py-2 rounded-lg text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700"
+                                            className="px-3 py-2 rounded-lg text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             Start Trip
                                         </button>
@@ -295,23 +318,25 @@ export default function DriverRoutesPage() {
                                 <div className="grid gap-2 sm:grid-cols-2">
                                     <button
                                         type="button"
+                                        disabled={onBreak}
                                         onClick={() => setRouteMode("optimized")}
                                         className={`px-3 py-2 rounded-lg text-sm font-semibold ${
                                             routeMode === "optimized"
                                                 ? "bg-emerald-600 text-white"
                                                 : "bg-white border border-gray-200 text-slate-700"
-                                        }`}
+                                        } ${onBreak ? "opacity-50 cursor-not-allowed" : ""}`}
                                     >
                                         Optimized Route
                                     </button>
                                     <button
                                         type="button"
+                                        disabled={onBreak}
                                         onClick={() => setRouteMode("original")}
                                         className={`px-3 py-2 rounded-lg text-sm font-semibold ${
                                             routeMode === "original"
                                                 ? "bg-blue-600 text-white"
                                                 : "bg-white border border-gray-200 text-slate-700"
-                                        }`}
+                                        } ${onBreak ? "opacity-50 cursor-not-allowed" : ""}`}
                                     >
                                         Original Route
                                     </button>
@@ -343,6 +368,7 @@ export default function DriverRoutesPage() {
                                                     <div className="mt-3 space-y-2">
                                                         <button
                                                             type="button"
+                                                            disabled={onBreak}
                                                             onClick={() =>
                                                                 openProof({
                                                                     tripId: activeTrip.id,
@@ -351,12 +377,13 @@ export default function DriverRoutesPage() {
                                                                     address: drop.address,
                                                                 })
                                                             }
-                                                            className="w-full px-3 py-2 rounded-lg text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700"
+                                                            className="w-full px-3 py-2 rounded-lg text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
                                                         >
                                                             Upload Proof & Mark Delivered
                                                         </button>
 
                                                         <input
+                                                            disabled={onBreak}
                                                             value={failureReason}
                                                             onChange={(event) =>
                                                                 setFailureReasonByDrop((prev) => ({
@@ -365,17 +392,18 @@ export default function DriverRoutesPage() {
                                                                 }))
                                                             }
                                                             placeholder="Failure reason (for failed delivery)"
-                                                            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                                                            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-400"
                                                         />
                                                         <button
                                                             type="button"
+                                                            disabled={onBreak}
                                                             onClick={() => {
                                                                 void updateDropStatus(activeTrip.id, drop.id, "failed", {
                                                                     failureReason: failureReason.trim() || "Delivery failed",
                                                                 });
                                                                 if (user?.id) void registerDriverActivity(user.id);
                                                             }}
-                                                            className="w-full px-3 py-2 rounded-lg text-sm font-semibold bg-rose-600 text-white hover:bg-rose-700"
+                                                            className="w-full px-3 py-2 rounded-lg text-sm font-semibold bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed"
                                                         >
                                                             Mark Failed
                                                         </button>
