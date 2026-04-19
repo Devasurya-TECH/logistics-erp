@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Trip, Vehicle, Driver, FuelEntry, Alert } from './types';
+import { Trip, Vehicle, Driver, FuelEntry, Alert, TripStartProof } from './types';
 import { useNotifications } from './notifications';
 
 interface AppState {
@@ -32,7 +32,9 @@ interface AppState {
 
     // Other actions remain local for now or can be hooked up similarly
     assignDriver: (tripId: string, driverId: string, vehicleId: string) => Promise<void>;
-    acceptTrip: (tripId: string) => Promise<void>;
+    acceptTrip: (tripId: string, startProof: TripStartProof) => Promise<void>;
+    verifyTripStartProof: (tripId: string, supervisorId: string) => Promise<void>;
+    verifyDropReview: (tripId: string, dropId: string, supervisorId: string) => Promise<void>;
     toggleLiveStatus: (driverId: string, isLive: boolean) => Promise<void>;
     triggerEmergency: (
         driverId: string,
@@ -210,6 +212,40 @@ export const useStore = create<AppState>((set, get) => ({
             return;
         }
 
+        if (status === 'in-progress' && !trip.startProof) {
+            notify(
+                'warning',
+                'Start Proof Required',
+                'Use Start Trip and upload odometer/fuel proof before moving the trip in progress.'
+            );
+            return;
+        }
+
+        if (status === 'completed') {
+            const allStopsResolved = trip.drops.length > 0 && trip.drops.every((drop) =>
+                drop.status === 'delivered' || drop.status === 'failed'
+            );
+            const startProofVerified = Boolean(trip.startProof?.verifiedAt);
+            const allStopsReviewed = trip.drops.every((drop) => {
+                if (drop.status === 'delivered') {
+                    return Boolean(drop.proofImage && drop.proofLocation && drop.proofVerifiedAt);
+                }
+                if (drop.status === 'failed') {
+                    return Boolean(drop.reviewedAt);
+                }
+                return false;
+            });
+
+            if (!allStopsResolved || !startProofVerified || !allStopsReviewed) {
+                notify(
+                    'warning',
+                    'Supervisor Verification Required',
+                    'Verify trip start proof and every delivered/failed stop before marking the trip completed.'
+                );
+                return;
+            }
+        }
+
         const tripUpdates: Partial<Trip> = { status };
         if (status === 'in-progress' && !trip.startTime) {
             tripUpdates.startTime = new Date().toISOString();
@@ -310,13 +346,8 @@ export const useStore = create<AppState>((set, get) => ({
                 : d
         );
 
-        // Check if all drops are done → auto-complete trip
         const allDone = newDrops.every(d => d.status === 'delivered' || d.status === 'failed');
         const tripUpdates: Partial<Trip> = { drops: newDrops };
-        if (allDone) {
-            tripUpdates.status = 'completed';
-            tripUpdates.endTime = new Date().toISOString();
-        }
 
         // Optimistic update
         set((state) => ({
@@ -330,7 +361,7 @@ export const useStore = create<AppState>((set, get) => ({
         }
 
         if (allDone) {
-            notify('info', 'Trip Complete', `All deliveries for Trip #${tripId.toUpperCase()} are done!`);
+            notify('info', 'Supervisor Review Required', `All stops for Trip #${tripId.toUpperCase()} are done. Supervisor must verify proofs before completion.`);
         }
 
         await request('/api/trips', {
@@ -366,14 +397,6 @@ export const useStore = create<AppState>((set, get) => ({
                     address: details!.proofLocation as string,
                     image: details!.proofImage,
                 };
-            }
-
-            if (allDone) {
-                driverUpdates.status = 'available';
-                driverUpdates.currentVehicleId = undefined;
-                driverUpdates.onBreak = false;
-                driverUpdates.breakStartedAt = undefined;
-                driverUpdates.breakType = undefined;
             }
 
             set((state) => ({
@@ -479,16 +502,33 @@ export const useStore = create<AppState>((set, get) => ({
         }
     },
 
-    acceptTrip: async (tripId) => {
+    acceptTrip: async (tripId, startProof) => {
         const trip = get().trips.find((item) => item.id === tripId);
         if (!trip) return;
         if (isDriverOnBreak(get().drivers, trip.driverId)) {
             notify('warning', 'Break Active', 'End the current break before starting the trip.');
             return;
         }
+        const hasValidStartProof =
+            Boolean(startProof?.image) &&
+            Number.isFinite(startProof?.odometer) &&
+            Number.isFinite(startProof?.fuelReading) &&
+            Number.isFinite(startProof?.lat) &&
+            Number.isFinite(startProof?.lng) &&
+            Boolean(startProof?.location?.trim());
+        if (!hasValidStartProof) {
+            notify(
+                'warning',
+                'Start Proof Required',
+                'Upload odometer/fuel reading photo and capture location before starting the trip.'
+            );
+            return;
+        }
         const updates = {
             status: 'in-progress' as const,
-            startTime: new Date().toISOString()
+            startTime: new Date().toISOString(),
+            startLocation: trip.startLocation,
+            startProof,
         };
 
         try {
@@ -532,6 +572,64 @@ export const useStore = create<AppState>((set, get) => ({
                 console.error('Driver start-trip persistence failed', error);
             }
         }
+    },
+
+    verifyTripStartProof: async (tripId, supervisorId) => {
+        const trip = get().trips.find((item) => item.id === tripId);
+        if (!trip || !trip.startProof) return;
+
+        const startProof = {
+            ...trip.startProof,
+            verifiedAt: new Date().toISOString(),
+            verifiedBy: supervisorId,
+        };
+        const updates: Partial<Trip> = {
+            startLocation: trip.startLocation,
+            startProof,
+        };
+
+        set((state) => ({
+            trips: state.trips.map((item) =>
+                item.id === tripId ? { ...item, startProof } : item
+            ),
+        }));
+
+        await request('/api/trips', {
+            method: 'PATCH',
+            body: JSON.stringify({ id: tripId, updates }),
+        });
+
+        notify('success', 'Start Proof Verified', `Trip #${tripId.toUpperCase()} start proof verified.`);
+    },
+
+    verifyDropReview: async (tripId, dropId, supervisorId) => {
+        const trip = get().trips.find((item) => item.id === tripId);
+        if (!trip) return;
+        const now = new Date().toISOString();
+        const drops = trip.drops.map((drop) => {
+            if (drop.id !== dropId) return drop;
+            return {
+                ...drop,
+                reviewedAt: now,
+                reviewedBy: supervisorId,
+                proofVerifiedAt: drop.status === 'delivered' ? now : drop.proofVerifiedAt,
+                proofVerifiedBy: drop.status === 'delivered' ? supervisorId : drop.proofVerifiedBy,
+            };
+        });
+        const updates: Partial<Trip> = { drops };
+
+        set((state) => ({
+            trips: state.trips.map((item) =>
+                item.id === tripId ? { ...item, drops } : item
+            ),
+        }));
+
+        await request('/api/trips', {
+            method: 'PATCH',
+            body: JSON.stringify({ id: tripId, updates }),
+        });
+
+        notify('success', 'Stop Reviewed', `Stop proof reviewed for Trip #${tripId.toUpperCase()}.`);
     },
 
     toggleLiveStatus: async (driverId, isLive) => {

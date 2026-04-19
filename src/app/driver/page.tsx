@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useStore } from "@/lib/store";
+import TripStartProofModal from "@/components/driver/TripStartProofModal";
 import type { FuelEntry } from "@/lib/types";
 
 type DriverTab = "overview" | "fuel";
@@ -123,6 +124,7 @@ export default function DriverDashboardPage() {
 
     const [selectedTripId, setSelectedTripId] = useState<string | null>(activeTrips[0]?.id || null);
     const activeTrip = activeTrips.find((trip) => trip.id === selectedTripId) || activeTrips[0] || null;
+    const [startProofTripId, setStartProofTripId] = useState<string | null>(null);
     const [proofTarget, setProofTarget] = useState<DeliveryProofTarget | null>(null);
     const [deliveryProofImage, setDeliveryProofImage] = useState("");
     const [deliveryProofNotes, setDeliveryProofNotes] = useState("");
@@ -154,7 +156,7 @@ export default function DriverDashboardPage() {
         .slice(0, 6);
 
     const canSubmitFuel = Boolean(activeTrip && user);
-    const dayStarted = me?.dutyStatus !== "off-duty";
+    const dayStarted = me?.dutyStatus === "on-duty";
     const onBreak = Boolean(me?.onBreak);
     const driverLockedByBreak = onBreak;
 
@@ -352,7 +354,7 @@ export default function DriverDashboardPage() {
                             If vehicle inactivity crosses 8 minutes during an in-progress trip without informed break, it auto-registers as uninformed break.
                         </p>
                         <div className="mt-3 flex flex-wrap gap-2">
-                            {!onBreak && (
+                            {!onBreak && !dayStarted && (
                                 <button
                                     type="button"
                                     onClick={() => {
@@ -364,7 +366,7 @@ export default function DriverDashboardPage() {
                                     Start Day
                                 </button>
                             )}
-                            {!onBreak && (
+                            {!onBreak && dayStarted && (
                                 <button
                                     type="button"
                                     onClick={() => {
@@ -373,10 +375,10 @@ export default function DriverDashboardPage() {
                                     }}
                                     className="px-3 py-2 rounded-lg text-sm font-semibold bg-slate-700 text-white hover:bg-slate-800"
                                 >
-                                    End Day
+                                    End Day / Ready for Next Day
                                 </button>
                             )}
-                            {!onBreak ? (
+                            {!onBreak && dayStarted ? (
                                 <button
                                     type="button"
                                     onClick={() => {
@@ -387,7 +389,7 @@ export default function DriverDashboardPage() {
                                 >
                                     Start Break
                                 </button>
-                            ) : (
+                            ) : onBreak ? (
                                 <button
                                     type="button"
                                     onClick={() => {
@@ -398,8 +400,8 @@ export default function DriverDashboardPage() {
                                 >
                                     End Break
                                 </button>
-                            )}
-                            {!onBreak && (
+                            ) : null}
+                            {!onBreak && dayStarted && (
                                 <button
                                     type="button"
                                     onClick={() => setShowSosModal(true)}
@@ -455,7 +457,7 @@ export default function DriverDashboardPage() {
                                             type="button"
                                             disabled={!dayStarted || onBreak}
                                             onClick={() => {
-                                                void acceptTrip(activeTrip.id);
+                                                setStartProofTripId(activeTrip.id);
                                             }}
                                             className="px-3 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
@@ -466,6 +468,15 @@ export default function DriverDashboardPage() {
                             </div>
 
                             <div className="space-y-2">
+                                {activeTrip.status === "in-progress" &&
+                                    activeTrip.drops.every((drop) => drop.status === "delivered" || drop.status === "failed") && (
+                                        <div className="border border-amber-200 bg-amber-50 rounded-lg p-3">
+                                            <p className="text-sm font-semibold text-amber-900">Waiting for supervisor verification</p>
+                                            <p className="text-xs text-amber-700 mt-1">
+                                                All stops are submitted. Supervisor must verify start proof and delivery images before closing this trip.
+                                            </p>
+                                        </div>
+                                    )}
                                 {activeTrip.drops.map((drop) => (
                                     <div key={drop.id} className="border border-gray-200 rounded-lg p-3">
                                         <div className="flex items-center justify-between gap-2">
@@ -643,6 +654,17 @@ export default function DriverDashboardPage() {
                         </div>
                     </article>
                 </section>
+            )}
+
+            {startProofTripId && (
+                <TripStartProofModal
+                    tripId={startProofTripId}
+                    onClose={() => setStartProofTripId(null)}
+                    onSubmit={async (proof) => {
+                        await acceptTrip(startProofTripId, proof);
+                        if (me) await registerDriverActivity(me.id);
+                    }}
+                />
             )}
 
             {proofTarget && (

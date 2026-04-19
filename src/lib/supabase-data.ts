@@ -75,13 +75,19 @@ export function mapVehicleRow(row: Record<string, unknown>): Vehicle {
 }
 
 export function mapTripRow(row: Record<string, unknown>): Trip {
+    const rawStartLocation = asObject<Record<string, unknown>>(
+        row.start_location,
+        { lat: 0, lng: 0, address: "" },
+    );
+    const { startProof, ...startLocation } = rawStartLocation;
+
     return {
         id: asString(row.id),
         vehicleId: asOptionalString(row.vehicle_id),
         driverId: asOptionalString(row.driver_id),
         supervisorId: asOptionalString(row.supervisor_id),
         status: asString(row.status) as Trip["status"],
-        startLocation: asObject(row.start_location, { lat: 0, lng: 0, address: "" }),
+        startLocation: startLocation as Trip["startLocation"],
         drops: Array.isArray(row.drops) ? (row.drops as Trip["drops"]) : [],
         startTime: asOptionalString(row.start_time),
         endTime: asOptionalString(row.end_time),
@@ -89,6 +95,7 @@ export function mapTripRow(row: Record<string, unknown>): Trip {
         actualDistance: row.actual_distance === null || row.actual_distance === undefined
             ? undefined
             : asNumber(row.actual_distance),
+        startProof: startProof as Trip["startProof"] | undefined,
     };
 }
 
@@ -136,6 +143,12 @@ export function mapTripInputToRow(input: Partial<Trip>) {
     if ("supervisorId" in input) row.supervisor_id = input.supervisorId ?? null;
     if ("status" in input) row.status = input.status;
     if ("startLocation" in input) row.start_location = input.startLocation ?? null;
+    if ("startProof" in input) {
+        row.start_location = {
+            ...((input.startLocation || {}) as Record<string, unknown>),
+            startProof: input.startProof ?? null,
+        };
+    }
     if ("drops" in input) row.drops = input.drops ?? [];
     if ("startTime" in input) row.start_time = input.startTime ?? null;
     if ("endTime" in input) row.end_time = input.endTime ?? null;

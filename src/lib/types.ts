@@ -53,6 +53,18 @@ export interface Driver extends User {
 
 export type TripStatus = 'planned' | 'assigned' | 'in-progress' | 'completed' | 'cancelled';
 
+export interface TripStartProof {
+    odometer: number;
+    fuelReading: number;
+    image: string;
+    capturedAt: string;
+    lat: number;
+    lng: number;
+    location: string;
+    verifiedAt?: string;
+    verifiedBy?: string;
+}
+
 export interface DropPoint {
     id: string; // Internal Stop ID
     orderId?: string; // Client Order ID
@@ -72,6 +84,10 @@ export interface DropPoint {
     proofLat?: number;
     proofLng?: number;
     proofLocation?: string;
+    proofVerifiedAt?: string;
+    proofVerifiedBy?: string;
+    reviewedAt?: string;
+    reviewedBy?: string;
     failureReason?: string;
     notes?: string;
 }
@@ -88,6 +104,7 @@ export interface Trip {
     endTime?: string;
     estimatedDistance: number; // km
     actualDistance?: number;
+    startProof?: TripStartProof;
 }
 
 export type FuelStatus = 'pending' | 'verified' | 'approved' | 'rejected';
