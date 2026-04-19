@@ -38,7 +38,9 @@ export default function TripForm({ onClose }: { onClose: () => void }) {
         setPreviewStats({ distance: `${dist} km`, time, fuelLitres: fuel.litres, fuelCost: fuel.cost, savedKm: savings.savedKm, savedCost: savings.savedCost });
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
         // Validate that all addresses have been geocoded
@@ -68,10 +70,16 @@ export default function TripForm({ onClose }: { onClose: () => void }) {
             estimatedDistance: totalDist,
             vehicleId: formData.vehicleId,
             driverId: formData.driverId,
-            startTime: new Date().toISOString()
         };
-        addTrip(newTrip);
-        onClose();
+        setIsSubmitting(true);
+        try {
+            await addTrip(newTrip);
+            onClose();
+        } catch {
+            // Store notification already explains the failure.
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -95,8 +103,13 @@ export default function TripForm({ onClose }: { onClose: () => void }) {
                                 required
                             >
                                 <option value="">Select Driver...</option>
-                                {drivers.map(d => <option key={d.id} value={d.id}>{d.name} ({d.status})</option>)}
+                                {drivers
+                                    .filter(d => d.status === 'available')
+                                    .map(d => <option key={d.id} value={d.id}>{d.name} ({d.status})</option>)}
                             </select>
+                            {drivers.every(d => d.status !== 'available') && (
+                                <p className="text-[10px] text-rose-500 font-medium mt-1">No free drivers right now.</p>
+                            )}
                         </div>
                         <div>
                             <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Assign Vehicle</label>
@@ -325,8 +338,12 @@ export default function TripForm({ onClose }: { onClose: () => void }) {
                         </div>
                         <div className="flex gap-3 w-full sm:w-auto">
                             <button type="button" onClick={onClose} className="flex-1 sm:flex-none px-6 py-3 text-slate-500 hover:text-slate-700 font-medium transition-colors">Cancel</button>
-                            <button type="submit" className="flex-1 sm:flex-none px-6 md:px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-600/20 hover:shadow-emerald-600/30 transition-all transform active:scale-95 flex items-center justify-center gap-2">
-                                <span>⚡</span> Assign & Optimize Route
+                            <button
+                                type="submit"
+                                disabled={isSubmitting}
+                                className="flex-1 sm:flex-none px-6 md:px-8 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-lg shadow-emerald-600/20 hover:shadow-emerald-600/30 transition-all transform active:scale-95 flex items-center justify-center gap-2"
+                            >
+                                <span>⚡</span> {isSubmitting ? "Assigning..." : "Assign & Optimize Route"}
                             </button>
                         </div>
                     </div>

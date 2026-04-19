@@ -29,7 +29,7 @@ export default function DriverDetailModal({ driver, onClose }: DriverDetailModal
     const [showTripSelection, setShowTripSelection] = useState(false);
 
     const plannedTrips = useMemo(() => trips.filter(t => t.status === 'planned'), [trips]);
-    const availableVehicle = useMemo(() => vehicles.find(v => v.status === 'active' || v.status === 'maintenance' ? false : true) || vehicles[0], [vehicles]);
+    const availableVehicle = useMemo(() => vehicles.find(v => v.status === 'active') || vehicles[0], [vehicles]);
 
     const stats = useMemo(() => {
         const driverTrips = trips.filter(t => t.driverId === driver.id);
@@ -61,6 +61,7 @@ export default function DriverDetailModal({ driver, onClose }: DriverDetailModal
     const handleAssign = async (tripId: string) => {
         setIsAssigning(true);
         try {
+            if (!availableVehicle) return;
             await assignDriver(tripId, driver.id, availableVehicle.id);
             setShowTripSelection(false);
             onClose();
@@ -198,7 +199,7 @@ export default function DriverDetailModal({ driver, onClose }: DriverDetailModal
                         </button>
                         <button
                             onClick={() => setShowTripSelection(true)}
-                            disabled={driver.status !== 'available'}
+                            disabled={driver.status !== 'available' || !availableVehicle}
                             className={`flex-1 py-3 font-bold rounded-xl border text-sm flex items-center justify-center gap-2 transition-all active:scale-95 ${driver.status === 'available'
                                 ? 'bg-white hover:bg-gray-50 text-slate-600 border-gray-200 shadow-sm'
                                 : 'bg-gray-50 text-slate-300 border-gray-100 cursor-not-allowed'

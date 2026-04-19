@@ -116,7 +116,7 @@ export default function DriverDashboardPage() {
     const me = drivers.find((driver) => driver.id === user?.id);
     const myTrips = useMemo(() => trips.filter((trip) => trip.driverId === user?.id), [trips, user?.id]);
     const activeTrips = myTrips.filter(
-        (trip) => trip.status === "assigned" || trip.status === "in-progress",
+        (trip) => trip.status !== "completed" && trip.status !== "cancelled",
     );
     const completedTrips = myTrips
         .filter((trip) => trip.status === "completed")
@@ -159,6 +159,12 @@ export default function DriverDashboardPage() {
     const dayStarted = me?.dutyStatus === "on-duty";
     const onBreak = Boolean(me?.onBreak);
     const driverLockedByBreak = onBreak;
+    const nextPendingDrop = activeTrip?.drops.find((drop) => drop.status === "pending");
+    const activeTripDone = Boolean(
+        activeTrip &&
+            activeTrip.drops.length > 0 &&
+            activeTrip.drops.every((drop) => drop.status === "delivered" || drop.status === "failed"),
+    );
 
     const currentBreakMinutes =
         me?.onBreak && me.breakStartedAt
@@ -327,6 +333,82 @@ export default function DriverDashboardPage() {
 
             {activeTab === "overview" && (
                 <section className="space-y-4">
+                    <article className="overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-700 via-blue-600 to-slate-900 text-white shadow-sm">
+                        <div className="p-5 md:p-6">
+                            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                                <div>
+                                    <p className="text-xs font-bold uppercase tracking-[0.22em] text-blue-100">Today</p>
+                                    <h2 className="mt-1 text-2xl font-black tracking-tight">
+                                        {dayStarted ? "Day started" : "Start your day"}
+                                    </h2>
+                                    <p className="mt-1 text-sm text-blue-100">
+                                        {activeTrip
+                                            ? `Current trip #${activeTrip.id.toUpperCase()} · ${activeTrip.drops.length} stops`
+                                            : "No open trip assigned right now."}
+                                    </p>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    {!dayStarted && !onBreak && me && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                void startDriverDay(me.id);
+                                            }}
+                                            className="rounded-xl bg-white px-4 py-3 text-sm font-black text-blue-700 shadow-sm active:scale-95"
+                                        >
+                                            Start Day
+                                        </button>
+                                    )}
+                                    {dayStarted && !onBreak && me && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                void endDriverDay(me.id);
+                                            }}
+                                            className="rounded-xl bg-white/10 px-4 py-3 text-sm font-black text-white ring-1 ring-white/25 active:scale-95"
+                                        >
+                                            End Day
+                                        </button>
+                                    )}
+                                    {activeTrip && (
+                                        <Link
+                                            href="/driver/routes"
+                                            className="rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-emerald-950 shadow-sm active:scale-95"
+                                        >
+                                            Open Route
+                                        </Link>
+                                    )}
+                                </div>
+                            </div>
+
+                            {activeTrip && (
+                                <div className="mt-5 grid gap-3 md:grid-cols-3">
+                                    <div className="rounded-xl bg-white/10 p-3 ring-1 ring-white/10">
+                                        <p className="text-[11px] font-bold uppercase text-blue-100">Next Stop</p>
+                                        <p className="mt-1 text-sm font-bold">
+                                            {nextPendingDrop ? nextPendingDrop.customerName : "All stops submitted"}
+                                        </p>
+                                        <p className="mt-1 line-clamp-2 text-xs text-blue-100">
+                                            {nextPendingDrop?.address || "Waiting for supervisor verification."}
+                                        </p>
+                                    </div>
+                                    <div className="rounded-xl bg-white/10 p-3 ring-1 ring-white/10">
+                                        <p className="text-[11px] font-bold uppercase text-blue-100">Trip Status</p>
+                                        <p className="mt-1 text-sm font-bold capitalize">{activeTrip.status.replace("-", " ")}</p>
+                                        <p className="mt-1 text-xs text-blue-100">
+                                            {activeTripDone ? "Submitted for review" : "Continue deliveries"}
+                                        </p>
+                                    </div>
+                                    <div className="rounded-xl bg-white/10 p-3 ring-1 ring-white/10">
+                                        <p className="text-[11px] font-bold uppercase text-blue-100">Break Time</p>
+                                        <p className="mt-1 text-sm font-bold">{formatMinutes(totalBreakMinutes)}</p>
+                                        <p className="mt-1 text-xs text-blue-100">{onBreak ? "Break active" : "Available"}</p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </article>
+
                     <div className="grid gap-3 sm:grid-cols-4">
                         <article className="bg-white border border-gray-200 rounded-xl p-4">
                             <p className="text-xs text-slate-500">Active Trips</p>
@@ -354,30 +436,6 @@ export default function DriverDashboardPage() {
                             If vehicle inactivity crosses 8 minutes during an in-progress trip without informed break, it auto-registers as uninformed break.
                         </p>
                         <div className="mt-3 flex flex-wrap gap-2">
-                            {!onBreak && !dayStarted && (
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        if (!me) return;
-                                        void startDriverDay(me.id);
-                                    }}
-                                    className="px-3 py-2 rounded-lg text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700"
-                                >
-                                    Start Day
-                                </button>
-                            )}
-                            {!onBreak && dayStarted && (
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        if (!me) return;
-                                        void endDriverDay(me.id);
-                                    }}
-                                    className="px-3 py-2 rounded-lg text-sm font-semibold bg-slate-700 text-white hover:bg-slate-800"
-                                >
-                                    End Day / Ready for Next Day
-                                </button>
-                            )}
                             {!onBreak && dayStarted ? (
                                 <button
                                     type="button"
@@ -411,6 +469,11 @@ export default function DriverDashboardPage() {
                                 </button>
                             )}
                         </div>
+                        {!dayStarted && !onBreak && (
+                            <p className="mt-2 text-xs font-semibold text-slate-500">
+                                Use the Start Day button above before break, SOS, fuel, or route actions.
+                            </p>
+                        )}
                         {onBreak && (
                             <p className="mt-2 text-xs font-semibold text-amber-700">
                                 Break active ({me?.breakType || "informed"}) • {formatMinutes(currentBreakMinutes)}
@@ -452,7 +515,7 @@ export default function DriverDashboardPage() {
                                     <p className="text-sm text-slate-500">{activeTrip.startLocation.address}</p>
                                 </div>
                                 <div className="flex flex-wrap gap-2">
-                                    {activeTrip.status === "assigned" && (
+                                    {activeTrip.status !== "in-progress" && (
                                         <button
                                             type="button"
                                             disabled={!dayStarted || onBreak}

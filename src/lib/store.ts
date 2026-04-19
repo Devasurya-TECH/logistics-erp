@@ -88,11 +88,13 @@ const request = async (url: string, init: RequestInit) => {
     return payload;
 };
 
+const isOpenTrip = (trip: Trip) => trip.status !== 'completed' && trip.status !== 'cancelled';
+
 const hasActiveTrip = (trips: Trip[], driverId: string) =>
     trips.some(
         (trip) =>
             trip.driverId === driverId &&
-            (trip.status === 'assigned' || trip.status === 'in-progress')
+            isOpenTrip(trip)
     );
 
 const calculateBreakMinutes = (startedAt?: string) => {
@@ -191,12 +193,44 @@ export const useStore = create<AppState>((set, get) => ({
 
     addTrip: async (trip) => {
         try {
-            await request('/api/trips', {
+            if (trip.driverId && hasActiveTrip(get().trips, trip.driverId)) {
+                const driver = get().drivers.find((item) => item.id === trip.driverId);
+                throw new Error(`${driver?.name || 'Driver'} already has an open trip.`);
+            }
+
+            const payload = await request('/api/trips', {
                 method: 'POST',
                 body: JSON.stringify(trip),
-            });
-            set((state) => ({ trips: [...state.trips, trip] }));
-            notify('success', 'Trip Created', `Trip #${trip.id.toUpperCase()} has been created successfully.`);
+            }) as { data?: Trip } | null;
+            const savedTrip = payload?.data || trip;
+
+            set((state) => ({ trips: [...state.trips.filter((item) => item.id !== savedTrip.id), savedTrip] }));
+
+            if (savedTrip.driverId && savedTrip.status === 'assigned') {
+                const driverUpdates: Partial<Driver> = {
+                    status: 'on-trip',
+                    currentVehicleId: savedTrip.vehicleId,
+                    isLive: true,
+                    lastLocationUpdate: new Date().toISOString(),
+                    lastActivityAt: new Date().toISOString(),
+                    onBreak: false,
+                    breakStartedAt: undefined,
+                    breakType: undefined,
+                };
+
+                await request('/api/drivers', {
+                    method: 'PATCH',
+                    body: JSON.stringify({ id: savedTrip.driverId, updates: driverUpdates }),
+                });
+
+                set((state) => ({
+                    drivers: state.drivers.map((driver) =>
+                        driver.id === savedTrip.driverId ? { ...driver, ...driverUpdates } : driver
+                    ),
+                }));
+            }
+
+            notify('success', 'Trip Created', `Trip #${savedTrip.id.toUpperCase()} has been created successfully.`);
         } catch (error) {
             console.error('Trip creation failed', error);
             notify('error', 'Trip Create Failed', error instanceof Error ? error.message : 'Unable to create trip.');

@@ -71,7 +71,8 @@ export default function DriverRoutesPage() {
             trips.filter(
                 (trip) =>
                     trip.driverId === user?.id &&
-                    (trip.status === "assigned" || trip.status === "in-progress"),
+                    trip.status !== "completed" &&
+                    trip.status !== "cancelled",
             ),
         [trips, user?.id],
     );
@@ -303,7 +304,7 @@ export default function DriverRoutesPage() {
                                         <h3 className="text-sm font-semibold text-slate-900">Navigation</h3>
                                         <p className="text-xs text-slate-500 mt-1">{activeTrip.startLocation.address}</p>
                                     </div>
-                                    {activeTrip.status === "assigned" && (
+                                    {activeTrip.status !== "in-progress" && (
                                         <button
                                             type="button"
                                             disabled={onBreak || !dayStarted}
