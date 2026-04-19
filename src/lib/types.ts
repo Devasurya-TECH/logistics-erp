@@ -40,6 +40,8 @@ export interface Driver extends User {
         address?: string;
         updatedAt?: string;
     };
+    dayStartProof?: TripCheckpointProof;
+    dayEndProof?: TripCheckpointProof;
     lastDeliveryProof?: {
         tripId: string;
         dropId: string;
@@ -107,8 +109,6 @@ export interface Trip {
     endTime?: string;
     estimatedDistance: number; // km
     actualDistance?: number;
-    startProof?: TripStartProof;
-    endProof?: TripEndProof;
 }
 
 export type FuelStatus = 'pending' | 'verified' | 'approved' | 'rejected';

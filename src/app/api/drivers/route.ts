@@ -30,9 +30,20 @@ export async function PATCH(request: Request) {
             return Response.json({ error: 'Forbidden' }, { status: 403 });
         }
 
+        const { data: existingProfile, error: existingError } = await context.supabase
+            .from('profiles')
+            .select('current_location')
+            .eq('id', id)
+            .eq('role', 'driver')
+            .single();
+
+        if (existingError || !existingProfile) {
+            return Response.json({ error: 'Driver not found' }, { status: 404 });
+        }
+
         const { data, error } = await context.supabase
             .from('profiles')
-            .update(mapDriverUpdatesToRow(updates))
+            .update(mapDriverUpdatesToRow(updates, existingProfile.current_location as Record<string, unknown> | null | undefined))
             .eq('id', id)
             .eq('role', 'driver')
             .select('*')

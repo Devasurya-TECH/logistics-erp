@@ -31,7 +31,6 @@ function reviewStats(trip: Trip) {
     const pending = trip.drops.filter((drop) => drop.status === "pending").length;
     const resolved = delivered + failed;
     const allStopsResolved = trip.drops.length > 0 && pending === 0;
-    const startProofVerified = Boolean(trip.startProof?.verifiedAt);
     const allStopsReviewed =
         trip.drops.length > 0 &&
         trip.drops.every((drop) => {
@@ -46,12 +45,11 @@ function reviewStats(trip: Trip) {
     const readyForCompletion =
         trip.status === "in-progress" &&
         allStopsResolved &&
-        startProofVerified &&
         allStopsReviewed;
     const needsReview =
         trip.status === "in-progress" &&
         allStopsResolved &&
-        (!startProofVerified || !allStopsReviewed);
+        !allStopsReviewed;
 
     return {
         delivered,
@@ -59,7 +57,6 @@ function reviewStats(trip: Trip) {
         pending,
         resolved,
         allStopsResolved,
-        startProofVerified,
         allStopsReviewed,
         readyForCompletion,
         needsReview,
@@ -83,7 +80,6 @@ export default function SupervisorTripsPage() {
         drivers,
         vehicles,
         updateTripStatus,
-        verifyTripStartProof,
         verifyDropReview,
     } = useStore();
     const [filter, setFilter] = useState<TripFilter>("all");
@@ -93,7 +89,11 @@ export default function SupervisorTripsPage() {
     const summary = useMemo(() => {
         const completed = trips.filter((trip) => trip.status === "completed").length;
         const cancelled = trips.filter((trip) => trip.status === "cancelled").length;
-        const review = trips.filter((trip) => reviewStats(trip).needsReview || reviewStats(trip).readyForCompletion).length;
+        const review = trips.filter((trip) => {
+            const stats = reviewStats(trip);
+            return stats.needsReview || stats.readyForCompletion;
+        }).length;
+
         return {
             total: trips.length,
             active: trips.filter((trip) => trip.status === "assigned" || trip.status === "in-progress").length,
@@ -109,11 +109,12 @@ export default function SupervisorTripsPage() {
                 ? trips
                 : filter === "review"
                     ? trips.filter((trip) => {
-                          const stats = reviewStats(trip);
-                          return stats.needsReview || stats.readyForCompletion;
-                      })
+                        const stats = reviewStats(trip);
+                        return stats.needsReview || stats.readyForCompletion;
+                    })
                     : trips.filter((trip) => trip.status === filter);
         const q = query.trim().toLowerCase();
+
         return base.filter((trip) => {
             if (q.length === 0) return true;
             const driverName = drivers.find((driver) => driver.id === trip.driverId)?.name || "";
@@ -228,18 +229,6 @@ export default function SupervisorTripsPage() {
                                     <p>Vehicle: {vehicle?.plateNumber || "Unassigned"}</p>
                                     <p>Distance: {trip.actualDistance || trip.estimatedDistance} km</p>
                                     <p>Drops: {stats.delivered} delivered / {stats.failed} failed / {stats.pending} pending</p>
-                                    <p>
-                                        Start fuel:{" "}
-                                        <span className="font-semibold text-slate-700">
-                                            {trip.startProof ? trip.startProof.fuelReading : "NA"}
-                                        </span>
-                                    </p>
-                                    <p>
-                                        End fuel:{" "}
-                                        <span className="font-semibold text-slate-700">
-                                            {trip.endProof ? trip.endProof.fuelReading : "NA"}
-                                        </span>
-                                    </p>
                                 </div>
 
                                 {(stats.needsReview || stats.readyForCompletion) && (
@@ -250,6 +239,7 @@ export default function SupervisorTripsPage() {
                             </article>
                         );
                     })}
+
                     {filtered.length === 0 && (
                         <article className="bg-white border border-gray-200 rounded-xl p-6">
                             <p className="text-slate-600">No trips found.</p>
@@ -290,95 +280,6 @@ export default function SupervisorTripsPage() {
                                     <p className="text-xl font-bold text-amber-800">{selectedStats.pending}</p>
                                 </div>
                             </div>
-
-                            <section className="border border-gray-200 rounded-xl p-3">
-                                <div className="flex flex-wrap items-center justify-between gap-2">
-                                    <div>
-                                        <p className="text-sm font-semibold text-slate-900">Trip Start Proof</p>
-                                        <p className="text-xs text-slate-500 mt-1">Starting odometer, fuel reading, image, and location.</p>
-                                    </div>
-                                    {selectedTrip.startProof?.verifiedAt ? (
-                                        <span className="text-[11px] px-2 py-1 rounded-full font-semibold bg-emerald-100 text-emerald-700">
-                                            verified
-                                        </span>
-                                    ) : (
-                                        <span className="text-[11px] px-2 py-1 rounded-full font-semibold bg-amber-100 text-amber-700">
-                                            pending
-                                        </span>
-                                    )}
-                                </div>
-
-                                {!selectedTrip.startProof ? (
-                                    <p className="mt-3 text-xs text-rose-700 bg-rose-50 border border-rose-100 rounded-lg px-3 py-2">
-                                        Missing start proof. Driver must start the trip with odometer/fuel photo and location.
-                                    </p>
-                                ) : (
-                                    <div className="mt-3 space-y-2">
-                                        <div className="grid grid-cols-2 gap-2 text-xs text-slate-600">
-                                            <p>Odometer: <span className="font-semibold text-slate-900">{selectedTrip.startProof.odometer}</span></p>
-                                            <p>Fuel: <span className="font-semibold text-slate-900">{selectedTrip.startProof.fuelReading}</span></p>
-                                            <p className="col-span-2">Location: {selectedTrip.startProof.location}</p>
-                                            <p className="col-span-2">
-                                                Lat: {selectedTrip.startProof.lat.toFixed(6)} | Lng: {selectedTrip.startProof.lng.toFixed(6)}
-                                            </p>
-                                        </div>
-                                        <img
-                                            src={selectedTrip.startProof.image}
-                                            alt="Trip start proof"
-                                            className="w-full max-w-xs h-40 object-cover rounded-lg border border-gray-200"
-                                        />
-                                        {!selectedTrip.startProof.verifiedAt && user?.id && (
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    void verifyTripStartProof(selectedTrip.id, user.id);
-                                                }}
-                                                className="px-3 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700"
-                                            >
-                                                Verify Start Proof
-                                            </button>
-                                        )}
-                                    </div>
-                                )}
-                            </section>
-
-                            <section className="border border-gray-200 rounded-xl p-3">
-                                <div className="flex flex-wrap items-center justify-between gap-2">
-                                    <div>
-                                        <p className="text-sm font-semibold text-slate-900">Day End Proof</p>
-                                        <p className="text-xs text-slate-500 mt-1">
-                                            Ending odometer, fuel reading, image, and location from End Day. Visible here, but not required to complete the trip.
-                                        </p>
-                                    </div>
-                                    <span className={`text-[11px] px-2 py-1 rounded-full font-semibold ${
-                                        selectedTrip.endProof ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-600"
-                                    }`}>
-                                        {selectedTrip.endProof ? "submitted" : "optional"}
-                                    </span>
-                                </div>
-
-                                {!selectedTrip.endProof ? (
-                                    <p className="mt-3 text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
-                                        No End Day proof uploaded yet. This does not block trip completion.
-                                    </p>
-                                ) : (
-                                    <div className="mt-3 space-y-2">
-                                        <div className="grid grid-cols-2 gap-2 text-xs text-slate-600">
-                                            <p>Odometer: <span className="font-semibold text-slate-900">{selectedTrip.endProof.odometer}</span></p>
-                                            <p>Fuel: <span className="font-semibold text-slate-900">{selectedTrip.endProof.fuelReading}</span></p>
-                                            <p className="col-span-2">Location: {selectedTrip.endProof.location}</p>
-                                            <p className="col-span-2">
-                                                Lat: {selectedTrip.endProof.lat.toFixed(6)} | Lng: {selectedTrip.endProof.lng.toFixed(6)}
-                                            </p>
-                                        </div>
-                                        <img
-                                            src={selectedTrip.endProof.image}
-                                            alt="Trip end proof"
-                                            className="w-full max-w-xs h-40 object-cover rounded-lg border border-gray-200"
-                                        />
-                                    </div>
-                                )}
-                            </section>
 
                             <section className="space-y-3">
                                 <h3 className="text-sm font-semibold text-slate-900">Delivery Proof Review</h3>
@@ -472,7 +373,7 @@ export default function SupervisorTripsPage() {
                                     <div className="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2">
                                         <p className="text-xs font-semibold text-slate-700">Completion locked</p>
                                         <p className="text-xs text-slate-500 mt-1">
-                                            Completion unlocks only after all stops are resolved, start proof is verified, and each delivery/failure is reviewed.
+                                            Completion unlocks only after all stops are resolved and each delivered or failed stop is reviewed.
                                         </p>
                                     </div>
                                 )}

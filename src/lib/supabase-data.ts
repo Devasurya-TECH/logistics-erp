@@ -40,6 +40,9 @@ export function mapProfileRow(row: Record<string, unknown>): User | Driver {
         return base;
     }
 
+    const currentLocation = asObject<Record<string, unknown> | undefined>(row.current_location, undefined);
+    const { dayStartProof, dayEndProof, ...currentLocationBase } = currentLocation || {};
+
     return {
         ...base,
         licenseNumber: asString(row.license_number),
@@ -55,7 +58,9 @@ export function mapProfileRow(row: Record<string, unknown>): User | Driver {
         breakType: row.break_type as Driver["breakType"] | undefined,
         totalBreakMinutes: asNumber(row.total_break_minutes),
         lastActivityAt: asOptionalString(row.last_activity_at),
-        currentLocation: row.current_location as Driver["currentLocation"] | undefined,
+        currentLocation: currentLocationBase as Driver["currentLocation"] | undefined,
+        dayStartProof: dayStartProof as Driver["dayStartProof"] | undefined,
+        dayEndProof: dayEndProof as Driver["dayEndProof"] | undefined,
         lastDeliveryProof: row.last_delivery_proof as Driver["lastDeliveryProof"] | undefined,
     };
 }
@@ -75,19 +80,13 @@ export function mapVehicleRow(row: Record<string, unknown>): Vehicle {
 }
 
 export function mapTripRow(row: Record<string, unknown>): Trip {
-    const rawStartLocation = asObject<Record<string, unknown>>(
-        row.start_location,
-        { lat: 0, lng: 0, address: "" },
-    );
-    const { startProof, endProof, ...startLocation } = rawStartLocation;
-
     return {
         id: asString(row.id),
         vehicleId: asOptionalString(row.vehicle_id),
         driverId: asOptionalString(row.driver_id),
         supervisorId: asOptionalString(row.supervisor_id),
         status: asString(row.status) as Trip["status"],
-        startLocation: startLocation as Trip["startLocation"],
+        startLocation: asObject(row.start_location, { lat: 0, lng: 0, address: "" }),
         drops: Array.isArray(row.drops) ? (row.drops as Trip["drops"]) : [],
         startTime: asOptionalString(row.start_time),
         endTime: asOptionalString(row.end_time),
@@ -95,8 +94,6 @@ export function mapTripRow(row: Record<string, unknown>): Trip {
         actualDistance: row.actual_distance === null || row.actual_distance === undefined
             ? undefined
             : asNumber(row.actual_distance),
-        startProof: startProof as Trip["startProof"] | undefined,
-        endProof: endProof as Trip["endProof"] | undefined,
     };
 }
 
@@ -144,13 +141,6 @@ export function mapTripInputToRow(input: Partial<Trip>) {
     if ("supervisorId" in input) row.supervisor_id = input.supervisorId ?? null;
     if ("status" in input) row.status = input.status;
     if ("startLocation" in input) row.start_location = input.startLocation ?? null;
-    if ("startProof" in input || "endProof" in input) {
-        row.start_location = {
-            ...((input.startLocation || {}) as Record<string, unknown>),
-            ...(input.startProof !== undefined ? { startProof: input.startProof ?? null } : {}),
-            ...(input.endProof !== undefined ? { endProof: input.endProof ?? null } : {}),
-        };
-    }
     if ("drops" in input) row.drops = input.drops ?? [];
     if ("startTime" in input) row.start_time = input.startTime ?? null;
     if ("endTime" in input) row.end_time = input.endTime ?? null;
@@ -160,8 +150,17 @@ export function mapTripInputToRow(input: Partial<Trip>) {
     return row;
 }
 
-export function mapDriverUpdatesToRow(updates: Partial<Driver>) {
+export function mapDriverUpdatesToRow(
+    updates: Partial<Driver>,
+    existingCurrentLocation?: Record<string, unknown> | null,
+) {
     const row: Record<string, unknown> = {};
+    const existingLocation = asObject<Record<string, unknown> | undefined>(existingCurrentLocation, undefined);
+    const {
+        dayStartProof: existingDayStartProof,
+        dayEndProof: existingDayEndProof,
+        ...existingBaseLocation
+    } = existingLocation || {};
 
     if ("name" in updates) row.name = updates.name ?? null;
     if ("email" in updates) row.email = updates.email ?? null;
@@ -179,8 +178,30 @@ export function mapDriverUpdatesToRow(updates: Partial<Driver>) {
     if ("breakType" in updates) row.break_type = updates.breakType ?? null;
     if ("totalBreakMinutes" in updates) row.total_break_minutes = updates.totalBreakMinutes ?? 0;
     if ("lastActivityAt" in updates) row.last_activity_at = updates.lastActivityAt ?? null;
-    if ("currentLocation" in updates) row.current_location = updates.currentLocation ?? null;
     if ("lastDeliveryProof" in updates) row.last_delivery_proof = updates.lastDeliveryProof ?? null;
+
+    if ("currentLocation" in updates || "dayStartProof" in updates || "dayEndProof" in updates) {
+        const nextLocation: Record<string, unknown> =
+            "currentLocation" in updates
+                ? updates.currentLocation
+                    ? { ...updates.currentLocation }
+                    : {}
+                : { ...existingBaseLocation };
+
+        const nextDayStartProof =
+            "dayStartProof" in updates ? updates.dayStartProof : existingDayStartProof;
+        const nextDayEndProof =
+            "dayEndProof" in updates ? updates.dayEndProof : existingDayEndProof;
+
+        if (nextDayStartProof) {
+            nextLocation.dayStartProof = nextDayStartProof;
+        }
+        if (nextDayEndProof) {
+            nextLocation.dayEndProof = nextDayEndProof;
+        }
+
+        row.current_location = Object.keys(nextLocation).length > 0 ? nextLocation : null;
+    }
 
     return row;
 }

@@ -124,7 +124,7 @@ export default function DriverDashboardPage() {
 
     const [selectedTripId, setSelectedTripId] = useState<string | null>(activeTrips[0]?.id || null);
     const activeTrip = activeTrips.find((trip) => trip.id === selectedTripId) || activeTrips[0] || null;
-    const [startProofTripId, setStartProofTripId] = useState<string | null>(null);
+    const [showStartDayProof, setShowStartDayProof] = useState(false);
     const [endProofTripId, setEndProofTripId] = useState<string | null>(null);
     const [proofTarget, setProofTarget] = useState<DeliveryProofTarget | null>(null);
     const [deliveryProofImage, setDeliveryProofImage] = useState("");
@@ -166,7 +166,7 @@ export default function DriverDashboardPage() {
             activeTrip.drops.length > 0 &&
             activeTrip.drops.every((drop) => drop.status === "delivered" || drop.status === "failed"),
     );
-    const needsEndDayProof = Boolean(activeTripDone && activeTrip?.status === "in-progress" && !activeTrip?.endProof);
+    const needsEndDayProof = Boolean(dayStarted);
 
     const currentBreakMinutes =
         me?.onBreak && me.breakStartedAt
@@ -277,11 +277,7 @@ export default function DriverDashboardPage() {
 
     const handleEndDay = () => {
         if (!me) return;
-        if (needsEndDayProof && activeTrip) {
-            setEndProofTripId(activeTrip.id);
-            return;
-        }
-        void endDriverDay(me.id);
+        setEndProofTripId(activeTrip?.id || "day-end");
     };
 
     return (
@@ -363,7 +359,7 @@ export default function DriverDashboardPage() {
                                         <button
                                             type="button"
                                             onClick={() => {
-                                                void startDriverDay(me.id);
+                                                setShowStartDayProof(true);
                                             }}
                                             className="rounded-xl bg-white px-4 py-3 text-sm font-black text-blue-700 shadow-sm active:scale-95"
                                         >
@@ -536,7 +532,10 @@ export default function DriverDashboardPage() {
                                             type="button"
                                             disabled={!dayStarted || onBreak}
                                             onClick={() => {
-                                                setStartProofTripId(activeTrip.id);
+                                                void acceptTrip(activeTrip.id);
+                                                if (me) {
+                                                    void registerDriverActivity(me.id);
+                                                }
                                             }}
                                             className="px-3 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
@@ -552,7 +551,7 @@ export default function DriverDashboardPage() {
                                         <div className="border border-amber-200 bg-amber-50 rounded-lg p-3">
                                             <p className="text-sm font-semibold text-amber-900">Waiting for supervisor verification</p>
                                             <p className="text-xs text-amber-700 mt-1">
-                                                All stops are submitted. Supervisor must verify start proof and delivery images before closing this trip.
+                                                All stops are submitted. Supervisor must verify the stop proofs before closing this trip.
                                             </p>
                                         </div>
                                     )}
@@ -735,13 +734,13 @@ export default function DriverDashboardPage() {
                 </section>
             )}
 
-            {startProofTripId && (
+            {showStartDayProof && me && (
                 <TripStartProofModal
-                    tripId={startProofTripId}
-                    onClose={() => setStartProofTripId(null)}
+                    tripId={activeTrip?.id || "day-start"}
+                    mode="start-day"
+                    onClose={() => setShowStartDayProof(false)}
                     onSubmit={async (proof) => {
-                        await acceptTrip(startProofTripId, proof);
-                        if (me) await registerDriverActivity(me.id);
+                        await startDriverDay(me.id, proof);
                     }}
                 />
             )}
@@ -749,7 +748,7 @@ export default function DriverDashboardPage() {
             {endProofTripId && me && (
                 <TripStartProofModal
                     tripId={endProofTripId}
-                    mode="end"
+                    mode="end-day"
                     onClose={() => setEndProofTripId(null)}
                     onSubmit={async (proof) => {
                         await endDriverDay(me.id, proof);

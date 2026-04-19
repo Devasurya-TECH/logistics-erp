@@ -44,7 +44,7 @@ interface TripStartProofModalProps {
     tripId: string;
     onClose: () => void;
     onSubmit: (proof: TripCheckpointProof) => Promise<void> | void;
-    mode?: "start" | "end";
+    mode?: "start" | "end" | "start-day" | "end-day";
 }
 
 export default function TripStartProofModal({
@@ -62,7 +62,18 @@ export default function TripStartProofModal({
     const [locating, setLocating] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
-    const isEnd = mode === "end";
+    const isEnd = mode === "end" || mode === "end-day";
+    const isDayMode = mode === "start-day" || mode === "end-day";
+    const title = mode === "start-day"
+        ? "Start Day Proof Required"
+        : mode === "end-day"
+            ? "End Day Proof Required"
+            : isEnd
+                ? "End Route Proof Required"
+                : "Start Route Proof Required";
+    const subject = isDayMode ? "day" : "route";
+    const locationLabel = mode === "end-day" || mode === "end" ? "End Location" : "Start Location";
+    const actionLabel = isEnd ? `ending the ${subject}` : `starting the ${subject}`;
 
     const captureLocation = async () => {
         setLocating(true);
@@ -99,7 +110,7 @@ export default function TripStartProofModal({
             return;
         }
         if (lat === null || lng === null || !location.trim()) {
-            setError(`Capture current location before ${isEnd ? "ending the day" : "starting the trip"}.`);
+            setError(`Capture current location before ${actionLabel}.`);
             return;
         }
 
@@ -117,7 +128,7 @@ export default function TripStartProofModal({
             });
             onClose();
         } catch (submitError) {
-            setError(submitError instanceof Error ? submitError.message : `Unable to ${isEnd ? "end the day" : "start trip"}.`);
+            setError(submitError instanceof Error ? submitError.message : `Unable to complete proof for ${subject}.`);
         } finally {
             setSubmitting(false);
         }
@@ -126,9 +137,9 @@ export default function TripStartProofModal({
     return (
         <div className="fixed inset-0 z-50 bg-black/35 p-4 flex items-center justify-center">
             <article className="w-full max-w-xl rounded-xl bg-white border border-gray-200 p-4 max-h-[90vh] overflow-y-auto">
-                <h3 className="text-lg font-bold text-slate-900">{isEnd ? "End Day Proof Required" : "Start Trip Proof Required"}</h3>
+                <h3 className="text-lg font-bold text-slate-900">{title}</h3>
                 <p className="text-xs text-slate-500 mt-1">
-                    Trip #{tripId.toUpperCase()} needs odometer, fuel reading, photo, and live location before {isEnd ? "ending the day" : "start"}.
+                    Ref #{tripId.toUpperCase()} needs odometer, fuel reading, photo, and live location before {actionLabel}.
                 </p>
 
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -174,7 +185,7 @@ export default function TripStartProofModal({
                     {image && (
                         <img
                             src={image}
-                            alt={isEnd ? "Trip end proof preview" : "Trip start proof preview"}
+                            alt={isEnd ? "Closing proof preview" : "Opening proof preview"}
                             className="mt-2 w-56 h-36 object-cover rounded-lg border border-gray-200"
                         />
                     )}
@@ -182,7 +193,7 @@ export default function TripStartProofModal({
 
                 <div className="mt-3 border border-gray-200 rounded-lg p-3 bg-slate-50">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="text-xs font-semibold text-slate-700">{isEnd ? "End Location" : "Start Location"}</p>
+                        <p className="text-xs font-semibold text-slate-700">{locationLabel}</p>
                         <button
                             type="button"
                             disabled={locating}
@@ -220,7 +231,7 @@ export default function TripStartProofModal({
                         }}
                         className="px-3 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50"
                     >
-                        {submitting ? (isEnd ? "Saving..." : "Starting...") : (isEnd ? "Submit Proof & End Day" : "Submit Proof & Start")}
+                        {submitting ? (isEnd ? "Saving..." : "Starting...") : (isEnd ? `Submit Proof & End ${isDayMode ? "Day" : "Route"}` : `Submit Proof & Start ${isDayMode ? "Day" : "Route"}`)}
                     </button>
                 </div>
             </article>

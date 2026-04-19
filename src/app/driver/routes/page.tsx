@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useStore } from "@/lib/store";
 import RouteMap from "@/components/maps/RouteMap";
-import TripStartProofModal from "@/components/driver/TripStartProofModal";
 import { calculateTotalDistance, optimizeRoute } from "@/lib/utils/optimizer";
 import type { DropPoint, Trip } from "@/lib/types";
 
@@ -80,7 +79,6 @@ export default function DriverRoutesPage() {
     const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
     const [routeMode, setRouteMode] = useState<RouteMode>("optimized");
     const [failureReasonByDrop, setFailureReasonByDrop] = useState<Record<string, string>>({});
-    const [startProofTripId, setStartProofTripId] = useState<string | null>(null);
 
     const [proofTarget, setProofTarget] = useState<ProofTarget | null>(null);
     const [proofImage, setProofImage] = useState("");
@@ -309,7 +307,10 @@ export default function DriverRoutesPage() {
                                             type="button"
                                             disabled={onBreak || !dayStarted}
                                             onClick={() => {
-                                                setStartProofTripId(activeTrip.id);
+                                                void acceptTrip(activeTrip.id);
+                                                if (user?.id) {
+                                                    void registerDriverActivity(user.id);
+                                                }
                                             }}
                                             className="px-3 py-2 rounded-lg text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
@@ -357,13 +358,13 @@ export default function DriverRoutesPage() {
                                 )}
                                 {activeTrip.status !== "in-progress" && (
                                     <p className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                                        Start the trip with odometer/fuel proof before completing stops.
+                                        Start the trip after your day has been opened from the driver overview.
                                     </p>
                                 )}
                                 {activeTrip.status === "in-progress" &&
                                     activeTrip.drops.every((drop) => drop.status === "delivered" || drop.status === "failed") && (
                                         <p className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                                            All stops are submitted. Waiting for supervisor proof verification and final completion.
+                                            All stops are submitted. Waiting for supervisor stop-proof verification and final completion.
                                         </p>
                                     )}
                                 <div className="space-y-3">
@@ -454,17 +455,6 @@ export default function DriverRoutesPage() {
                         </>
                     )}
                 </>
-            )}
-
-            {startProofTripId && (
-                <TripStartProofModal
-                    tripId={startProofTripId}
-                    onClose={() => setStartProofTripId(null)}
-                    onSubmit={async (proof) => {
-                        await acceptTrip(startProofTripId, proof);
-                        if (user?.id) await registerDriverActivity(user.id);
-                    }}
-                />
             )}
 
             {proofTarget && (
