@@ -4,8 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useStore } from "@/lib/store";
 import RouteMap from "@/components/maps/RouteMap";
-import { calculateTotalDistance, optimizeRoute } from "@/lib/utils/optimizer";
+import { calculateTotalDistance, estimateTime, optimizeRoute } from "@/lib/utils/optimizer";
 import type { DropPoint, Trip } from "@/lib/types";
+import {
+    ArrowTopRightOnSquareIcon,
+    ExclamationTriangleIcon,
+    MapPinIcon,
+} from "@heroicons/react/24/outline";
 
 type RouteMode = "optimized" | "original";
 type ProofTarget = {
@@ -58,6 +63,12 @@ function statusClass(status: string) {
     return "bg-amber-100 text-amber-700";
 }
 
+function getNavUrl(trip: Trip, currentDrop?: DropPoint | null) {
+    const destinationDrop = currentDrop || trip.drops[trip.drops.length - 1];
+    if (!destinationDrop) return "#";
+    return `https://www.google.com/maps/dir/?api=1&destination=${destinationDrop.lat},${destinationDrop.lng}&travelmode=driving&dir_action=navigate`;
+}
+
 export default function DriverRoutesPage() {
     const { user } = useAuth();
     const { trips, drivers, acceptTrip, updateDropStatus, registerDriverActivity, endDriverBreak } = useStore();
@@ -79,7 +90,6 @@ export default function DriverRoutesPage() {
     const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
     const [routeMode, setRouteMode] = useState<RouteMode>("optimized");
     const [failureReasonByDrop, setFailureReasonByDrop] = useState<Record<string, string>>({});
-
     const [proofTarget, setProofTarget] = useState<ProofTarget | null>(null);
     const [proofImage, setProofImage] = useState("");
     const [proofNotes, setProofNotes] = useState("");
@@ -119,21 +129,25 @@ export default function DriverRoutesPage() {
     const selectedRouteDrops = routeMode === "optimized" ? optimizedRouteDrops : originalRouteDrops;
     const selectedRouteDistance = activeTrip
         ? calculateTotalDistance(
-              { lat: activeTrip.startLocation.lat, lng: activeTrip.startLocation.lng },
-              selectedRouteDrops,
-          )
+            { lat: activeTrip.startLocation.lat, lng: activeTrip.startLocation.lng },
+            selectedRouteDrops,
+        )
         : 0;
 
     const mapTrip: Trip | null =
         activeTrip &&
         selectedRouteDrops.length > 0
             ? {
-                  ...activeTrip,
-                  drops: selectedRouteDrops,
-                  estimatedDistance: selectedRouteDistance,
-              }
+                ...activeTrip,
+                drops: selectedRouteDrops,
+                estimatedDistance: selectedRouteDistance,
+            }
             : null;
 
+    const pendingDrops = selectedRouteDrops.filter((drop) => drop.status === "pending");
+    const nextStop = pendingDrops[0] || null;
+    const nextStopDistance = pendingDrops.length > 0 ? Math.max(0.4, Number((selectedRouteDistance / pendingDrops.length).toFixed(1))) : 0;
+    const nextStopEta = estimateTime(nextStopDistance);
     const completedCount = activeTrip
         ? activeTrip.drops.filter((drop) => drop.status === "delivered" || drop.status === "failed").length
         : 0;
@@ -211,7 +225,7 @@ export default function DriverRoutesPage() {
             setProofError(
                 error instanceof Error
                     ? error.message
-                    : "Unable to submit proof right now. Please retry."
+                    : "Unable to submit proof right now. Please retry.",
             );
         } finally {
             setProofSubmitting(false);
@@ -220,18 +234,27 @@ export default function DriverRoutesPage() {
 
     return (
         <div className="space-y-4 pb-4">
-            <section className="bg-white border border-gray-200 rounded-xl p-4">
-                <h2 className="text-lg font-bold text-slate-900">Route Center</h2>
-                <p className="text-xs text-slate-500 mt-1">
-                    Live trips assigned to your driver login. Updates sync automatically.
-                </p>
+            <section className="rounded-[28px] bg-white p-4 shadow-sm ring-1 ring-slate-200/70">
+                <div className="flex items-center justify-between gap-3">
+                    <div>
+                        <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-400">Current Route</p>
+                        <h2 className="mt-1 text-lg font-black text-slate-900">
+                            {activeTrip ? `Trip #${activeTrip.id.toUpperCase()}` : "Route Center"}
+                        </h2>
+                    </div>
+                    {activeTrip && (
+                        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
+                            {pendingCount} left
+                        </span>
+                    )}
+                </div>
             </section>
 
             {onBreak && me && (
-                <section className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
+                <section className="flex flex-wrap items-center justify-between gap-3 rounded-[28px] bg-amber-50 p-4 shadow-sm ring-1 ring-amber-200">
                     <div>
                         <p className="text-sm font-semibold text-amber-900">Break is active</p>
-                        <p className="text-xs text-amber-700 mt-1">
+                        <p className="mt-1 text-xs text-amber-700">
                             Route actions are locked during break. End break first to continue trip operations.
                         </p>
                     </div>
@@ -240,7 +263,7 @@ export default function DriverRoutesPage() {
                         onClick={() => {
                             void endDriverBreak(me.id);
                         }}
-                        className="px-3 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700"
+                        className="min-h-12 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-bold text-white"
                     >
                         End Break
                     </button>
@@ -248,15 +271,15 @@ export default function DriverRoutesPage() {
             )}
 
             {activeTrips.length === 0 && (
-                <article className="bg-white border border-gray-200 rounded-xl p-6">
+                <article className="rounded-[28px] bg-white p-6 shadow-sm ring-1 ring-slate-200/70">
                     <p className="text-slate-700 font-semibold">No active trip assigned.</p>
-                    <p className="text-sm text-slate-500 mt-1">
-                        Ask supervisor to assign a trip. This screen auto-refreshes every few seconds.
+                    <p className="mt-1 text-sm text-slate-500">
+                        Ask supervisor to assign a trip. This screen auto-refreshes automatically.
                     </p>
                 </article>
             )}
 
-            {activeTrips.length > 0 && (
+            {activeTrips.length > 0 && activeTrip && (
                 <>
                     <section className="flex flex-wrap gap-2">
                         {activeTrips.map((trip) => (
@@ -264,10 +287,10 @@ export default function DriverRoutesPage() {
                                 key={trip.id}
                                 type="button"
                                 onClick={() => setSelectedTripId(trip.id)}
-                                className={`px-3 py-2 rounded-lg text-sm font-semibold ${
-                                    activeTrip?.id === trip.id
-                                        ? "bg-blue-600 text-white"
-                                        : "bg-white border border-gray-200 text-slate-700 hover:bg-slate-100"
+                                className={`min-h-12 rounded-2xl px-4 py-3 text-sm font-bold transition ${
+                                    activeTrip.id === trip.id
+                                        ? "bg-slate-900 text-white"
+                                        : "bg-white text-slate-700 shadow-sm ring-1 ring-slate-200"
                                 }`}
                             >
                                 Trip #{trip.id.toUpperCase()}
@@ -275,34 +298,60 @@ export default function DriverRoutesPage() {
                         ))}
                     </section>
 
-                    {activeTrip && (
-                        <>
-                            <section className="grid gap-3 sm:grid-cols-4">
-                                <article className="bg-white border border-gray-200 rounded-xl p-3">
-                                    <p className="text-xs text-slate-500">Trip Status</p>
-                                    <p className="text-xl font-bold text-blue-700 mt-1 capitalize">{activeTrip.status}</p>
+                    <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
+                        <div className="space-y-4">
+                            <RouteMap trip={mapTrip || activeTrip} />
+
+                            <section className="grid grid-cols-3 gap-3">
+                                <article className="rounded-[24px] bg-white px-4 py-3 shadow-sm ring-1 ring-slate-200/70">
+                                    <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Progress</p>
+                                    <p className="mt-2 text-2xl font-black text-slate-900">{progressPct}%</p>
                                 </article>
-                                <article className="bg-white border border-gray-200 rounded-xl p-3">
-                                    <p className="text-xs text-slate-500">Stops Pending</p>
-                                    <p className="text-xl font-bold text-amber-700 mt-1">{pendingCount}</p>
+                                <article className="rounded-[24px] bg-white px-4 py-3 shadow-sm ring-1 ring-slate-200/70">
+                                    <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Pending</p>
+                                    <p className="mt-2 text-2xl font-black text-amber-700">{pendingCount}</p>
                                 </article>
-                                <article className="bg-white border border-gray-200 rounded-xl p-3">
-                                    <p className="text-xs text-slate-500">Progress</p>
-                                    <p className="text-xl font-bold text-emerald-700 mt-1">{progressPct}%</p>
-                                </article>
-                                <article className="bg-white border border-gray-200 rounded-xl p-3">
-                                    <p className="text-xs text-slate-500">Selected Distance</p>
-                                    <p className="text-xl font-bold text-slate-800 mt-1">{selectedRouteDistance.toFixed(1)} km</p>
+                                <article className="rounded-[24px] bg-white px-4 py-3 shadow-sm ring-1 ring-slate-200/70">
+                                    <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Distance</p>
+                                    <p className="mt-2 text-2xl font-black text-slate-900">{selectedRouteDistance.toFixed(1)} km</p>
                                 </article>
                             </section>
+                        </div>
 
-                            <section className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
-                                <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="space-y-4">
+                            <section className="rounded-[28px] bg-slate-900 px-5 py-5 text-white shadow-sm">
+                                <div className="flex items-start justify-between gap-3">
                                     <div>
-                                        <h3 className="text-sm font-semibold text-slate-900">Navigation</h3>
-                                        <p className="text-xs text-slate-500 mt-1">{activeTrip.startLocation.address}</p>
+                                        <p className="inline-flex rounded-full bg-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-blue-100">
+                                            Next Stop
+                                        </p>
+                                        <h3 className="mt-4 text-2xl font-black leading-tight">
+                                            {nextStop ? nextStop.customerName : "All stops completed"}
+                                        </h3>
+                                        <p className="mt-2 text-sm font-medium text-slate-300">
+                                            {nextStop?.address || "Waiting for supervisor review."}
+                                        </p>
                                     </div>
-                                    {activeTrip.status !== "in-progress" && (
+                                    {nextStop && (
+                                        <span className="rounded-2xl bg-white/10 px-3 py-2 text-right text-xs font-bold text-white">
+                                            {nextStopDistance.toFixed(1)} km
+                                        </span>
+                                    )}
+                                </div>
+
+                                {nextStop && (
+                                    <div className="mt-4 flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-300">
+                                        <span className="rounded-full bg-white/10 px-3 py-1">ETA {nextStopEta}</span>
+                                        {nextStop.priority && (
+                                            <span className="rounded-full bg-amber-400/15 px-3 py-1 text-amber-200">
+                                                {nextStop.priority} priority
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
+
+                                <div className="mt-5 space-y-3">
+                                    {activeTrip.status !== "in-progress" ? (
                                         <button
                                             type="button"
                                             disabled={onBreak || !dayStarted}
@@ -312,80 +361,132 @@ export default function DriverRoutesPage() {
                                                     void registerDriverActivity(user.id);
                                                 }
                                             }}
-                                            className="px-3 py-2 rounded-lg text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            className="flex min-h-14 w-full items-center justify-center rounded-2xl bg-white px-4 py-4 text-base font-black text-slate-900 disabled:opacity-50"
                                         >
-                                            Start Trip
+                                            Start Delivery
                                         </button>
+                                    ) : (
+                                        <a
+                                            href={getNavUrl(activeTrip, nextStop)}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-white px-4 py-4 text-base font-black text-slate-900"
+                                        >
+                                            <MapPinIcon className="h-5 w-5" />
+                                            Start Delivery
+                                        </a>
                                     )}
-                                </div>
 
-                                <div className="grid gap-2 sm:grid-cols-2">
-                                    <button
-                                        type="button"
-                                        disabled={onBreak}
-                                        onClick={() => setRouteMode("optimized")}
-                                        className={`px-3 py-2 rounded-lg text-sm font-semibold ${
-                                            routeMode === "optimized"
-                                                ? "bg-emerald-600 text-white"
-                                                : "bg-white border border-gray-200 text-slate-700"
-                                        } ${onBreak ? "opacity-50 cursor-not-allowed" : ""}`}
+                                    <a
+                                        href={getNavUrl(activeTrip, nextStop)}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-white/10 px-4 py-3 text-sm font-bold text-white ring-1 ring-white/15"
                                     >
-                                        Optimized Route
-                                    </button>
-                                    <button
-                                        type="button"
-                                        disabled={onBreak}
-                                        onClick={() => setRouteMode("original")}
-                                        className={`px-3 py-2 rounded-lg text-sm font-semibold ${
-                                            routeMode === "original"
-                                                ? "bg-blue-600 text-white"
-                                                : "bg-white border border-gray-200 text-slate-700"
-                                        } ${onBreak ? "opacity-50 cursor-not-allowed" : ""}`}
-                                    >
-                                        Original Route
-                                    </button>
+                                        <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+                                        Open in Map
+                                    </a>
                                 </div>
-
-                                {mapTrip && <RouteMap trip={mapTrip} />}
                             </section>
 
-                            <section className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
-                                <h3 className="text-sm font-semibold text-slate-900">Stop Actions</h3>
-                                {!dayStarted && (
-                                    <p className="text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">
-                                        Start your day from the driver overview before starting a trip.
-                                    </p>
-                                )}
-                                {activeTrip.status !== "in-progress" && (
-                                    <p className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                                        Start the trip after your day has been opened from the driver overview.
-                                    </p>
-                                )}
+                            <section className="rounded-[28px] bg-white p-4 shadow-sm ring-1 ring-slate-200/70">
+                                <div className="mb-3 flex items-center justify-between gap-3">
+                                    <div>
+                                        <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-400">Stops</p>
+                                        <h3 className="mt-1 text-lg font-black text-slate-900">{pendingCount} remaining</h3>
+                                    </div>
+                                    <div className="flex items-center gap-2 rounded-2xl bg-slate-100 p-1">
+                                        <button
+                                            type="button"
+                                            disabled={onBreak}
+                                            onClick={() => setRouteMode("optimized")}
+                                            className={`min-h-10 rounded-2xl px-3 text-xs font-bold ${
+                                                routeMode === "optimized" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"
+                                            }`}
+                                        >
+                                            Optimized
+                                        </button>
+                                        <button
+                                            type="button"
+                                            disabled={onBreak}
+                                            onClick={() => setRouteMode("original")}
+                                            className={`min-h-10 rounded-2xl px-3 text-xs font-bold ${
+                                                routeMode === "original" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"
+                                            }`}
+                                        >
+                                            Original
+                                        </button>
+                                    </div>
+                                </div>
+
                                 {activeTrip.status === "in-progress" &&
                                     activeTrip.drops.every((drop) => drop.status === "delivered" || drop.status === "failed") && (
-                                        <p className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                                        <div className="mb-3 rounded-2xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 ring-1 ring-amber-200">
                                             All stops are submitted. Waiting for supervisor stop-proof verification and final completion.
-                                        </p>
+                                        </div>
                                     )}
+
+                                {!dayStarted && (
+                                    <div className="mb-3 rounded-2xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-800 ring-1 ring-rose-200">
+                                        Start your day from the driver dashboard before starting a trip.
+                                    </div>
+                                )}
+
                                 <div className="space-y-3">
-                                    {activeTrip.drops.map((drop, index) => {
+                                    {selectedRouteDrops.map((drop, index) => {
                                         const failureReason = failureReasonByDrop[drop.id] || "";
+                                        const isNext = nextStop?.id === drop.id;
+
                                         return (
-                                            <article key={drop.id} className="border border-gray-200 rounded-lg p-3">
-                                                <div className="flex items-start justify-between gap-2">
-                                                    <div>
-                                                        <p className="text-sm font-semibold text-slate-900">
-                                                            Stop {index + 1}: {drop.customerName}
+                                            <article
+                                                key={drop.id}
+                                                className={`rounded-[24px] p-4 shadow-sm ring-1 ${
+                                                    isNext
+                                                        ? "bg-slate-900 text-white ring-slate-900"
+                                                        : "bg-white text-slate-900 ring-slate-200/70"
+                                                }`}
+                                            >
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div className="min-w-0">
+                                                        <div className="flex flex-wrap items-center gap-2">
+                                                            {isNext && (
+                                                                <span className="rounded-full bg-blue-500 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white">
+                                                                    Next Stop
+                                                                </span>
+                                                            )}
+                                                            <span className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] ${isNext ? "bg-white/10 text-white" : "bg-slate-100 text-slate-500"}`}>
+                                                                Stop {index + 1}
+                                                            </span>
+                                                            <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${statusClass(drop.status)}`}>
+                                                                {drop.status}
+                                                            </span>
+                                                        </div>
+                                                        <h4 className={`mt-3 text-lg font-black ${isNext ? "text-white" : "text-slate-900"}`}>
+                                                            {drop.customerName}
+                                                        </h4>
+                                                        <p className={`mt-1 text-sm ${isNext ? "text-slate-300" : "text-slate-500"}`}>
+                                                            {drop.address}
                                                         </p>
-                                                        <p className="text-xs text-slate-500 mt-1">{drop.address}</p>
+                                                        {drop.notes && (
+                                                            <p className={`mt-2 text-xs font-semibold ${isNext ? "text-slate-300" : "text-slate-500"}`}>
+                                                                {drop.notes}
+                                                            </p>
+                                                        )}
+                                                        {drop.failureReason && (
+                                                            <p className="mt-2 text-sm font-semibold text-rose-300">
+                                                                {drop.failureReason}
+                                                            </p>
+                                                        )}
                                                     </div>
-                                                    <span className={`text-[11px] px-2 py-1 rounded-full font-semibold ${statusClass(drop.status)}`}>
-                                                        {drop.status}
-                                                    </span>
+                                                    {drop.status === "pending" && (
+                                                        <span className={`rounded-2xl px-3 py-2 text-xs font-bold ${isNext ? "bg-white/10 text-white" : "bg-slate-100 text-slate-700"}`}>
+                                                            {(index === 0 ? nextStopDistance : Math.max(0.6, nextStopDistance + index * 0.8)).toFixed(1)} km
+                                                        </span>
+                                                    )}
                                                 </div>
 
                                                 {drop.status === "pending" && (
-                                                    <div className="mt-3 space-y-2">
+                                                    <div className="mt-4 space-y-3">
                                                         <button
                                                             type="button"
                                                             disabled={onBreak || !dayStarted || activeTrip.status !== "in-progress"}
@@ -397,36 +498,51 @@ export default function DriverRoutesPage() {
                                                                     address: drop.address,
                                                                 })
                                                             }
-                                                            className="w-full px-3 py-2 rounded-lg text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                            className={`flex min-h-12 w-full items-center justify-center rounded-2xl px-4 py-3 text-sm font-black ${
+                                                                isNext
+                                                                    ? "bg-white text-slate-900"
+                                                                    : "bg-emerald-600 text-white"
+                                                            } disabled:opacity-50`}
                                                         >
-                                                            Upload Proof & Mark Delivered
+                                                            Deliver
                                                         </button>
 
-                                                        <input
-                                                            disabled={onBreak || !dayStarted || activeTrip.status !== "in-progress"}
-                                                            value={failureReason}
-                                                            onChange={(event) =>
-                                                                setFailureReasonByDrop((prev) => ({
-                                                                    ...prev,
-                                                                    [drop.id]: event.target.value,
-                                                                }))
-                                                            }
-                                                            placeholder="Failure reason (for failed delivery)"
-                                                            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-400"
-                                                        />
-                                                        <button
-                                                            type="button"
-                                                            disabled={onBreak || !dayStarted || activeTrip.status !== "in-progress"}
-                                                            onClick={() => {
-                                                                void updateDropStatus(activeTrip.id, drop.id, "failed", {
-                                                                    failureReason: failureReason.trim() || "Delivery failed",
-                                                                });
-                                                                if (user?.id) void registerDriverActivity(user.id);
-                                                            }}
-                                                            className="w-full px-3 py-2 rounded-lg text-sm font-semibold bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                        >
-                                                            Mark Failed
-                                                        </button>
+                                                        <div className="space-y-2">
+                                                            <input
+                                                                disabled={onBreak || !dayStarted || activeTrip.status !== "in-progress"}
+                                                                value={failureReason}
+                                                                onChange={(event) =>
+                                                                    setFailureReasonByDrop((prev) => ({
+                                                                        ...prev,
+                                                                        [drop.id]: event.target.value,
+                                                                    }))
+                                                                }
+                                                                placeholder="Failure reason"
+                                                                className={`w-full rounded-2xl px-4 py-3 text-sm outline-none ring-1 ${
+                                                                    isNext
+                                                                        ? "bg-white/10 text-white placeholder:text-slate-400 ring-white/10"
+                                                                        : "bg-slate-50 text-slate-900 placeholder:text-slate-400 ring-slate-200"
+                                                                } disabled:opacity-50`}
+                                                            />
+                                                            <button
+                                                                type="button"
+                                                                disabled={onBreak || !dayStarted || activeTrip.status !== "in-progress"}
+                                                                onClick={() => {
+                                                                    void updateDropStatus(activeTrip.id, drop.id, "failed", {
+                                                                        failureReason: failureReason.trim() || "Delivery failed",
+                                                                    });
+                                                                    if (user?.id) void registerDriverActivity(user.id);
+                                                                }}
+                                                                className={`flex min-h-12 w-full items-center justify-center rounded-2xl px-4 py-3 text-sm font-bold ${
+                                                                    isNext
+                                                                        ? "bg-transparent text-white ring-1 ring-white/25"
+                                                                        : "bg-white text-rose-700 ring-1 ring-rose-200"
+                                                                } disabled:opacity-50`}
+                                                            >
+                                                                <ExclamationTriangleIcon className="mr-2 h-4 w-4" />
+                                                                Fail
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 )}
 
@@ -434,17 +550,12 @@ export default function DriverRoutesPage() {
                                                     <img
                                                         src={drop.proofImage}
                                                         alt={`Proof ${drop.id}`}
-                                                        className="mt-3 w-full max-w-[240px] h-32 object-cover rounded-lg border border-gray-200"
+                                                        className="mt-4 h-36 w-full rounded-2xl object-cover ring-1 ring-slate-200/70"
                                                     />
                                                 )}
                                                 {drop.proofLocation && (
-                                                    <p className="mt-2 text-xs font-semibold text-emerald-700">
+                                                    <p className={`mt-3 text-xs font-semibold ${isNext ? "text-emerald-200" : "text-emerald-700"}`}>
                                                         Proof location: {drop.proofLocation}
-                                                    </p>
-                                                )}
-                                                {drop.failureReason && (
-                                                    <p className="mt-2 text-xs font-semibold text-rose-700">
-                                                        Reason: {drop.failureReason}
                                                     </p>
                                                 )}
                                             </article>
@@ -452,22 +563,22 @@ export default function DriverRoutesPage() {
                                     })}
                                 </div>
                             </section>
-                        </>
-                    )}
+                        </div>
+                    </section>
                 </>
             )}
 
             {proofTarget && (
-                <div className="fixed inset-0 z-50 bg-black/35 p-4 flex items-center justify-center">
-                    <article className="w-full max-w-xl rounded-xl bg-white border border-gray-200 p-4">
-                        <h3 className="text-lg font-bold text-slate-900">Delivery Proof</h3>
-                        <p className="text-xs text-slate-500 mt-1">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4">
+                    <article className="w-full max-w-xl rounded-[28px] bg-white p-5 shadow-xl ring-1 ring-slate-200">
+                        <h3 className="text-lg font-black text-slate-900">Delivery Proof</h3>
+                        <p className="mt-1 text-sm text-slate-500">
                             {proofTarget.customerName} • {proofTarget.address}
                         </p>
 
-                        <div className="mt-3 space-y-3">
+                        <div className="mt-4 space-y-4">
                             <div>
-                                <label className="block text-xs text-slate-600 mb-1">Photo Proof</label>
+                                <label className="mb-2 block text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Photo Proof</label>
                                 <input
                                     type="file"
                                     accept="image/*"
@@ -482,60 +593,60 @@ export default function DriverRoutesPage() {
                                         };
                                         reader.readAsDataURL(file);
                                     }}
-                                    className="block w-full text-xs text-slate-600 file:mr-3 file:px-3 file:py-2 file:border-0 file:rounded-lg file:bg-emerald-600 file:text-white file:text-xs file:font-semibold hover:file:bg-emerald-700"
+                                    className="block w-full text-xs text-slate-600 file:mr-3 file:rounded-2xl file:border-0 file:bg-emerald-600 file:px-4 file:py-3 file:text-xs file:font-bold file:text-white hover:file:bg-emerald-700"
                                 />
                                 {proofImage && (
                                     <img
                                         src={proofImage}
                                         alt="Proof preview"
-                                        className="mt-2 w-56 h-36 object-cover rounded-lg border border-gray-200"
+                                        className="mt-3 h-40 w-full rounded-2xl object-cover ring-1 ring-slate-200/70"
                                     />
                                 )}
                             </div>
 
-                            <div className="border border-gray-200 rounded-lg p-3 bg-slate-50">
+                            <div className="rounded-[24px] bg-slate-100/90 p-4">
                                 <div className="flex items-center justify-between gap-2">
-                                    <p className="text-xs font-semibold text-slate-700">Location</p>
+                                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Location</p>
                                     <button
                                         type="button"
                                         disabled={proofLocating}
                                         onClick={() => {
                                             void captureProofLocation();
                                         }}
-                                        className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                                        className="min-h-10 rounded-2xl bg-blue-600 px-3 text-xs font-bold text-white disabled:opacity-50"
                                     >
                                         {proofLocating ? "Fetching..." : "Use Current Location"}
                                     </button>
                                 </div>
-                                <p className="text-xs text-slate-600 mt-2">
+                                <p className="mt-3 text-sm font-medium text-slate-600">
                                     {proofLocation || "No location captured yet."}
                                 </p>
                                 {proofLat !== null && proofLng !== null && (
-                                    <p className="text-[11px] text-slate-500 mt-1">
+                                    <p className="mt-1 text-xs font-semibold text-slate-400">
                                         Lat: {proofLat.toFixed(6)} | Lng: {proofLng.toFixed(6)}
                                     </p>
                                 )}
                             </div>
 
                             <div>
-                                <label className="block text-xs text-slate-600 mb-1">Notes (optional)</label>
+                                <label className="mb-2 block text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Notes</label>
                                 <textarea
                                     value={proofNotes}
                                     onChange={(event) => setProofNotes(event.target.value)}
                                     rows={2}
-                                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                                    className="w-full rounded-[24px] border-0 bg-slate-100/90 px-4 py-3 text-sm text-slate-800 outline-none ring-1 ring-slate-200"
                                     placeholder="Receiver details, remarks, etc."
                                 />
                             </div>
 
-                            {proofError && <p className="text-xs font-semibold text-rose-700">{proofError}</p>}
+                            {proofError && <p className="text-sm font-semibold text-rose-700">{proofError}</p>}
                         </div>
 
-                        <div className="mt-4 flex justify-end gap-2">
+                        <div className="mt-5 flex gap-3">
                             <button
                                 type="button"
                                 onClick={closeProof}
-                                className="px-3 py-2 rounded-lg border border-gray-200 text-sm font-semibold text-slate-600"
+                                className="min-h-12 flex-1 rounded-2xl bg-slate-100 px-4 py-3 text-sm font-bold text-slate-600"
                             >
                                 Cancel
                             </button>
@@ -545,7 +656,7 @@ export default function DriverRoutesPage() {
                                     void submitProof();
                                 }}
                                 disabled={proofSubmitting}
-                                className="px-3 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50"
+                                className="min-h-12 flex-1 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-black text-white disabled:opacity-50"
                             >
                                 {proofSubmitting ? "Submitting..." : "Submit & Complete Stop"}
                             </button>

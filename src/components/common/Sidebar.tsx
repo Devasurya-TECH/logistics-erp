@@ -66,16 +66,18 @@ export default function Sidebar() {
 
     return (
         <>
-            <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-white border-t border-gray-200">
-                <div className="flex overflow-x-auto custom-scrollbar">
+            <nav className={`fixed bottom-0 left-0 right-0 z-50 md:hidden px-3 pb-3 pt-2 ${user.role === 'driver' ? 'bg-transparent border-0' : 'bg-white border-t border-gray-200'}`}>
+                <div className={`flex overflow-x-auto custom-scrollbar ${user.role === 'driver' ? 'rounded-[28px] bg-white/90 p-2 shadow-lg ring-1 ring-slate-200/80 backdrop-blur-xl' : ''}`}>
                     {navigation.map((item) => {
                         const isActive = isRouteActive(item.href);
                         return (
                             <Link
                                 key={item.name}
                                 href={item.href}
-                                className={`min-w-[84px] flex flex-col items-center justify-center gap-1 px-2 py-2 text-xs font-semibold ${isActive
-                                    ? 'text-blue-600 bg-blue-50'
+                                className={`min-w-[84px] flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-3 text-xs font-semibold transition ${isActive
+                                    ? user.role === 'driver'
+                                        ? 'text-white bg-slate-900 shadow-sm'
+                                        : 'text-blue-600 bg-blue-50'
                                     : 'text-slate-500'
                                     }`}
                             >
@@ -86,7 +88,7 @@ export default function Sidebar() {
                     })}
                     <button
                         onClick={logout}
-                        className="min-w-[84px] flex flex-col items-center justify-center gap-1 px-2 py-2 text-xs font-semibold text-rose-600"
+                        className={`min-w-[84px] flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-3 text-xs font-semibold text-rose-600 ${user.role === 'driver' ? 'bg-rose-50' : ''}`}
                     >
                         <span className="text-base">🚪</span>
                         <span>Logout</span>

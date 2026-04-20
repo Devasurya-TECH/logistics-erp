@@ -1,12 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useStore } from "@/lib/store";
 import TripStartProofModal from "@/components/driver/TripStartProofModal";
 import type { FuelEntry } from "@/lib/types";
+import {
+    ArrowRightIcon,
+    ArrowTopRightOnSquareIcon,
+    MapPinIcon,
+} from "@heroicons/react/24/outline";
+import { estimateTime } from "@/lib/utils/optimizer";
 
 type DriverTab = "overview" | "fuel";
 type DeliveryProofTarget = {
@@ -115,9 +121,7 @@ export default function DriverDashboardPage() {
 
     const me = drivers.find((driver) => driver.id === user?.id);
     const myTrips = useMemo(() => trips.filter((trip) => trip.driverId === user?.id), [trips, user?.id]);
-    const activeTrips = myTrips.filter(
-        (trip) => trip.status !== "completed" && trip.status !== "cancelled",
-    );
+    const activeTrips = myTrips.filter((trip) => trip.status !== "completed" && trip.status !== "cancelled");
     const completedTrips = myTrips
         .filter((trip) => trip.status === "completed")
         .sort((a, b) => (b.endTime || "").localeCompare(a.endTime || ""));
@@ -148,8 +152,11 @@ export default function DriverDashboardPage() {
     const [sosEta, setSosEta] = useState("20");
     const [sosSevere, setSosSevere] = useState(false);
     const [sosInformSupervisor, setSosInformSupervisor] = useState(true);
+    const [sosHolding, setSosHolding] = useState(false);
 
     const [nowTick, setNowTick] = useState(Date.now());
+    const sosHoldTimerRef = useRef<number | null>(null);
+    const tripDetailRef = useRef<HTMLDivElement | null>(null);
 
     const recentFuel = fuelEntries
         .filter((entry) => entry.driverId === user?.id)
@@ -161,12 +168,16 @@ export default function DriverDashboardPage() {
     const onBreak = Boolean(me?.onBreak);
     const driverLockedByBreak = onBreak;
     const nextPendingDrop = activeTrip?.drops.find((drop) => drop.status === "pending");
-    const activeTripDone = Boolean(
-        activeTrip &&
-            activeTrip.drops.length > 0 &&
-            activeTrip.drops.every((drop) => drop.status === "delivered" || drop.status === "failed"),
-    );
-    const needsEndDayProof = Boolean(dayStarted);
+    const totalStops = activeTrip?.drops.length || 0;
+    const completedStops = activeTrip?.drops.filter((drop) => drop.status === "delivered" || drop.status === "failed").length || 0;
+    const remainingStops = Math.max(0, totalStops - completedStops);
+    const activeTripDone = Boolean(activeTrip && remainingStops === 0 && totalStops > 0);
+    const progressPct = totalStops > 0 ? Math.round((completedStops / totalStops) * 100) : 0;
+    const remainingDistanceKm = activeTrip
+        ? Number((((activeTrip.actualDistance || activeTrip.estimatedDistance) * (remainingStops || 1)) / Math.max(totalStops, 1)).toFixed(1))
+        : 0;
+    const remainingEta = estimateTime(Math.max(0, remainingDistanceKm));
+    const nextStopDistance = remainingStops > 0 ? Math.max(0.4, Number((remainingDistanceKm / remainingStops).toFixed(1))) : 0;
 
     const currentBreakMinutes =
         me?.onBreak && me.breakStartedAt
@@ -174,19 +185,30 @@ export default function DriverDashboardPage() {
             : 0;
     const totalBreakMinutes = (me?.totalBreakMinutes || 0) + currentBreakMinutes;
 
-    // Keep time labels fresh
+    const primaryHeroLabel = !dayStarted
+        ? "Start Day to Continue"
+        : activeTrip?.status !== "in-progress"
+            ? "Start Delivery"
+            : "Navigate to Stop";
+
     useEffect(() => {
         const timer = window.setInterval(() => setNowTick(Date.now()), 1000);
         return () => window.clearInterval(timer);
     }, []);
 
-    // Force always-live tracking for drivers.
+    useEffect(() => {
+        return () => {
+            if (sosHoldTimerRef.current) {
+                window.clearTimeout(sosHoldTimerRef.current);
+            }
+        };
+    }, []);
+
     useEffect(() => {
         if (!me || me.isLive) return;
         void toggleLiveStatus(me.id, true);
     }, [me, toggleLiveStatus]);
 
-    // Auto break if inactive for > 8 min while trip is in progress and break not informed
     useEffect(() => {
         if (!me || !activeTrip || activeTrip.status !== "in-progress" || me.onBreak) return;
         const monitor = window.setInterval(() => {
@@ -213,7 +235,7 @@ export default function DriverDashboardPage() {
             const resolvedAddress = await reverseGeocode(lat, lng);
             setDeliveryProofLocation(
                 resolvedAddress ||
-                    `Lat ${lat.toFixed(6)}, Lng ${lng.toFixed(6)}`,
+                `Lat ${lat.toFixed(6)}, Lng ${lng.toFixed(6)}`,
             );
         } catch {
             setDeliveryProofError("Location access failed. Enable location permission and try again.");
@@ -280,8 +302,26 @@ export default function DriverDashboardPage() {
         setEndProofTripId(activeTrip?.id || "day-end");
     };
 
+    const startSosHold = () => {
+        if (!dayStarted || onBreak) return;
+        setSosHolding(true);
+        sosHoldTimerRef.current = window.setTimeout(() => {
+            setShowSosModal(true);
+            setSosHolding(false);
+            sosHoldTimerRef.current = null;
+        }, 650);
+    };
+
+    const cancelSosHold = () => {
+        setSosHolding(false);
+        if (sosHoldTimerRef.current) {
+            window.clearTimeout(sosHoldTimerRef.current);
+            sosHoldTimerRef.current = null;
+        }
+    };
+
     return (
-        <div className="space-y-5">
+        <div className="space-y-5 pb-20 md:pb-0">
             <section className="flex flex-wrap gap-2">
                 {tabs.map((tab) => (
                     <Link
@@ -293,10 +333,10 @@ export default function DriverDashboardPage() {
                             }
                         }}
                         aria-disabled={driverLockedByBreak}
-                        className={`px-3 py-2 rounded-lg text-sm font-semibold ${
+                        className={`min-h-12 rounded-2xl px-4 py-3 text-sm font-bold transition ${
                             activeTab === tab
-                                ? "bg-blue-600 text-white"
-                                : "bg-white border border-gray-200 text-slate-700 hover:bg-slate-100"
+                                ? "bg-slate-900 text-white"
+                                : "bg-white text-slate-700 shadow-sm ring-1 ring-slate-200"
                         } ${driverLockedByBreak ? "pointer-events-none opacity-50" : ""}`}
                     >
                         {tabLabel(tab)}
@@ -310,8 +350,8 @@ export default function DriverDashboardPage() {
                         }
                     }}
                     aria-disabled={driverLockedByBreak}
-                    className={`px-3 py-2 rounded-lg text-sm font-semibold bg-white border border-gray-200 text-slate-700 hover:bg-slate-100 ${
-                        driverLockedByBreak ? "pointer-events-none opacity-50" : ""
+                    className={`min-h-12 rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 shadow-sm ring-1 ring-slate-200 ${
+                        driverLockedByBreak ? "pointer-events-none opacity-50" : "bg-white"
                     }`}
                 >
                     Routes
@@ -319,10 +359,10 @@ export default function DriverDashboardPage() {
             </section>
 
             {onBreak && me && (
-                <section className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
+                <section className="flex flex-wrap items-center justify-between gap-3 rounded-[28px] bg-amber-50 p-4 shadow-sm ring-1 ring-amber-200">
                     <div>
                         <p className="text-sm font-semibold text-amber-900">Break is active</p>
-                        <p className="text-xs text-amber-700 mt-1">
+                        <p className="mt-1 text-xs text-amber-700">
                             Only <span className="font-semibold">End Break</span> is available now. All other driver operations stay locked until the break is closed.
                         </p>
                     </div>
@@ -331,7 +371,7 @@ export default function DriverDashboardPage() {
                         onClick={() => {
                             void endDriverBreak(me.id);
                         }}
-                        className="px-3 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700"
+                        className="min-h-12 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-bold text-white"
                     >
                         End Break
                     </button>
@@ -340,20 +380,21 @@ export default function DriverDashboardPage() {
 
             {activeTab === "overview" && (
                 <section className="space-y-4">
-                    <article className="overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-700 via-blue-600 to-slate-900 text-white shadow-sm">
+                    <article className="overflow-hidden rounded-[32px] bg-gradient-to-br from-blue-700 via-blue-600 to-slate-900 text-white shadow-sm">
                         <div className="p-5 md:p-6">
-                            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                                 <div>
-                                    <p className="text-xs font-bold uppercase tracking-[0.22em] text-blue-100">Today</p>
-                                    <h2 className="mt-1 text-2xl font-black tracking-tight">
-                                        {dayStarted ? "Day started" : "Start your day"}
+                                    <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-blue-100">Driver Dashboard</p>
+                                    <h2 className="mt-2 text-2xl font-black tracking-tight">
+                                        {dayStarted ? "Where you go next" : "Start your day"}
                                     </h2>
                                     <p className="mt-1 text-sm text-blue-100">
                                         {activeTrip
-                                            ? `Current trip #${activeTrip.id.toUpperCase()} · ${activeTrip.drops.length} stops`
+                                            ? `Trip #${activeTrip.id.toUpperCase()} • ${remainingStops} stops pending`
                                             : "No open trip assigned right now."}
                                     </p>
                                 </div>
+
                                 <div className="flex flex-wrap gap-2">
                                     {!dayStarted && !onBreak && me && (
                                         <button
@@ -361,7 +402,7 @@ export default function DriverDashboardPage() {
                                             onClick={() => {
                                                 setShowStartDayProof(true);
                                             }}
-                                            className="rounded-xl bg-white px-4 py-3 text-sm font-black text-blue-700 shadow-sm active:scale-95"
+                                            className="min-h-12 rounded-2xl bg-white px-4 py-3 text-sm font-black text-blue-700"
                                         >
                                             Start Day
                                         </button>
@@ -369,286 +410,365 @@ export default function DriverDashboardPage() {
                                     {dayStarted && !onBreak && me && (
                                         <button
                                             type="button"
-                                            onClick={() => {
-                                                handleEndDay();
-                                            }}
-                                            className="rounded-xl bg-white/10 px-4 py-3 text-sm font-black text-white ring-1 ring-white/25 active:scale-95"
+                                            onClick={handleEndDay}
+                                            className="min-h-12 rounded-2xl bg-white/10 px-4 py-3 text-sm font-bold text-white ring-1 ring-white/20"
                                         >
                                             End Day
                                         </button>
                                     )}
-                                    {activeTrip && (
-                                        <Link
-                                            href="/driver/routes"
-                                            className="rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-emerald-950 shadow-sm active:scale-95"
+                                    {!onBreak && dayStarted && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (!me) return;
+                                                void startDriverBreak(me.id, true);
+                                            }}
+                                            className="min-h-12 rounded-2xl bg-white/10 px-4 py-3 text-sm font-bold text-white ring-1 ring-white/20"
                                         >
-                                            Open Route
-                                        </Link>
+                                            Start Break
+                                        </button>
                                     )}
                                 </div>
                             </div>
 
                             {activeTrip && (
-                                <div className="mt-5 grid gap-3 md:grid-cols-3">
-                                    <div className="rounded-xl bg-white/10 p-3 ring-1 ring-white/10">
-                                        <p className="text-[11px] font-bold uppercase text-blue-100">Next Stop</p>
-                                        <p className="mt-1 text-sm font-bold">
-                                            {nextPendingDrop ? nextPendingDrop.customerName : "All stops submitted"}
-                                        </p>
-                                        <p className="mt-1 line-clamp-2 text-xs text-blue-100">
-                                            {nextPendingDrop?.address || "Waiting for supervisor verification."}
-                                        </p>
-                                    </div>
-                                    <div className="rounded-xl bg-white/10 p-3 ring-1 ring-white/10">
-                                        <p className="text-[11px] font-bold uppercase text-blue-100">Trip Status</p>
-                                        <p className="mt-1 text-sm font-bold capitalize">{activeTrip.status.replace("-", " ")}</p>
-                                        <p className="mt-1 text-xs text-blue-100">
-                                    {activeTripDone ? "Submitted for review" : "Continue deliveries"}
-                                        </p>
-                                    </div>
-                                    <div className="rounded-xl bg-white/10 p-3 ring-1 ring-white/10">
-                                        <p className="text-[11px] font-bold uppercase text-blue-100">Break Time</p>
-                                        <p className="mt-1 text-sm font-bold">{formatMinutes(totalBreakMinutes)}</p>
-                                        <p className="mt-1 text-xs text-blue-100">{onBreak ? "Break active" : "Available"}</p>
-                                    </div>
-                                </div>
-                            )}
-                            {needsEndDayProof && (
-                                <p className="mt-4 text-xs font-semibold text-amber-100">
-                                    End Day will ask for closing odometer, fuel reading, image, and location before duty is closed.
-                                </p>
-                            )}
-                        </div>
-                    </article>
-
-                    <div className="grid gap-3 sm:grid-cols-4">
-                        <article className="bg-white border border-gray-200 rounded-xl p-4">
-                            <p className="text-xs text-slate-500">Active Trips</p>
-                            <p className="text-2xl font-bold text-blue-700 mt-1">{activeTrips.length}</p>
-                        </article>
-                        <article className="bg-white border border-gray-200 rounded-xl p-4">
-                            <p className="text-xs text-slate-500">Completed Trips</p>
-                            <p className="text-2xl font-bold text-emerald-700 mt-1">{completedTrips.length}</p>
-                        </article>
-                        <article className="bg-white border border-gray-200 rounded-xl p-4">
-                            <p className="text-xs text-slate-500">Duty Status</p>
-                            <p className={`text-2xl font-bold mt-1 ${dayStarted ? "text-emerald-700" : "text-slate-600"}`}>
-                                {dayStarted ? "ON" : "OFF"}
-                            </p>
-                        </article>
-                        <article className="bg-white border border-gray-200 rounded-xl p-4">
-                            <p className="text-xs text-slate-500">Break Time Today</p>
-                            <p className="text-2xl font-bold text-amber-700 mt-1">{formatMinutes(totalBreakMinutes)}</p>
-                        </article>
-                    </div>
-
-                    <article className="bg-white border border-gray-200 rounded-xl p-4">
-                        <h3 className="text-sm font-semibold text-slate-900">Duty Controls</h3>
-                        <p className="text-xs text-slate-500 mt-1">
-                            If vehicle inactivity crosses 8 minutes during an in-progress trip without informed break, it auto-registers as uninformed break.
-                        </p>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                            {!onBreak && dayStarted ? (
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        if (!me) return;
-                                        void startDriverBreak(me.id, true);
-                                    }}
-                                    className="px-3 py-2 rounded-lg text-sm font-semibold bg-amber-600 text-white hover:bg-amber-700"
-                                >
-                                    Start Break
-                                </button>
-                            ) : onBreak ? (
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        if (!me) return;
-                                        void endDriverBreak(me.id);
-                                    }}
-                                    className="px-3 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700"
-                                >
-                                    End Break
-                                </button>
-                            ) : null}
-                            {!onBreak && dayStarted && (
-                                <button
-                                    type="button"
-                                    onClick={() => setShowSosModal(true)}
-                                    className="px-3 py-2 rounded-lg text-sm font-semibold bg-rose-600 text-white hover:bg-rose-700"
-                                >
-                                    SOS / Report Issue
-                                </button>
-                            )}
-                        </div>
-                        {!dayStarted && !onBreak && (
-                            <p className="mt-2 text-xs font-semibold text-slate-500">
-                                Use the Start Day button above before break, SOS, fuel, or route actions.
-                            </p>
-                        )}
-                        {onBreak && (
-                            <p className="mt-2 text-xs font-semibold text-amber-700">
-                                Break active ({me?.breakType || "informed"}) • {formatMinutes(currentBreakMinutes)}
-                            </p>
-                        )}
-                    </article>
-
-                    <div className="flex flex-wrap gap-2">
-                        {activeTrips.map((trip) => (
-                            <button
-                                key={trip.id}
-                                type="button"
-                                disabled={onBreak}
-                                onClick={() => setSelectedTripId(trip.id)}
-                                className={`px-3 py-2 rounded-lg text-sm font-semibold ${
-                                    activeTrip?.id === trip.id
-                                        ? "bg-blue-600 text-white"
-                                        : "bg-white border border-gray-200 text-slate-700 hover:bg-slate-100"
-                                } ${onBreak ? "opacity-50 cursor-not-allowed" : ""}`}
-                            >
-                                Trip #{trip.id.toUpperCase()}
-                            </button>
-                        ))}
-                    </div>
-
-                    {!activeTrip && (
-                        <article className="bg-white border border-gray-200 rounded-xl p-6">
-                            <p className="text-slate-600">No active trip assigned right now.</p>
-                        </article>
-                    )}
-
-                    {activeTrip && (
-                        <article className="bg-white border border-gray-200 rounded-xl p-4 space-y-4">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                                <div>
-                                    <h3 className="text-lg font-bold text-slate-900">
-                                        Trip #{activeTrip.id.toUpperCase()}
-                                    </h3>
-                                    <p className="text-sm text-slate-500">{activeTrip.startLocation.address}</p>
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                    {activeTrip.status !== "in-progress" && (
-                                        <button
-                                            type="button"
-                                            disabled={!dayStarted || onBreak}
-                                            onClick={() => {
-                                                void acceptTrip(activeTrip.id);
-                                                if (me) {
-                                                    void registerDriverActivity(me.id);
-                                                }
-                                            }}
-                                            className="px-3 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                                        >
-                                            Start Trip
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                {activeTrip.status === "in-progress" &&
-                                    activeTrip.drops.every((drop) => drop.status === "delivered" || drop.status === "failed") && (
-                                        <div className="border border-amber-200 bg-amber-50 rounded-lg p-3">
-                                            <p className="text-sm font-semibold text-amber-900">Waiting for supervisor verification</p>
-                                            <p className="text-xs text-amber-700 mt-1">
-                                                All stops are submitted. Supervisor must verify the stop proofs before closing this trip.
-                                            </p>
-                                        </div>
-                                    )}
-                                {activeTrip.drops.map((drop) => (
-                                    <div key={drop.id} className="border border-gray-200 rounded-lg p-3">
-                                        <div className="flex items-center justify-between gap-2">
+                                <>
+                                    <div className="mt-5 rounded-[24px] bg-white/10 px-4 py-3 backdrop-blur-sm ring-1 ring-white/10">
+                                        <div className="flex flex-wrap items-center justify-between gap-3">
                                             <div>
-                                                <p className="text-sm font-semibold text-slate-900">{drop.customerName}</p>
-                                                <p className="text-xs text-slate-500 mt-0.5">{drop.address}</p>
+                                                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-blue-100">Route Progress</p>
+                                                <p className="mt-1 text-lg font-black text-white">
+                                                    {completedStops}/{totalStops} completed
+                                                </p>
                                             </div>
-                                            <span className={`text-[11px] px-2 py-1 rounded-full font-semibold ${statusClass(drop.status)}`}>
-                                                {drop.status}
-                                            </span>
+                                            <div className="text-right">
+                                                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-blue-100">ETA</p>
+                                                <p className="mt-1 text-lg font-black text-white">{remainingEta}</p>
+                                            </div>
                                         </div>
-                                        {drop.status === "pending" && (
-                                            <div className="mt-2 flex flex-wrap gap-2">
-                                                <button
-                                                    type="button"
-                                                    disabled={!dayStarted || onBreak}
-                                                    onClick={() => {
-                                                        openDeliveryProofModal({
-                                                            tripId: activeTrip.id,
-                                                            dropId: drop.id,
-                                                            customerName: drop.customerName,
-                                                            address: drop.address,
-                                                        });
-                                                    }}
-                                                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                >
-                                                    Upload Proof & Deliver
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    disabled={!dayStarted || onBreak}
-                                                    onClick={() => {
-                                                        if (!me) return;
-                                                        void updateDropStatus(activeTrip.id, drop.id, "failed");
-                                                        void registerDriverActivity(me.id);
-                                                    }}
-                                                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                >
-                                                    Mark Failed
-                                                </button>
+                                        <div className="mt-3 h-2 rounded-full bg-white/15">
+                                            <div
+                                                className="h-2 rounded-full bg-emerald-400 transition-all"
+                                                style={{ width: `${progressPct}%` }}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-5 rounded-[28px] bg-white p-5 text-slate-900 shadow-lg">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="min-w-0">
+                                                <span className="inline-flex rounded-full bg-blue-600 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-white">
+                                                    Next Stop
+                                                </span>
+                                                <h3 className="mt-4 text-[30px] font-black leading-tight text-slate-900">
+                                                    {nextPendingDrop ? nextPendingDrop.customerName : "All stops submitted"}
+                                                </h3>
+                                                <p className="mt-2 text-base font-medium text-slate-600">
+                                                    {nextPendingDrop?.address || "Waiting for supervisor verification."}
+                                                </p>
+                                            </div>
+                                            {nextPendingDrop && (
+                                                <div className="rounded-[24px] bg-slate-100 px-3 py-2 text-right">
+                                                    <p className="text-xl font-black text-slate-900">{nextStopDistance.toFixed(1)} km</p>
+                                                    <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">away</p>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {nextPendingDrop && (
+                                            <div className="mt-4 flex flex-wrap items-center gap-2">
+                                                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
+                                                    ETA {remainingEta}
+                                                </span>
+                                                {nextPendingDrop.priority && (
+                                                    <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">
+                                                        {nextPendingDrop.priority} priority
+                                                    </span>
+                                                )}
+                                                {nextPendingDrop.deadline && (
+                                                    <span className="rounded-full bg-rose-50 px-3 py-1 text-xs font-bold text-rose-700">
+                                                        Due {new Date(nextPendingDrop.deadline).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                                    </span>
+                                                )}
                                             </div>
                                         )}
+
+                                        <div className="mt-5 grid gap-3 sm:grid-cols-[minmax(0,1fr)_180px]">
+                                            {activeTrip.status !== "in-progress" ? (
+                                                <button
+                                                    type="button"
+                                                    disabled={!dayStarted || onBreak}
+                                                    onClick={() => {
+                                                        void acceptTrip(activeTrip.id);
+                                                        if (me) {
+                                                            void registerDriverActivity(me.id);
+                                                        }
+                                                    }}
+                                                    className="flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-4 text-base font-black text-white disabled:opacity-50"
+                                                >
+                                                    <ArrowRightIcon className="h-5 w-5" />
+                                                    {primaryHeroLabel}
+                                                </button>
+                                            ) : (
+                                                <Link
+                                                    href="/driver/routes"
+                                                    className="flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-4 text-base font-black text-white"
+                                                >
+                                                    <MapPinIcon className="h-5 w-5" />
+                                                    {primaryHeroLabel}
+                                                </Link>
+                                            )}
+
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    tripDetailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                                                }}
+                                                className="flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-slate-100 px-5 py-4 text-sm font-bold text-slate-800"
+                                            >
+                                                <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+                                                Open Details
+                                            </button>
+                                        </div>
                                     </div>
+
+                                    <div className="mt-4 flex flex-wrap items-center gap-2">
+                                        <div className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white">
+                                            <span className="text-blue-100">Packages</span> {completedStops}/{totalStops}
+                                        </div>
+                                        <div className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white">
+                                            <span className="text-blue-100">Distance</span> {remainingDistanceKm.toFixed(1)} km
+                                        </div>
+                                        <div className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white">
+                                            <span className="text-blue-100">Status</span> {activeTripDone ? "Awaiting review" : "On schedule"}
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </article>
+
+                    <section className="grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_320px]">
+                        <div ref={tripDetailRef} className="space-y-4">
+                            <div className="flex flex-wrap gap-2">
+                                {activeTrips.map((trip) => (
+                                    <button
+                                        key={trip.id}
+                                        type="button"
+                                        disabled={onBreak}
+                                        onClick={() => setSelectedTripId(trip.id)}
+                                        className={`min-h-12 rounded-2xl px-4 py-3 text-sm font-bold transition ${
+                                            activeTrip?.id === trip.id
+                                                ? "bg-slate-900 text-white"
+                                                : "bg-white text-slate-700 shadow-sm ring-1 ring-slate-200"
+                                        } ${onBreak ? "opacity-50 cursor-not-allowed" : ""}`}
+                                    >
+                                        Trip #{trip.id.toUpperCase()}
+                                    </button>
                                 ))}
                             </div>
-                        </article>
-                    )}
+
+                            {!activeTrip && (
+                                <article className="rounded-[28px] bg-white p-6 shadow-sm ring-1 ring-slate-200/70">
+                                    <p className="text-slate-600">No active trip assigned right now.</p>
+                                </article>
+                            )}
+
+                            {activeTrip && (
+                                <article className="rounded-[28px] bg-white p-4 shadow-sm ring-1 ring-slate-200/70">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div>
+                                            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Assigned Route</p>
+                                            <h3 className="mt-1 text-lg font-black text-slate-900">
+                                                Trip #{activeTrip.id.toUpperCase()}
+                                            </h3>
+                                            <p className="mt-1 text-sm text-slate-500">{activeTrip.startLocation.address}</p>
+                                        </div>
+                                        <span className={`rounded-full px-3 py-1 text-[11px] font-bold ${statusClass(activeTrip.status)}`}>
+                                            {activeTrip.status}
+                                        </span>
+                                    </div>
+
+                                    {activeTrip.status === "in-progress" &&
+                                        activeTrip.drops.every((drop) => drop.status === "delivered" || drop.status === "failed") && (
+                                            <div className="mt-4 rounded-[24px] bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 ring-1 ring-amber-200">
+                                                All stops are submitted. Supervisor must verify the stop proofs before closing this trip.
+                                            </div>
+                                        )}
+
+                                    <div className="mt-4 space-y-3">
+                                        {activeTrip.drops.map((drop, index) => {
+                                            const isNext = nextPendingDrop?.id === drop.id;
+                                            return (
+                                                <div
+                                                    key={drop.id}
+                                                    className={`rounded-[24px] p-4 ring-1 ${
+                                                        isNext
+                                                            ? "bg-slate-900 text-white ring-slate-900"
+                                                            : "bg-slate-50/80 text-slate-900 ring-slate-200/70"
+                                                    }`}
+                                                >
+                                                    <div className="flex items-start justify-between gap-3">
+                                                        <div className="min-w-0">
+                                                            <div className="flex flex-wrap items-center gap-2">
+                                                                {isNext && (
+                                                                    <span className="rounded-full bg-blue-500 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white">
+                                                                        Next Stop
+                                                                    </span>
+                                                                )}
+                                                                <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${
+                                                                    isNext ? "bg-white/10 text-white" : "bg-white text-slate-500"
+                                                                }`}>
+                                                                    Stop {index + 1}
+                                                                </span>
+                                                            </div>
+                                                            <p className={`mt-3 text-lg font-black ${isNext ? "text-white" : "text-slate-900"}`}>
+                                                                {drop.customerName}
+                                                            </p>
+                                                            <p className={`mt-1 text-sm ${isNext ? "text-slate-300" : "text-slate-500"}`}>
+                                                                {drop.address}
+                                                            </p>
+                                                        </div>
+                                                        <span className={`rounded-full px-3 py-1 text-[11px] font-bold ${statusClass(drop.status)}`}>
+                                                            {drop.status}
+                                                        </span>
+                                                    </div>
+
+                                                    {drop.status === "pending" && (
+                                                        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                                                            <button
+                                                                type="button"
+                                                                disabled={!dayStarted || onBreak}
+                                                                onClick={() => {
+                                                                    openDeliveryProofModal({
+                                                                        tripId: activeTrip.id,
+                                                                        dropId: drop.id,
+                                                                        customerName: drop.customerName,
+                                                                        address: drop.address,
+                                                                    });
+                                                                }}
+                                                                className={`min-h-12 rounded-2xl px-4 py-3 text-sm font-black ${
+                                                                    isNext ? "bg-white text-slate-900" : "bg-emerald-600 text-white"
+                                                                } disabled:opacity-50`}
+                                                            >
+                                                                Deliver
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                disabled={!dayStarted || onBreak}
+                                                                onClick={() => {
+                                                                    if (!me) return;
+                                                                    void updateDropStatus(activeTrip.id, drop.id, "failed");
+                                                                    void registerDriverActivity(me.id);
+                                                                }}
+                                                                className={`min-h-12 rounded-2xl px-4 py-3 text-sm font-bold ${
+                                                                    isNext
+                                                                        ? "bg-transparent text-white ring-1 ring-white/20"
+                                                                        : "bg-white text-rose-700 ring-1 ring-rose-200"
+                                                                } disabled:opacity-50`}
+                                                            >
+                                                                Mark Failed
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </article>
+                            )}
+                        </div>
+
+                        <div className="space-y-4">
+                            <article className="rounded-[28px] bg-white p-4 shadow-sm ring-1 ring-slate-200/70">
+                                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Today</p>
+                                <div className="mt-4 grid grid-cols-2 gap-3">
+                                    <div className="rounded-[24px] bg-slate-100/90 px-4 py-3">
+                                        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Active Trips</p>
+                                        <p className="mt-2 text-2xl font-black text-slate-900">{activeTrips.length}</p>
+                                    </div>
+                                    <div className="rounded-[24px] bg-slate-100/90 px-4 py-3">
+                                        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Completed</p>
+                                        <p className="mt-2 text-2xl font-black text-emerald-700">{completedTrips.length}</p>
+                                    </div>
+                                    <div className="rounded-[24px] bg-slate-100/90 px-4 py-3">
+                                        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Duty</p>
+                                        <p className="mt-2 text-2xl font-black text-slate-900">{dayStarted ? "ON" : "OFF"}</p>
+                                    </div>
+                                    <div className="rounded-[24px] bg-slate-100/90 px-4 py-3">
+                                        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Break</p>
+                                        <p className="mt-2 text-2xl font-black text-amber-700">{formatMinutes(totalBreakMinutes)}</p>
+                                    </div>
+                                </div>
+                            </article>
+
+                            <article className="rounded-[28px] bg-white p-4 shadow-sm ring-1 ring-slate-200/70">
+                                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Driver Controls</p>
+                                <p className="mt-2 text-sm text-slate-500">
+                                    If vehicle inactivity crosses 8 minutes during an in-progress trip without informed break, it auto-registers as uninformed break.
+                                </p>
+                                {!dayStarted && !onBreak && (
+                                    <p className="mt-3 text-sm font-semibold text-slate-600">
+                                        Use the <span className="font-black text-slate-900">Start Day</span> button above before break, SOS, fuel, or route actions.
+                                    </p>
+                                )}
+                                {onBreak && (
+                                    <p className="mt-3 text-sm font-semibold text-amber-700">
+                                        Break active ({me?.breakType || "informed"}) • {formatMinutes(currentBreakMinutes)}
+                                    </p>
+                                )}
+                            </article>
+                        </div>
+                    </section>
                 </section>
             )}
 
             {activeTab === "fuel" && (
                 <section className="grid gap-4 xl:grid-cols-2">
-                    <article className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
-                        <h3 className="text-sm font-semibold text-slate-900">Submit Fuel Entry</h3>
-                        <div>
-                            <label className="block text-xs text-slate-600 mb-1">Litres</label>
-                            <input
-                                type="number"
-                                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
-                                value={fuelAmount}
-                                onChange={(event) => setFuelAmount(event.target.value)}
-                            />
+                    <article className="rounded-[28px] bg-white p-5 shadow-sm ring-1 ring-slate-200/70">
+                        <h3 className="text-lg font-black text-slate-900">Submit Fuel Entry</h3>
+                        <p className="mt-1 text-sm text-slate-500">Fast entry form with receipt capture for the current trip.</p>
+                        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                            <div>
+                                <label className="mb-2 block text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Litres</label>
+                                <input
+                                    type="number"
+                                    className="min-h-12 w-full rounded-2xl border-0 bg-slate-100/90 px-4 py-3 text-sm text-slate-900 outline-none ring-1 ring-slate-200"
+                                    value={fuelAmount}
+                                    onChange={(event) => setFuelAmount(event.target.value)}
+                                />
+                            </div>
+                            <div>
+                                <label className="mb-2 block text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Cost (INR)</label>
+                                <input
+                                    type="number"
+                                    className="min-h-12 w-full rounded-2xl border-0 bg-slate-100/90 px-4 py-3 text-sm text-slate-900 outline-none ring-1 ring-slate-200"
+                                    value={fuelCost}
+                                    onChange={(event) => setFuelCost(event.target.value)}
+                                />
+                            </div>
+                            <div>
+                                <label className="mb-2 block text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Pump Location</label>
+                                <input
+                                    type="text"
+                                    className="min-h-12 w-full rounded-2xl border-0 bg-slate-100/90 px-4 py-3 text-sm text-slate-900 outline-none ring-1 ring-slate-200"
+                                    value={fuelLocation}
+                                    onChange={(event) => setFuelLocation(event.target.value)}
+                                />
+                            </div>
+                            <div>
+                                <label className="mb-2 block text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Odometer</label>
+                                <input
+                                    type="number"
+                                    className="min-h-12 w-full rounded-2xl border-0 bg-slate-100/90 px-4 py-3 text-sm text-slate-900 outline-none ring-1 ring-slate-200"
+                                    value={fuelOdometer}
+                                    onChange={(event) => setFuelOdometer(event.target.value)}
+                                />
+                            </div>
                         </div>
-                        <div>
-                            <label className="block text-xs text-slate-600 mb-1">Cost (INR)</label>
-                            <input
-                                type="number"
-                                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
-                                value={fuelCost}
-                                onChange={(event) => setFuelCost(event.target.value)}
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs text-slate-600 mb-1">Pump Location</label>
-                            <input
-                                type="text"
-                                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
-                                value={fuelLocation}
-                                onChange={(event) => setFuelLocation(event.target.value)}
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs text-slate-600 mb-1">Odometer</label>
-                            <input
-                                type="number"
-                                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
-                                value={fuelOdometer}
-                                onChange={(event) => setFuelOdometer(event.target.value)}
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs text-slate-600 mb-1">
-                                Upload Fuel Bill Photo
-                            </label>
+
+                        <div className="mt-4">
+                            <label className="mb-2 block text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Upload Fuel Bill Photo</label>
                             <input
                                 type="file"
                                 accept="image/*"
@@ -663,16 +783,17 @@ export default function DriverDashboardPage() {
                                     };
                                     reader.readAsDataURL(file);
                                 }}
-                                className="block w-full text-xs text-slate-600 file:mr-3 file:px-3 file:py-2 file:border-0 file:rounded-lg file:bg-blue-600 file:text-white file:text-xs file:font-semibold hover:file:bg-blue-700"
+                                className="block w-full text-xs text-slate-600 file:mr-3 file:rounded-2xl file:border-0 file:bg-blue-600 file:px-4 file:py-3 file:text-xs file:font-bold file:text-white hover:file:bg-blue-700"
                             />
                             {fuelReceiptImage && (
                                 <img
                                     src={fuelReceiptImage}
                                     alt="Fuel receipt preview"
-                                    className="mt-2 w-48 h-28 object-cover rounded-lg border border-gray-200"
+                                    className="mt-3 h-32 w-full rounded-2xl object-cover ring-1 ring-slate-200/70"
                                 />
                             )}
                         </div>
+
                         <button
                             type="button"
                             disabled={!canSubmitFuel || !dayStarted || onBreak}
@@ -695,36 +816,36 @@ export default function DriverDashboardPage() {
                                 void addFuelEntry(newEntry);
                                 setFuelReceiptImage("");
                             }}
-                            className="px-3 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="mt-5 min-h-14 w-full rounded-2xl bg-blue-600 px-4 py-4 text-base font-black text-white disabled:opacity-50"
                         >
                             Submit Fuel Entry
                         </button>
                         {(!canSubmitFuel || !dayStarted || onBreak) && (
-                            <p className="text-xs text-rose-600">
+                            <p className="mt-3 text-sm font-semibold text-rose-600">
                                 Fuel submission requires active trip, day started, and break ended.
                             </p>
                         )}
                     </article>
 
-                    <article className="bg-white border border-gray-200 rounded-xl p-4">
-                        <h3 className="text-sm font-semibold text-slate-900 mb-3">Recent Fuel Entries</h3>
-                        <div className="space-y-2">
+                    <article className="rounded-[28px] bg-white p-5 shadow-sm ring-1 ring-slate-200/70">
+                        <h3 className="text-lg font-black text-slate-900">Recent Fuel Entries</h3>
+                        <div className="mt-4 space-y-3">
                             {recentFuel.length === 0 && <p className="text-sm text-slate-500">No fuel entries yet.</p>}
                             {recentFuel.map((entry) => (
-                                <div key={entry.id} className="border border-gray-200 rounded-lg p-3">
-                                    <div className="flex items-center justify-between">
-                                        <p className="text-sm font-semibold text-slate-900">#{entry.id.toUpperCase()}</p>
-                                        <span className={`text-[11px] px-2 py-1 rounded-full font-semibold ${statusClass(entry.status)}`}>
+                                <div key={entry.id} className="rounded-[24px] bg-slate-100/90 p-4">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <p className="text-sm font-black text-slate-900">#{entry.id.toUpperCase()}</p>
+                                        <span className={`rounded-full px-3 py-1 text-[11px] font-bold ${statusClass(entry.status)}`}>
                                             {entry.status}
                                         </span>
                                     </div>
-                                    <p className="text-xs text-slate-500 mt-1">{entry.location}</p>
-                                    <p className="text-xs text-slate-500 mt-1">₹{entry.cost.toLocaleString()} • {entry.amount}L</p>
+                                    <p className="mt-2 text-sm font-medium text-slate-600">{entry.location}</p>
+                                    <p className="mt-1 text-sm font-semibold text-slate-500">₹{entry.cost.toLocaleString()} • {entry.amount}L</p>
                                     {entry.receiptImage && (
                                         <img
                                             src={entry.receiptImage}
                                             alt={`Receipt ${entry.id}`}
-                                            className="mt-2 w-44 h-24 object-cover rounded-lg border border-gray-200"
+                                            className="mt-3 h-28 w-full rounded-2xl object-cover ring-1 ring-slate-200/70"
                                         />
                                     )}
                                 </div>
@@ -732,6 +853,23 @@ export default function DriverDashboardPage() {
                         </div>
                     </article>
                 </section>
+            )}
+
+            {dayStarted && !onBreak && (
+                <button
+                    type="button"
+                    onPointerDown={startSosHold}
+                    onPointerUp={cancelSosHold}
+                    onPointerLeave={cancelSosHold}
+                    onPointerCancel={cancelSosHold}
+                    className={`fixed bottom-24 right-4 z-40 flex h-16 w-16 items-center justify-center rounded-full text-sm font-black text-white shadow-lg transition ${
+                        sosHolding ? "scale-95 bg-rose-700" : "bg-rose-600"
+                    }`}
+                    aria-label="Hold for SOS"
+                >
+                    <span className="relative z-10">SOS</span>
+                    {sosHolding && <span className="absolute inset-0 rounded-full ring-4 ring-rose-300/60" />}
+                </button>
             )}
 
             {showStartDayProof && me && (
@@ -757,16 +895,16 @@ export default function DriverDashboardPage() {
             )}
 
             {proofTarget && (
-                <div className="fixed inset-0 z-50 bg-black/35 p-4 flex items-center justify-center">
-                    <article className="w-full max-w-xl rounded-xl bg-white border border-gray-200 p-4">
-                        <h3 className="text-lg font-bold text-slate-900">Delivery Proof Required</h3>
-                        <p className="text-xs text-slate-500 mt-1">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4">
+                    <article className="w-full max-w-xl rounded-[28px] bg-white p-5 shadow-xl ring-1 ring-slate-200">
+                        <h3 className="text-lg font-black text-slate-900">Delivery Proof Required</h3>
+                        <p className="mt-1 text-sm text-slate-500">
                             Customer: {proofTarget.customerName} • Upload photo and confirm capture location.
                         </p>
 
-                        <div className="mt-3 space-y-3">
+                        <div className="mt-4 space-y-4">
                             <div>
-                                <label className="block text-xs text-slate-600 mb-1">Delivery Photo</label>
+                                <label className="mb-2 block text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Delivery Photo</label>
                                 <input
                                     type="file"
                                     accept="image/*"
@@ -781,62 +919,62 @@ export default function DriverDashboardPage() {
                                         };
                                         reader.readAsDataURL(file);
                                     }}
-                                    className="block w-full text-xs text-slate-600 file:mr-3 file:px-3 file:py-2 file:border-0 file:rounded-lg file:bg-emerald-600 file:text-white file:text-xs file:font-semibold hover:file:bg-emerald-700"
+                                    className="block w-full text-xs text-slate-600 file:mr-3 file:rounded-2xl file:border-0 file:bg-emerald-600 file:px-4 file:py-3 file:text-xs file:font-bold file:text-white hover:file:bg-emerald-700"
                                 />
                                 {deliveryProofImage && (
                                     <img
                                         src={deliveryProofImage}
                                         alt="Delivery proof preview"
-                                        className="mt-2 w-56 h-36 object-cover rounded-lg border border-gray-200"
+                                        className="mt-3 h-40 w-full rounded-2xl object-cover ring-1 ring-slate-200/70"
                                     />
                                 )}
                             </div>
 
-                            <div className="border border-gray-200 rounded-lg p-3 space-y-2 bg-slate-50">
+                            <div className="rounded-[24px] bg-slate-100/90 p-4">
                                 <div className="flex flex-wrap items-center justify-between gap-2">
-                                    <p className="text-xs font-semibold text-slate-700">Capture Location</p>
+                                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Capture Location</p>
                                     <button
                                         type="button"
                                         disabled={deliveryProofLoadingLocation}
                                         onClick={() => {
                                             void captureDeliveryLocation();
                                         }}
-                                        className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                                        className="min-h-10 rounded-2xl bg-blue-600 px-3 text-xs font-bold text-white disabled:opacity-50"
                                     >
                                         {deliveryProofLoadingLocation ? "Fetching..." : "Use Current Location"}
                                     </button>
                                 </div>
-                                <p className="text-xs text-slate-600">
+                                <p className="mt-3 text-sm font-medium text-slate-600">
                                     {deliveryProofLocation || "No location captured yet."}
                                 </p>
                                 {deliveryProofLat !== null && deliveryProofLng !== null && (
-                                    <p className="text-[11px] text-slate-500">
+                                    <p className="mt-1 text-xs font-semibold text-slate-400">
                                         Lat: {deliveryProofLat.toFixed(6)} | Lng: {deliveryProofLng.toFixed(6)}
                                     </p>
                                 )}
                             </div>
 
                             <div>
-                                <label className="block text-xs text-slate-600 mb-1">Proof Notes (optional)</label>
+                                <label className="mb-2 block text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Proof Notes</label>
                                 <textarea
                                     value={deliveryProofNotes}
                                     onChange={(event) => setDeliveryProofNotes(event.target.value)}
                                     rows={2}
-                                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                                    className="w-full rounded-[24px] border-0 bg-slate-100/90 px-4 py-3 text-sm text-slate-800 outline-none ring-1 ring-slate-200"
                                     placeholder="Gate pass number, receiver info, etc."
                                 />
                             </div>
 
                             {deliveryProofError && (
-                                <p className="text-xs font-semibold text-rose-700">{deliveryProofError}</p>
+                                <p className="text-sm font-semibold text-rose-700">{deliveryProofError}</p>
                             )}
                         </div>
 
-                        <div className="mt-4 flex justify-end gap-2">
+                        <div className="mt-5 flex gap-3">
                             <button
                                 type="button"
                                 onClick={closeDeliveryProofModal}
-                                className="px-3 py-2 rounded-lg border border-gray-200 text-sm font-semibold text-slate-600"
+                                className="min-h-12 flex-1 rounded-2xl bg-slate-100 px-4 py-3 text-sm font-bold text-slate-600"
                             >
                                 Cancel
                             </button>
@@ -846,7 +984,7 @@ export default function DriverDashboardPage() {
                                     void submitDeliveryProof();
                                 }}
                                 disabled={deliveryProofSubmitting}
-                                className="px-3 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50"
+                                className="min-h-12 flex-1 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-black text-white disabled:opacity-50"
                             >
                                 {deliveryProofSubmitting ? "Submitting..." : "Submit Proof & Deliver"}
                             </button>
@@ -856,20 +994,20 @@ export default function DriverDashboardPage() {
             )}
 
             {showSosModal && (
-                <div className="fixed inset-0 z-50 bg-black/35 p-4 flex items-center justify-center">
-                    <article className="w-full max-w-lg rounded-xl bg-white border border-gray-200 p-4">
-                        <h3 className="text-lg font-bold text-slate-900">SOS / Vehicle Issue</h3>
-                        <p className="text-xs text-slate-500 mt-1">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 p-4">
+                    <article className="w-full max-w-lg rounded-[28px] bg-white p-5 shadow-xl ring-1 ring-slate-200">
+                        <h3 className="text-lg font-black text-slate-900">SOS / Vehicle Issue</h3>
+                        <p className="mt-1 text-sm text-slate-500">
                             Choose issue type, estimated repair time, and whether supervisor escalation is required.
                         </p>
 
-                        <div className="mt-3 space-y-3">
+                        <div className="mt-4 space-y-4">
                             <div>
-                                <label className="block text-xs text-slate-600 mb-1">Issue</label>
+                                <label className="mb-2 block text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Issue</label>
                                 <select
                                     value={sosIssueType}
                                     onChange={(event) => setSosIssueType(event.target.value as VehicleIssueType)}
-                                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                                    className="min-h-12 w-full rounded-2xl border-0 bg-slate-100/90 px-4 py-3 text-sm text-slate-800 outline-none ring-1 ring-slate-200"
                                 >
                                     {issueOptions.map((item) => (
                                         <option key={item.value} value={item.value}>
@@ -879,27 +1017,27 @@ export default function DriverDashboardPage() {
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-xs text-slate-600 mb-1">Description</label>
+                                <label className="mb-2 block text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Description</label>
                                 <textarea
                                     value={sosDescription}
                                     onChange={(event) => setSosDescription(event.target.value)}
                                     rows={3}
-                                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                                    className="w-full rounded-[24px] border-0 bg-slate-100/90 px-4 py-3 text-sm text-slate-800 outline-none ring-1 ring-slate-200"
                                     placeholder="Explain the issue briefly"
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs text-slate-600 mb-1">Estimated time to resume (minutes)</label>
+                                <label className="mb-2 block text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Estimated time to resume (minutes)</label>
                                 <input
                                     type="number"
                                     min={1}
                                     value={sosEta}
                                     onChange={(event) => setSosEta(event.target.value)}
-                                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                                    className="min-h-12 w-full rounded-2xl border-0 bg-slate-100/90 px-4 py-3 text-sm text-slate-800 outline-none ring-1 ring-slate-200"
                                 />
                             </div>
 
-                            <label className="flex items-center gap-2 text-sm text-slate-700">
+                            <label className="flex items-center gap-3 rounded-2xl bg-slate-100/90 px-4 py-3 text-sm font-semibold text-slate-700">
                                 <input
                                     type="checkbox"
                                     checked={sosSevere}
@@ -907,7 +1045,7 @@ export default function DriverDashboardPage() {
                                 />
                                 Serious issue (critical)
                             </label>
-                            <label className="flex items-center gap-2 text-sm text-slate-700">
+                            <label className="flex items-center gap-3 rounded-2xl bg-slate-100/90 px-4 py-3 text-sm font-semibold text-slate-700">
                                 <input
                                     type="checkbox"
                                     checked={sosInformSupervisor}
@@ -917,11 +1055,11 @@ export default function DriverDashboardPage() {
                             </label>
                         </div>
 
-                        <div className="mt-4 flex justify-end gap-2">
+                        <div className="mt-5 flex gap-3">
                             <button
                                 type="button"
                                 onClick={() => setShowSosModal(false)}
-                                className="px-3 py-2 rounded-lg border border-gray-200 text-sm font-semibold text-slate-600"
+                                className="min-h-12 flex-1 rounded-2xl bg-slate-100 px-4 py-3 text-sm font-bold text-slate-600"
                             >
                                 Cancel
                             </button>
@@ -942,7 +1080,7 @@ export default function DriverDashboardPage() {
                                     setSosSevere(false);
                                     setSosInformSupervisor(true);
                                 }}
-                                className="px-3 py-2 rounded-lg bg-rose-600 text-white text-sm font-semibold hover:bg-rose-700"
+                                className="min-h-12 flex-1 rounded-2xl bg-rose-600 px-4 py-3 text-sm font-black text-white"
                             >
                                 Send SOS
                             </button>
