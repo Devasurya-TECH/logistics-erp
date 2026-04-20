@@ -6,12 +6,21 @@ import { Providers } from "@/components/Providers";
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: "LogiTrace ERP",
-  description: "Complete Logistics Management System",
+  title: "LogiTrace Driver",
+  description: "Mobile driver operations app for LogiTrace deliveries",
   manifest: "/manifest.json",
   icons: {
     icon: "/icon-192x192.png",
-    apple: "/icon-192x192.png",
+    shortcut: "/icon-192x192.png",
+    apple: "/apple-touch-icon.png",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "LogiTrace Driver",
+  },
+  formatDetection: {
+    telephone: false,
   },
 };
 
@@ -20,6 +29,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

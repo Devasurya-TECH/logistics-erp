@@ -7,6 +7,7 @@ import Sidebar from './Sidebar';
 import Header from './Header';
 import { UserRole } from '@/lib/types';
 import { roleToPath } from '@/lib/roles';
+import DriverInstallPrompt from './DriverInstallPrompt';
 
 export default function DashboardLayout({
     children,
@@ -50,6 +51,7 @@ export default function DashboardLayout({
                 <Header />
                 <main className="flex-1 overflow-y-auto p-3 md:p-5 lg:p-6 pb-24 md:pb-6 relative z-0 custom-scrollbar">
                     <div className="max-w-7xl mx-auto space-y-4 md:space-y-5">
+                        {user.role === 'driver' ? <DriverInstallPrompt /> : null}
                         {children}
                     </div>
                 </main>

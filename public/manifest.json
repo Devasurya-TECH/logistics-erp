@@ -1,12 +1,18 @@
 {
-    "theme_color": "#2563eb",
-    "background_color": "#ffffff",
+    "id": "/driver",
+    "theme_color": "#0f172a",
+    "background_color": "#f8fafc",
     "display": "standalone",
+    "display_override": [
+        "standalone",
+        "window-controls-overlay"
+    ],
+    "orientation": "portrait",
     "scope": "/",
-    "start_url": "/",
-    "name": "LogiTrace ERP",
-    "short_name": "LogiTrace",
-    "description": "Logistics ERP Dashboard for Drivers and Supervisors",
+    "start_url": "/driver",
+    "name": "LogiTrace Driver",
+    "short_name": "LogiDriver",
+    "description": "Mobile driver operations app for active trips, delivery proof, routes, and daily vehicle checks.",
     "icons": [
         {
             "src": "/icon-192x192.png",
@@ -17,6 +23,17 @@
             "src": "/icon-512x512.png",
             "sizes": "512x512",
             "type": "image/png"
+        },
+        {
+            "src": "/maskable-icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
         }
+    ],
+    "categories": [
+        "business",
+        "productivity",
+        "navigation"
     ]
 }

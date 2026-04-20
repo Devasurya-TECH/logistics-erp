@@ -2,17 +2,16 @@
 
 import { useEffect } from "react";
 
-export default function ServiceWorkerReset() {
+export default function ServiceWorkerRegistration() {
     useEffect(() => {
+        if (process.env.NODE_ENV !== "production") return;
         if (!("serviceWorker" in navigator)) return;
 
         navigator.serviceWorker
-            .getRegistrations()
-            .then((registrations) => {
-                registrations.forEach((registration) => {
-                    registration.unregister().catch(() => {
-                        // no-op
-                    });
+            .register("/sw.js", { scope: "/" })
+            .then((registration) => {
+                registration.update().catch(() => {
+                    // no-op
                 });
             })
             .catch(() => {
@@ -22,4 +21,3 @@ export default function ServiceWorkerReset() {
 
     return null;
 }
-
