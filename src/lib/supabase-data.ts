@@ -27,6 +27,62 @@ const asBoolean = (value: unknown, fallback = false) =>
 const asObject = <T>(value: unknown, fallback: T) =>
     value && typeof value === "object" ? (value as T) : fallback;
 
+const isDisplayImage = (value: string) => value.startsWith("http://") || value.startsWith("https://");
+const isDataImage = (value: string) => value.startsWith("data:");
+const SIGNED_URL_TTL_SECONDS = 60 * 60 * 24;
+
+function normalizeCheckpointProof<T extends { image?: string; imagePath?: string } | undefined>(proof: T) {
+    if (!proof) return proof;
+
+    const next = { ...proof };
+    if (typeof next.image === "string" && !next.imagePath) {
+        if (isDisplayImage(next.image)) {
+            next.image = undefined;
+        } else if (!isDataImage(next.image)) {
+            next.imagePath = next.image;
+            next.image = undefined;
+        }
+    }
+
+    return next as T;
+}
+
+function checkpointProofForStorage(proof: Driver["dayStartProof"] | Driver["dayEndProof"]) {
+    if (!proof) return proof;
+    const normalized = normalizeCheckpointProof(proof);
+    return {
+        ...normalized,
+        image:
+            typeof normalized?.image === "string" && isDataImage(normalized.image)
+                ? normalized.image
+                : undefined,
+    };
+}
+
+function normalizeDrop(drop: Trip["drops"][number]) {
+    const next = { ...drop };
+    if (typeof next.proofImage === "string" && !next.proofImagePath) {
+        if (isDisplayImage(next.proofImage)) {
+            next.proofImage = undefined;
+        } else if (!isDataImage(next.proofImage)) {
+            next.proofImagePath = next.proofImage;
+            next.proofImage = undefined;
+        }
+    }
+    return next;
+}
+
+function dropForStorage(drop: Trip["drops"][number]) {
+    const normalized = normalizeDrop(drop);
+    return {
+        ...normalized,
+        proofImage:
+            typeof normalized.proofImage === "string" && isDataImage(normalized.proofImage)
+                ? normalized.proofImage
+                : undefined,
+    };
+}
+
 export function mapProfileRow(row: Record<string, unknown>): User | Driver {
     const base: User = {
         id: asString(row.id),
@@ -41,7 +97,11 @@ export function mapProfileRow(row: Record<string, unknown>): User | Driver {
     }
 
     const currentLocation = asObject<Record<string, unknown> | undefined>(row.current_location, undefined);
-    const { dayStartProof, dayEndProof, ...currentLocationBase } = currentLocation || {};
+    const {
+        dayStartProof: rawDayStartProof,
+        dayEndProof: rawDayEndProof,
+        ...currentLocationBase
+    } = currentLocation || {};
 
     return {
         ...base,
@@ -59,9 +119,11 @@ export function mapProfileRow(row: Record<string, unknown>): User | Driver {
         totalBreakMinutes: asNumber(row.total_break_minutes),
         lastActivityAt: asOptionalString(row.last_activity_at),
         currentLocation: currentLocationBase as Driver["currentLocation"] | undefined,
-        dayStartProof: dayStartProof as Driver["dayStartProof"] | undefined,
-        dayEndProof: dayEndProof as Driver["dayEndProof"] | undefined,
-        lastDeliveryProof: row.last_delivery_proof as Driver["lastDeliveryProof"] | undefined,
+        dayStartProof: normalizeCheckpointProof(rawDayStartProof as Driver["dayStartProof"]),
+        dayEndProof: normalizeCheckpointProof(rawDayEndProof as Driver["dayEndProof"]),
+        lastDeliveryProof: normalizeCheckpointProof(
+            row.last_delivery_proof as Driver["lastDeliveryProof"] | undefined,
+        ) as Driver["lastDeliveryProof"] | undefined,
     };
 }
 
@@ -87,7 +149,7 @@ export function mapTripRow(row: Record<string, unknown>): Trip {
         supervisorId: asOptionalString(row.supervisor_id),
         status: asString(row.status) as Trip["status"],
         startLocation: asObject(row.start_location, { lat: 0, lng: 0, address: "" }),
-        drops: Array.isArray(row.drops) ? (row.drops as Trip["drops"]) : [],
+        drops: Array.isArray(row.drops) ? (row.drops as Trip["drops"]).map((drop) => normalizeDrop(drop)) : [],
         startTime: asOptionalString(row.start_time),
         endTime: asOptionalString(row.end_time),
         estimatedDistance: asNumber(row.estimated_distance),
@@ -98,6 +160,7 @@ export function mapTripRow(row: Record<string, unknown>): Trip {
 }
 
 export function mapFuelEntryRow(row: Record<string, unknown>): FuelEntry {
+    const storedReceipt = asOptionalString(row.receipt_image);
     return {
         id: asString(row.id),
         tripId: asString(row.trip_id),
@@ -111,7 +174,14 @@ export function mapFuelEntryRow(row: Record<string, unknown>): FuelEntry {
         pumpName: asOptionalString(row.pump_name),
         fuelType: row.fuel_type as FuelEntry["fuelType"] | undefined,
         timestamp: asString(row.timestamp, new Date().toISOString()),
-        receiptImage: asOptionalString(row.receipt_image),
+        receiptImage:
+            storedReceipt && (isDisplayImage(storedReceipt) || isDataImage(storedReceipt))
+                ? storedReceipt
+                : undefined,
+        receiptImagePath:
+            storedReceipt && !isDisplayImage(storedReceipt) && !isDataImage(storedReceipt)
+                ? storedReceipt
+                : undefined,
         status: asString(row.status) as FuelEntry["status"],
         verifiedBy: asOptionalString(row.verified_by),
         approvedBy: asOptionalString(row.approved_by),
@@ -141,7 +211,7 @@ export function mapTripInputToRow(input: Partial<Trip>) {
     if ("supervisorId" in input) row.supervisor_id = input.supervisorId ?? null;
     if ("status" in input) row.status = input.status;
     if ("startLocation" in input) row.start_location = input.startLocation ?? null;
-    if ("drops" in input) row.drops = input.drops ?? [];
+    if ("drops" in input) row.drops = (input.drops ?? []).map((drop) => dropForStorage(drop));
     if ("startTime" in input) row.start_time = input.startTime ?? null;
     if ("endTime" in input) row.end_time = input.endTime ?? null;
     if ("estimatedDistance" in input) row.estimated_distance = input.estimatedDistance ?? 0;
@@ -157,10 +227,12 @@ export function mapDriverUpdatesToRow(
     const row: Record<string, unknown> = {};
     const existingLocation = asObject<Record<string, unknown> | undefined>(existingCurrentLocation, undefined);
     const {
-        dayStartProof: existingDayStartProof,
-        dayEndProof: existingDayEndProof,
+        dayStartProof: existingDayStartProofRaw,
+        dayEndProof: existingDayEndProofRaw,
         ...existingBaseLocation
     } = existingLocation || {};
+    const existingDayStartProof = existingDayStartProofRaw as Driver["dayStartProof"] | undefined;
+    const existingDayEndProof = existingDayEndProofRaw as Driver["dayEndProof"] | undefined;
 
     if ("name" in updates) row.name = updates.name ?? null;
     if ("email" in updates) row.email = updates.email ?? null;
@@ -178,7 +250,17 @@ export function mapDriverUpdatesToRow(
     if ("breakType" in updates) row.break_type = updates.breakType ?? null;
     if ("totalBreakMinutes" in updates) row.total_break_minutes = updates.totalBreakMinutes ?? 0;
     if ("lastActivityAt" in updates) row.last_activity_at = updates.lastActivityAt ?? null;
-    if ("lastDeliveryProof" in updates) row.last_delivery_proof = updates.lastDeliveryProof ?? null;
+    if ("lastDeliveryProof" in updates) {
+        row.last_delivery_proof = updates.lastDeliveryProof
+            ? {
+                ...normalizeCheckpointProof(updates.lastDeliveryProof),
+                image:
+                    typeof updates.lastDeliveryProof.image === "string" && isDataImage(updates.lastDeliveryProof.image)
+                        ? updates.lastDeliveryProof.image
+                        : undefined,
+            }
+            : null;
+    }
 
     if ("currentLocation" in updates || "dayStartProof" in updates || "dayEndProof" in updates) {
         const nextLocation: Record<string, unknown> =
@@ -194,10 +276,10 @@ export function mapDriverUpdatesToRow(
             "dayEndProof" in updates ? updates.dayEndProof : existingDayEndProof;
 
         if (nextDayStartProof) {
-            nextLocation.dayStartProof = nextDayStartProof;
+            nextLocation.dayStartProof = checkpointProofForStorage(nextDayStartProof);
         }
         if (nextDayEndProof) {
-            nextLocation.dayEndProof = nextDayEndProof;
+            nextLocation.dayEndProof = checkpointProofForStorage(nextDayEndProof);
         }
 
         row.current_location = Object.keys(nextLocation).length > 0 ? nextLocation : null;
@@ -236,7 +318,11 @@ export function mapFuelInputToRow(entry: Partial<FuelEntry>) {
     if ("pumpName" in entry) row.pump_name = entry.pumpName ?? null;
     if ("fuelType" in entry) row.fuel_type = entry.fuelType ?? null;
     if ("timestamp" in entry) row.timestamp = entry.timestamp ?? new Date().toISOString();
-    if ("receiptImage" in entry) row.receipt_image = entry.receiptImage ?? null;
+    if ("receiptImagePath" in entry) {
+        row.receipt_image = entry.receiptImagePath ?? null;
+    } else if ("receiptImage" in entry) {
+        row.receipt_image = entry.receiptImage ?? null;
+    }
     if ("status" in entry) row.status = entry.status ?? "pending";
     if ("verifiedBy" in entry) row.verified_by = entry.verifiedBy ?? null;
     if ("approvedBy" in entry) row.approved_by = entry.approvedBy ?? null;
@@ -260,32 +346,209 @@ export function mapAlertInputToRow(alert: Partial<Alert>) {
     return row;
 }
 
-export async function listTrips(supabase: SupabaseClient) {
-    const { data, error } = await supabase.from("trips").select("*").order("created_at", { ascending: false });
+export async function listTrips(
+    supabase: SupabaseClient,
+    options?: {
+        statuses?: string[];
+        limit?: number;
+        cursor?: string;
+        includeDrops?: boolean;
+    },
+) {
+    let query = supabase
+        .from("trips")
+        .select(
+            options?.includeDrops === false
+                ? "id,vehicle_id,driver_id,supervisor_id,status,start_location,start_time,end_time,estimated_distance,actual_distance,created_at,updated_at"
+                : "*",
+        )
+        .order("created_at", { ascending: false });
+
+    if (options?.statuses?.length) {
+        query = query.in("status", options.statuses);
+    }
+    if (options?.cursor) {
+        query = query.lt("created_at", options.cursor);
+    }
+    if (options?.limit) {
+        query = query.limit(options.limit);
+    }
+
+    const { data, error } = await query;
     if (error) throw error;
-    return (data || []).map(mapTripRow);
+    return ((data || []) as unknown as Record<string, unknown>[]).map(mapTripRow);
 }
 
-export async function listProfiles(supabase: SupabaseClient) {
-    const { data, error } = await supabase.from("profiles").select("*").order("name", { ascending: true });
+export async function listProfiles(
+    supabase: SupabaseClient,
+    options?: { ids?: string[]; role?: UserRole },
+) {
+    let query = supabase
+        .from("profiles")
+        .select("*")
+        .order("name", { ascending: true });
+
+    if (options?.role) {
+        query = query.eq("role", options.role);
+    }
+    if (options?.ids?.length) {
+        query = query.in("id", options.ids);
+    }
+
+    const { data, error } = await query;
     if (error) throw error;
-    return (data || []).map(mapProfileRow);
+    return ((data || []) as unknown as Record<string, unknown>[]).map(mapProfileRow);
 }
 
-export async function listVehicles(supabase: SupabaseClient) {
-    const { data, error } = await supabase.from("vehicles").select("*").order("plate_number", { ascending: true });
+export async function listVehicles(
+    supabase: SupabaseClient,
+    options?: { ids?: string[] },
+) {
+    let query = supabase
+        .from("vehicles")
+        .select("*")
+        .order("plate_number", { ascending: true });
+
+    if (options?.ids?.length) {
+        query = query.in("id", options.ids);
+    }
+
+    const { data, error } = await query;
     if (error) throw error;
-    return (data || []).map(mapVehicleRow);
+    return ((data || []) as unknown as Record<string, unknown>[]).map(mapVehicleRow);
 }
 
-export async function listFuelEntries(supabase: SupabaseClient) {
-    const { data, error } = await supabase.from("fuel_entries").select("*").order("timestamp", { ascending: false });
+export async function listFuelEntries(
+    supabase: SupabaseClient,
+    options?: {
+        statuses?: string[];
+        limit?: number;
+    },
+) {
+    let query = supabase
+        .from("fuel_entries")
+        .select("*")
+        .order("timestamp", { ascending: false });
+
+    if (options?.statuses?.length) {
+        query = query.in("status", options.statuses);
+    }
+    if (options?.limit) {
+        query = query.limit(options.limit);
+    }
+
+    const { data, error } = await query;
     if (error) throw error;
-    return (data || []).map(mapFuelEntryRow);
+    return ((data || []) as unknown as Record<string, unknown>[]).map(mapFuelEntryRow);
 }
 
-export async function listAlerts(supabase: SupabaseClient) {
-    const { data, error } = await supabase.from("alerts").select("*").order("timestamp", { ascending: false });
+export async function listAlerts(
+    supabase: SupabaseClient,
+    options?: {
+        resolved?: boolean;
+        limit?: number;
+    },
+) {
+    let query = supabase
+        .from("alerts")
+        .select("*")
+        .order("timestamp", { ascending: false });
+
+    if (typeof options?.resolved === "boolean") {
+        query = query.eq("resolved", options.resolved);
+    }
+    if (options?.limit) {
+        query = query.limit(options.limit);
+    }
+
+    const { data, error } = await query;
     if (error) throw error;
-    return (data || []).map(mapAlertRow);
+    return ((data || []) as unknown as Record<string, unknown>[]).map(mapAlertRow);
+}
+
+async function createSignedUrlMap(supabase: SupabaseClient, paths: string[]) {
+    const uniquePaths = Array.from(new Set(paths.filter(Boolean)));
+    if (uniquePaths.length === 0) return new Map<string, string>();
+
+    const { data, error } = await supabase.storage
+        .from("proofs")
+        .createSignedUrls(uniquePaths, SIGNED_URL_TTL_SECONDS);
+
+    if (error) throw error;
+
+    return new Map(
+        (data || [])
+            .filter((item) => item.path && item.signedUrl)
+            .map((item) => [item.path, item.signedUrl]),
+    );
+}
+
+export async function hydrateTripMediaUrls(supabase: SupabaseClient, trips: Trip[]) {
+    const paths = trips.flatMap((trip) =>
+        trip.drops.map((drop) => drop.proofImagePath).filter(Boolean) as string[],
+    );
+    const signedMap = await createSignedUrlMap(supabase, paths);
+
+    return trips.map((trip) => ({
+        ...trip,
+        drops: trip.drops.map((drop) => ({
+            ...drop,
+            proofImage: drop.proofImagePath
+                ? signedMap.get(drop.proofImagePath) || drop.proofImage
+                : drop.proofImage,
+        })),
+    }));
+}
+
+export async function hydrateFuelMediaUrls(supabase: SupabaseClient, entries: FuelEntry[]) {
+    const signedMap = await createSignedUrlMap(
+        supabase,
+        entries.map((entry) => entry.receiptImagePath).filter(Boolean) as string[],
+    );
+
+    return entries.map((entry) => ({
+        ...entry,
+        receiptImage: entry.receiptImagePath
+            ? signedMap.get(entry.receiptImagePath) || entry.receiptImage
+            : entry.receiptImage,
+    }));
+}
+
+export async function hydrateDriverMediaUrls(supabase: SupabaseClient, drivers: Driver[]) {
+    const paths = drivers.flatMap((driver) =>
+        [
+            driver.dayStartProof?.imagePath,
+            driver.dayEndProof?.imagePath,
+            driver.lastDeliveryProof?.imagePath,
+        ].filter(Boolean) as string[],
+    );
+    const signedMap = await createSignedUrlMap(supabase, paths);
+
+    return drivers.map((driver) => ({
+        ...driver,
+        dayStartProof: driver.dayStartProof
+            ? {
+                ...driver.dayStartProof,
+                image: driver.dayStartProof.imagePath
+                    ? signedMap.get(driver.dayStartProof.imagePath) || driver.dayStartProof.image
+                    : driver.dayStartProof.image,
+            }
+            : driver.dayStartProof,
+        dayEndProof: driver.dayEndProof
+            ? {
+                ...driver.dayEndProof,
+                image: driver.dayEndProof.imagePath
+                    ? signedMap.get(driver.dayEndProof.imagePath) || driver.dayEndProof.image
+                    : driver.dayEndProof.image,
+            }
+            : driver.dayEndProof,
+        lastDeliveryProof: driver.lastDeliveryProof
+            ? {
+                ...driver.lastDeliveryProof,
+                image: driver.lastDeliveryProof.imagePath
+                    ? signedMap.get(driver.lastDeliveryProof.imagePath) || driver.lastDeliveryProof.image
+                    : driver.lastDeliveryProof.image,
+            }
+            : driver.lastDeliveryProof,
+    }));
 }

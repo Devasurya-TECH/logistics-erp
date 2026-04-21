@@ -379,6 +379,64 @@ with check (
     or created_by = auth.uid()
 );
 
+insert into storage.buckets (id, name, public)
+values ('proofs', 'proofs', false)
+on conflict (id) do nothing;
+
+drop policy if exists "proofs_select" on storage.objects;
+create policy "proofs_select"
+on storage.objects
+for select
+to authenticated
+using (bucket_id = 'proofs');
+
+drop policy if exists "proofs_insert" on storage.objects;
+create policy "proofs_insert"
+on storage.objects
+for insert
+to authenticated
+with check (
+    bucket_id = 'proofs'
+    and auth.uid() is not null
+    and (
+        storage.foldername(name))[1] = 'driver'
+    and (
+        storage.foldername(name))[2] = auth.uid()::text
+);
+
+drop policy if exists "proofs_update" on storage.objects;
+create policy "proofs_update"
+on storage.objects
+for update
+to authenticated
+using (
+    bucket_id = 'proofs'
+    and (
+        storage.foldername(name))[1] = 'driver'
+    and (
+        storage.foldername(name))[2] = auth.uid()::text
+)
+with check (
+    bucket_id = 'proofs'
+    and (
+        storage.foldername(name))[1] = 'driver'
+    and (
+        storage.foldername(name))[2] = auth.uid()::text
+);
+
+drop policy if exists "proofs_delete" on storage.objects;
+create policy "proofs_delete"
+on storage.objects
+for delete
+to authenticated
+using (
+    bucket_id = 'proofs'
+    and (
+        storage.foldername(name))[1] = 'driver'
+    and (
+        storage.foldername(name))[2] = auth.uid()::text
+);
+
 -- Example manual inserts for real fleet data:
 -- insert into public.vehicles (id, plate_number, model, status, fuel_level, mileage, location, last_service_date, fuel_type)
 -- values ('veh-001', 'KL-01-AA-1234', 'Tata Ace', 'active', 80, 12000, '{"lat":10.0,"lng":76.0}', '2026-04-01', 'diesel');

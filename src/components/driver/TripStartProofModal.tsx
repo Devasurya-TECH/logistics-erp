@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { TripCheckpointProof } from "@/lib/types";
+import { buildDriverMediaPath, uploadDriverMedia } from "@/lib/media";
 
 function getCurrentPosition() {
     return new Promise<GeolocationPosition>((resolve, reject) => {
@@ -41,6 +42,7 @@ async function reverseGeocode(lat: number, lng: number) {
 }
 
 interface TripStartProofModalProps {
+    driverId: string;
     tripId: string;
     onClose: () => void;
     onSubmit: (proof: TripCheckpointProof) => Promise<void> | void;
@@ -48,6 +50,7 @@ interface TripStartProofModalProps {
 }
 
 export default function TripStartProofModal({
+    driverId,
     tripId,
     onClose,
     onSubmit,
@@ -55,7 +58,8 @@ export default function TripStartProofModal({
 }: TripStartProofModalProps) {
     const [odometer, setOdometer] = useState("");
     const [fuelReading, setFuelReading] = useState("");
-    const [image, setImage] = useState("");
+    const [imageFile, setImageFile] = useState<File | null>(null);
+    const [imagePreview, setImagePreview] = useState("");
     const [location, setLocation] = useState("");
     const [lat, setLat] = useState<number | null>(null);
     const [lng, setLng] = useState<number | null>(null);
@@ -74,6 +78,19 @@ export default function TripStartProofModal({
     const subject = isDayMode ? "day" : "route";
     const locationLabel = mode === "end-day" || mode === "end" ? "End Location" : "Start Location";
     const actionLabel = isEnd ? `ending the ${subject}` : `starting the ${subject}`;
+
+    useEffect(() => {
+        if (!imageFile) {
+            setImagePreview("");
+            return;
+        }
+
+        const objectUrl = URL.createObjectURL(imageFile);
+        setImagePreview(objectUrl);
+        return () => {
+            URL.revokeObjectURL(objectUrl);
+        };
+    }, [imageFile]);
 
     const captureLocation = async () => {
         setLocating(true);
@@ -105,7 +122,7 @@ export default function TripStartProofModal({
             setError("Enter a valid fuel reading.");
             return;
         }
-        if (!image) {
+        if (!imageFile) {
             setError("Upload odometer and fuel reading photo.");
             return;
         }
@@ -117,10 +134,21 @@ export default function TripStartProofModal({
         setSubmitting(true);
         setError("");
         try {
+            const objectPath = buildDriverMediaPath({
+                driverId,
+                tripId,
+                kind: mode === "start-day" ? "day-start" : "day-end",
+            });
+            const upload = await uploadDriverMedia({
+                file: imageFile,
+                objectPath,
+            });
+
             await onSubmit({
                 odometer: parsedOdometer,
                 fuelReading: parsedFuelReading,
-                image,
+                image: upload.signedUrl,
+                imagePath: upload.objectPath,
                 capturedAt: new Date().toISOString(),
                 lat,
                 lng,
@@ -174,17 +202,13 @@ export default function TripStartProofModal({
                         onChange={(event) => {
                             const file = event.target.files?.[0];
                             if (!file) return;
-                            const reader = new FileReader();
-                            reader.onload = () => {
-                                setImage(typeof reader.result === "string" ? reader.result : "");
-                            };
-                            reader.readAsDataURL(file);
+                            setImageFile(file);
                         }}
                         className="block w-full text-xs text-slate-600 file:mr-3 file:px-3 file:py-2 file:border-0 file:rounded-lg file:bg-blue-600 file:text-white file:text-xs file:font-semibold hover:file:bg-blue-700"
                     />
-                    {image && (
+                    {imagePreview && (
                         <img
-                            src={image}
+                            src={imagePreview}
                             alt={isEnd ? "Closing proof preview" : "Opening proof preview"}
                             className="mt-2 w-56 h-36 object-cover rounded-lg border border-gray-200"
                         />

@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useStore } from "@/lib/store";
 import TripStartProofModal from "@/components/driver/TripStartProofModal";
 import type { FuelEntry } from "@/lib/types";
+import { buildDriverMediaPath, uploadDriverMedia } from "@/lib/media";
 import {
     ArrowRightIcon,
     ArrowTopRightOnSquareIcon,
@@ -131,6 +132,7 @@ export default function DriverDashboardPage() {
     const [showStartDayProof, setShowStartDayProof] = useState(false);
     const [endProofTripId, setEndProofTripId] = useState<string | null>(null);
     const [proofTarget, setProofTarget] = useState<DeliveryProofTarget | null>(null);
+    const [deliveryProofFile, setDeliveryProofFile] = useState<File | null>(null);
     const [deliveryProofImage, setDeliveryProofImage] = useState("");
     const [deliveryProofNotes, setDeliveryProofNotes] = useState("");
     const [deliveryProofLocation, setDeliveryProofLocation] = useState("");
@@ -144,6 +146,7 @@ export default function DriverDashboardPage() {
     const [fuelCost, setFuelCost] = useState("2200");
     const [fuelLocation, setFuelLocation] = useState("HP Fuel Station");
     const [fuelOdometer, setFuelOdometer] = useState("12000");
+    const [fuelReceiptFile, setFuelReceiptFile] = useState<File | null>(null);
     const [fuelReceiptImage, setFuelReceiptImage] = useState("");
 
     const [showSosModal, setShowSosModal] = useState(false);
@@ -205,6 +208,28 @@ export default function DriverDashboardPage() {
     }, []);
 
     useEffect(() => {
+        if (!deliveryProofFile) {
+            setDeliveryProofImage("");
+            return;
+        }
+
+        const objectUrl = URL.createObjectURL(deliveryProofFile);
+        setDeliveryProofImage(objectUrl);
+        return () => URL.revokeObjectURL(objectUrl);
+    }, [deliveryProofFile]);
+
+    useEffect(() => {
+        if (!fuelReceiptFile) {
+            setFuelReceiptImage("");
+            return;
+        }
+
+        const objectUrl = URL.createObjectURL(fuelReceiptFile);
+        setFuelReceiptImage(objectUrl);
+        return () => URL.revokeObjectURL(objectUrl);
+    }, [fuelReceiptFile]);
+
+    useEffect(() => {
         if (!me || me.isLive) return;
         void toggleLiveStatus(me.id, true);
     }, [me, toggleLiveStatus]);
@@ -246,7 +271,7 @@ export default function DriverDashboardPage() {
 
     const openDeliveryProofModal = (target: DeliveryProofTarget) => {
         setProofTarget(target);
-        setDeliveryProofImage("");
+        setDeliveryProofFile(null);
         setDeliveryProofNotes("");
         setDeliveryProofLocation("");
         setDeliveryProofLat(null);
@@ -257,7 +282,7 @@ export default function DriverDashboardPage() {
 
     const closeDeliveryProofModal = () => {
         setProofTarget(null);
-        setDeliveryProofImage("");
+        setDeliveryProofFile(null);
         setDeliveryProofNotes("");
         setDeliveryProofLocation("");
         setDeliveryProofLat(null);
@@ -269,7 +294,7 @@ export default function DriverDashboardPage() {
     const submitDeliveryProof = async () => {
         if (!proofTarget || !me) return;
 
-        if (!deliveryProofImage) {
+        if (!deliveryProofFile) {
             setDeliveryProofError("Delivery photo is required.");
             return;
         }
@@ -282,8 +307,18 @@ export default function DriverDashboardPage() {
         setDeliveryProofError("");
 
         try {
+            const upload = await uploadDriverMedia({
+                file: deliveryProofFile,
+                objectPath: buildDriverMediaPath({
+                    driverId: me.id,
+                    tripId: proofTarget.tripId,
+                    dropId: proofTarget.dropId,
+                    kind: "delivery-proof",
+                }),
+            });
             await updateDropStatus(proofTarget.tripId, proofTarget.dropId, "delivered", {
-                proofImage: deliveryProofImage,
+                proofImage: upload.signedUrl,
+                proofImagePath: upload.objectPath,
                 proofCapturedAt: new Date().toISOString(),
                 proofLat: deliveryProofLat,
                 proofLng: deliveryProofLng,
@@ -776,12 +811,7 @@ export default function DriverDashboardPage() {
                                 onChange={(event) => {
                                     const file = event.target.files?.[0];
                                     if (!file) return;
-                                    const reader = new FileReader();
-                                    reader.onload = () => {
-                                        const image = typeof reader.result === "string" ? reader.result : "";
-                                        setFuelReceiptImage(image);
-                                    };
-                                    reader.readAsDataURL(file);
+                                    setFuelReceiptFile(file);
                                 }}
                                 className="block w-full text-xs text-slate-600 file:mr-3 file:rounded-2xl file:border-0 file:bg-blue-600 file:px-4 file:py-3 file:text-xs file:font-bold file:text-white hover:file:bg-blue-700"
                             />
@@ -797,8 +827,25 @@ export default function DriverDashboardPage() {
                         <button
                             type="button"
                             disabled={!canSubmitFuel || !dayStarted || onBreak}
-                            onClick={() => {
+                            onClick={async () => {
                                 if (!user || !activeTrip) return;
+                                let receiptImage: string | undefined;
+                                let receiptImagePath: string | undefined;
+
+                                if (fuelReceiptFile) {
+                                    const upload = await uploadDriverMedia({
+                                        file: fuelReceiptFile,
+                                        objectPath: buildDriverMediaPath({
+                                            driverId: user.id,
+                                            tripId: activeTrip.id,
+                                            fuelEntryId: `f-${Date.now()}`,
+                                            kind: "fuel-receipt",
+                                        }),
+                                    });
+                                    receiptImage = upload.signedUrl;
+                                    receiptImagePath = upload.objectPath;
+                                }
+
                                 const newEntry: FuelEntry = {
                                     id: `f-${Date.now()}`,
                                     tripId: activeTrip.id,
@@ -810,11 +857,12 @@ export default function DriverDashboardPage() {
                                     odometer: Number(fuelOdometer) || 0,
                                     location: fuelLocation.trim() || "Fuel Station",
                                     timestamp: new Date().toISOString(),
-                                    receiptImage: fuelReceiptImage || undefined,
+                                    receiptImage,
+                                    receiptImagePath,
                                     status: "pending",
                                 };
-                                void addFuelEntry(newEntry);
-                                setFuelReceiptImage("");
+                                await addFuelEntry(newEntry);
+                                setFuelReceiptFile(null);
                             }}
                             className="mt-5 min-h-14 w-full rounded-2xl bg-blue-600 px-4 py-4 text-base font-black text-white disabled:opacity-50"
                         >
@@ -874,6 +922,7 @@ export default function DriverDashboardPage() {
 
             {showStartDayProof && me && (
                 <TripStartProofModal
+                    driverId={me.id}
                     tripId={activeTrip?.id || "day-start"}
                     mode="start-day"
                     onClose={() => setShowStartDayProof(false)}
@@ -885,6 +934,7 @@ export default function DriverDashboardPage() {
 
             {endProofTripId && me && (
                 <TripStartProofModal
+                    driverId={me.id}
                     tripId={endProofTripId}
                     mode="end-day"
                     onClose={() => setEndProofTripId(null)}
@@ -912,12 +962,7 @@ export default function DriverDashboardPage() {
                                     onChange={(event) => {
                                         const file = event.target.files?.[0];
                                         if (!file) return;
-                                        const reader = new FileReader();
-                                        reader.onload = () => {
-                                            const image = typeof reader.result === "string" ? reader.result : "";
-                                            setDeliveryProofImage(image);
-                                        };
-                                        reader.readAsDataURL(file);
+                                        setDeliveryProofFile(file);
                                     }}
                                     className="block w-full text-xs text-slate-600 file:mr-3 file:rounded-2xl file:border-0 file:bg-emerald-600 file:px-4 file:py-3 file:text-xs file:font-bold file:text-white hover:file:bg-emerald-700"
                                 />

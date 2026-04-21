@@ -21,6 +21,7 @@ interface AppState {
         status: 'delivered' | 'failed',
         details?: {
             proofImage?: string;
+            proofImagePath?: string;
             proofCapturedAt?: string;
             proofLat?: number;
             proofLng?: number;
@@ -103,7 +104,7 @@ const calculateBreakMinutes = (startedAt?: string) => {
 };
 
 const hasValidTripProof = (proof?: TripCheckpointProof) =>
-    Boolean(proof?.image) &&
+    Boolean(proof?.image || proof?.imagePath) &&
     Number.isFinite(proof?.odometer) &&
     Number.isFinite(proof?.fuelReading) &&
     Number.isFinite(proof?.lat) &&
@@ -149,12 +150,11 @@ export const useStore = create<AppState>((set, get) => ({
                 set({ isLoading: true });
             }
 
-            // Fetch trips
-            const tripsRes = await fetch('/api/trips', {
+            const bootstrapRes = await fetch('/api/bootstrap', {
                 cache: 'no-store',
                 credentials: 'include',
             });
-            if (tripsRes.status === 401) {
+            if (bootstrapRes.status === 401) {
                 set({
                     trips: [],
                     vehicles: [],
@@ -165,30 +165,16 @@ export const useStore = create<AppState>((set, get) => ({
                 });
                 return;
             }
-            const tripsPayload = await tripsRes.json();
-            const trips = Array.isArray(tripsPayload) ? tripsPayload : (tripsPayload?.data || []);
-
-            // Fetch master data
-            const masterRes = await fetch('/api/master-data', {
-                cache: 'no-store',
-                credentials: 'include',
-            });
-            if (masterRes.status === 401) {
-                set({
-                    trips: [],
-                    vehicles: [],
-                    drivers: [],
-                    fuelEntries: [],
-                    alerts: [],
-                    isLoading: false,
-                });
-                return;
-            }
-            const masterData = await masterRes.json();
+            const bootstrap = await bootstrapRes.json();
+            const trips = bootstrap?.trips || [];
+            const drivers = bootstrap?.drivers || [];
+            const vehicles = bootstrap?.vehicles || [];
+            const fuelEntries = bootstrap?.fuelEntries || [];
+            const alerts = bootstrap?.alerts || [];
 
             set({
                 trips,
-                drivers: (masterData.drivers || []).map((driver: Driver) => ({
+                drivers: drivers.map((driver: Driver) => ({
                     ...driver,
                     isLive: driver.isLive ?? true,
                     dutyStatus: driver.dutyStatus ?? (driver.status === 'off-duty' ? 'off-duty' : 'on-duty'),
@@ -196,9 +182,9 @@ export const useStore = create<AppState>((set, get) => ({
                     totalBreakMinutes: driver.totalBreakMinutes ?? 0,
                     lastActivityAt: driver.lastActivityAt ?? driver.lastLocationUpdate ?? new Date().toISOString(),
                 })),
-                vehicles: masterData.vehicles,
-                fuelEntries: masterData.fuelEntries || [],
-                alerts: masterData.alerts || [],
+                vehicles,
+                fuelEntries,
+                alerts,
                 isLoading: false
             });
         } catch (error) {
@@ -358,7 +344,7 @@ export const useStore = create<AppState>((set, get) => ({
         const now = new Date().toISOString();
 
         if (status === 'delivered') {
-            const hasPhoto = Boolean(details?.proofImage);
+            const hasPhoto = Boolean(details?.proofImage || details?.proofImagePath);
             const hasGeo =
                 typeof details?.proofLat === 'number' &&
                 typeof details?.proofLng === 'number' &&
@@ -381,6 +367,7 @@ export const useStore = create<AppState>((set, get) => ({
                     status,
                     actualArrival: now,
                     proofImage: details?.proofImage || d.proofImage,
+                    proofImagePath: details?.proofImagePath || d.proofImagePath,
                     proofCapturedAt: details?.proofCapturedAt || d.proofCapturedAt || now,
                     proofLat: typeof details?.proofLat === 'number' ? details.proofLat : d.proofLat,
                     proofLng: typeof details?.proofLng === 'number' ? details.proofLng : d.proofLng,
@@ -441,6 +428,7 @@ export const useStore = create<AppState>((set, get) => ({
                     lng: details!.proofLng as number,
                     address: details!.proofLocation as string,
                     image: details!.proofImage,
+                    imagePath: details!.proofImagePath,
                 };
             }
 

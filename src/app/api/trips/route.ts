@@ -1,14 +1,33 @@
-import { mapTripInputToRow, listTrips, mapTripRow, STORAGE_INFO } from '@/lib/supabase-data';
+import { hydrateTripMediaUrls, listTrips, mapTripInputToRow, mapTripRow, STORAGE_INFO } from '@/lib/supabase-data';
 import { ensureAdmin, getRequestContext, toErrorResponse } from '@/lib/server-session';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: Request) {
     try {
         const { supabase } = await getRequestContext();
-        const trips = await listTrips(supabase);
+        const { searchParams } = new URL(request.url);
+        const scope = searchParams.get('scope') || 'all';
+        const includeDrops = searchParams.get('includeDrops') !== 'false';
+        const limit = Math.max(1, Math.min(200, Number(searchParams.get('limit') || '60') || 60));
+        const cursor = searchParams.get('cursor') || undefined;
+
+        const statuses =
+            scope === 'active'
+                ? ['planned', 'assigned', 'in-progress']
+                : scope === 'recent'
+                    ? ['completed', 'cancelled']
+                    : searchParams.getAll('status');
+
+        const trips = await listTrips(supabase, {
+            statuses: statuses.length > 0 ? statuses : undefined,
+            includeDrops,
+            limit,
+            cursor,
+        });
+        const hydratedTrips = includeDrops ? await hydrateTripMediaUrls(supabase, trips) : trips;
         return Response.json({
-            data: trips,
+            data: hydratedTrips,
             storage: STORAGE_INFO,
         });
     } catch (error) {

@@ -50,6 +50,7 @@ export interface Driver extends User {
         lng: number;
         address: string;
         image?: string;
+        imagePath?: string;
     };
 }
 
@@ -58,7 +59,8 @@ export type TripStatus = 'planned' | 'assigned' | 'in-progress' | 'completed' | 
 export interface TripCheckpointProof {
     odometer: number;
     fuelReading: number;
-    image: string;
+    image?: string;
+    imagePath?: string;
     capturedAt: string;
     lat: number;
     lng: number;
@@ -85,6 +87,7 @@ export interface DropPoint {
     actualArrival?: string;
     distanceFromPrev?: number; // km
     proofImage?: string;
+    proofImagePath?: string;
     proofCapturedAt?: string;
     proofLat?: number;
     proofLng?: number;
@@ -127,6 +130,7 @@ export interface FuelEntry {
     fuelType?: 'diesel' | 'petrol' | 'ev' | 'cng';
     timestamp: string;
     receiptImage?: string;
+    receiptImagePath?: string;
     status: FuelStatus;
     verifiedBy?: string; // Supervisor
     approvedBy?: string; // Manager

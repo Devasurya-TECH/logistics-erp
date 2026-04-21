@@ -1,13 +1,20 @@
-import { listFuelEntries, mapFuelEntryRow, mapFuelInputToRow } from '@/lib/supabase-data';
+import { hydrateFuelMediaUrls, listFuelEntries, mapFuelEntryRow, mapFuelInputToRow } from '@/lib/supabase-data';
 import { getRequestContext, toErrorResponse } from '@/lib/server-session';
 import type { FuelEntry } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: Request) {
     try {
         const { supabase } = await getRequestContext();
-        return Response.json(await listFuelEntries(supabase));
+        const { searchParams } = new URL(request.url);
+        const limit = Math.max(1, Math.min(200, Number(searchParams.get('limit') || '50') || 50));
+        const statuses = searchParams.getAll('status');
+        const entries = await listFuelEntries(supabase, {
+            limit,
+            statuses: statuses.length > 0 ? statuses : undefined,
+        });
+        return Response.json(await hydrateFuelMediaUrls(supabase, entries));
     } catch (error) {
         return toErrorResponse(error, 'Failed to fetch fuel entries');
     }

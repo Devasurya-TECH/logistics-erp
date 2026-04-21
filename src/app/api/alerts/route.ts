@@ -4,10 +4,18 @@ import type { Alert } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: Request) {
     try {
         const { supabase } = await getRequestContext();
-        return Response.json(await listAlerts(supabase));
+        const { searchParams } = new URL(request.url);
+        const limit = Math.max(1, Math.min(200, Number(searchParams.get('limit') || '50') || 50));
+        const resolved = searchParams.get('resolved');
+        return Response.json(
+            await listAlerts(
+                supabase,
+                resolved === null ? { limit } : { limit, resolved: resolved === 'true' },
+            ),
+        );
     } catch (error) {
         return toErrorResponse(error, 'Failed to fetch alerts');
     }

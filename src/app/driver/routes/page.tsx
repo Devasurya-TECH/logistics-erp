@@ -6,6 +6,7 @@ import { useStore } from "@/lib/store";
 import RouteMap from "@/components/maps/RouteMap";
 import { calculateTotalDistance, estimateTime, optimizeRoute } from "@/lib/utils/optimizer";
 import type { DropPoint, Trip } from "@/lib/types";
+import { buildDriverMediaPath, uploadDriverMedia } from "@/lib/media";
 import {
     ArrowTopRightOnSquareIcon,
     ExclamationTriangleIcon,
@@ -91,6 +92,7 @@ export default function DriverRoutesPage() {
     const [routeMode, setRouteMode] = useState<RouteMode>("optimized");
     const [failureReasonByDrop, setFailureReasonByDrop] = useState<Record<string, string>>({});
     const [proofTarget, setProofTarget] = useState<ProofTarget | null>(null);
+    const [proofFile, setProofFile] = useState<File | null>(null);
     const [proofImage, setProofImage] = useState("");
     const [proofNotes, setProofNotes] = useState("");
     const [proofLocation, setProofLocation] = useState("");
@@ -111,6 +113,17 @@ export default function DriverRoutesPage() {
             setSelectedTripId(activeTrips[0].id);
         }
     }, [activeTrips, selectedTripId]);
+
+    useEffect(() => {
+        if (!proofFile) {
+            setProofImage("");
+            return;
+        }
+
+        const objectUrl = URL.createObjectURL(proofFile);
+        setProofImage(objectUrl);
+        return () => URL.revokeObjectURL(objectUrl);
+    }, [proofFile]);
 
     const originalRouteDrops = useMemo(() => {
         if (!activeTrip) return [];
@@ -176,7 +189,7 @@ export default function DriverRoutesPage() {
 
     const openProof = (target: ProofTarget) => {
         setProofTarget(target);
-        setProofImage("");
+        setProofFile(null);
         setProofNotes("");
         setProofLocation("");
         setProofLat(null);
@@ -187,7 +200,7 @@ export default function DriverRoutesPage() {
 
     const closeProof = () => {
         setProofTarget(null);
-        setProofImage("");
+        setProofFile(null);
         setProofNotes("");
         setProofLocation("");
         setProofLat(null);
@@ -198,7 +211,7 @@ export default function DriverRoutesPage() {
 
     const submitProof = async () => {
         if (!proofTarget || !user) return;
-        if (!proofImage) {
+        if (!proofFile) {
             setProofError("Photo proof is required.");
             return;
         }
@@ -211,8 +224,18 @@ export default function DriverRoutesPage() {
         setProofError("");
 
         try {
+            const upload = await uploadDriverMedia({
+                file: proofFile,
+                objectPath: buildDriverMediaPath({
+                    driverId: user.id,
+                    tripId: proofTarget.tripId,
+                    dropId: proofTarget.dropId,
+                    kind: "delivery-proof",
+                }),
+            });
             await updateDropStatus(proofTarget.tripId, proofTarget.dropId, "delivered", {
-                proofImage,
+                proofImage: upload.signedUrl,
+                proofImagePath: upload.objectPath,
                 proofCapturedAt: new Date().toISOString(),
                 proofLat,
                 proofLng,
@@ -586,12 +609,7 @@ export default function DriverRoutesPage() {
                                     onChange={(event) => {
                                         const file = event.target.files?.[0];
                                         if (!file) return;
-                                        const reader = new FileReader();
-                                        reader.onload = () => {
-                                            const image = typeof reader.result === "string" ? reader.result : "";
-                                            setProofImage(image);
-                                        };
-                                        reader.readAsDataURL(file);
+                                        setProofFile(file);
                                     }}
                                     className="block w-full text-xs text-slate-600 file:mr-3 file:rounded-2xl file:border-0 file:bg-emerald-600 file:px-4 file:py-3 file:text-xs file:font-bold file:text-white hover:file:bg-emerald-700"
                                 />

@@ -58,11 +58,20 @@ export function StoreInitializer() {
             }, 350);
         };
 
+        const getFallbackIntervalMs = () => {
+            if (document.visibilityState !== "visible") return 0;
+            return user.role === "driver" ? 300000 : 90000;
+        };
+
         const startPolling = () => {
             if (intervalRef.current) {
                 clearInterval(intervalRef.current);
             }
-            const intervalMs = document.visibilityState === "visible" ? 12000 : 30000;
+            const intervalMs = getFallbackIntervalMs();
+            if (!intervalMs) {
+                intervalRef.current = null;
+                return;
+            }
             intervalRef.current = setInterval(() => {
                 void runSync();
             }, intervalMs);
@@ -71,37 +80,65 @@ export function StoreInitializer() {
         void runSync();
         startPolling();
 
-        const channel = supabase
-            .channel(`fleet-sync-${user.id}`)
-            .on(
-                "postgres_changes",
-                { event: "*", schema: "public", table: "trips" },
-                queueSync,
-            )
-            .on(
-                "postgres_changes",
-                { event: "*", schema: "public", table: "profiles" },
-                queueSync,
-            )
-            .on(
-                "postgres_changes",
-                { event: "*", schema: "public", table: "vehicles" },
-                queueSync,
-            )
-            .on(
-                "postgres_changes",
-                { event: "*", schema: "public", table: "fuel_entries" },
-                queueSync,
-            )
-            .on(
-                "postgres_changes",
-                { event: "*", schema: "public", table: "alerts" },
-                queueSync,
-            )
-            .subscribe();
+        let channel = supabase.channel(`fleet-sync-${user.id}`);
+
+        if (user.role === "driver") {
+            channel = channel
+                .on(
+                    "postgres_changes",
+                    { event: "*", schema: "public", table: "trips", filter: `driver_id=eq.${user.id}` },
+                    queueSync,
+                )
+                .on(
+                    "postgres_changes",
+                    { event: "*", schema: "public", table: "profiles", filter: `id=eq.${user.id}` },
+                    queueSync,
+                )
+                .on(
+                    "postgres_changes",
+                    { event: "*", schema: "public", table: "fuel_entries", filter: `driver_id=eq.${user.id}` },
+                    queueSync,
+                )
+                .on(
+                    "postgres_changes",
+                    { event: "*", schema: "public", table: "alerts", filter: `created_by=eq.${user.id}` },
+                    queueSync,
+                );
+        } else {
+            channel = channel
+                .on(
+                    "postgres_changes",
+                    { event: "*", schema: "public", table: "trips" },
+                    queueSync,
+                )
+                .on(
+                    "postgres_changes",
+                    { event: "*", schema: "public", table: "profiles" },
+                    queueSync,
+                )
+                .on(
+                    "postgres_changes",
+                    { event: "*", schema: "public", table: "vehicles" },
+                    queueSync,
+                )
+                .on(
+                    "postgres_changes",
+                    { event: "*", schema: "public", table: "fuel_entries" },
+                    queueSync,
+                )
+                .on(
+                    "postgres_changes",
+                    { event: "*", schema: "public", table: "alerts" },
+                    queueSync,
+                );
+        }
+
+        channel = channel.subscribe();
 
         const handleVisibility = () => {
-            void runSync();
+            if (document.visibilityState === "visible") {
+                void runSync();
+            }
             startPolling();
         };
 
