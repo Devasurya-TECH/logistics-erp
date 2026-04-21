@@ -328,9 +328,11 @@ export const useStore = create<AppState>()(persist((set, get) => ({
             statusMessages[status] || `Status updated to ${status}`
         );
 
-        await request('/api/trips', {
+        void request('/api/trips', {
             method: 'PATCH',
             body: JSON.stringify({ id: tripId, updates: tripUpdates })
+        }).catch((error) => {
+            console.error('Trip drop persistence failed', error);
         });
 
         if (trip.driverId && (status === 'completed' || status === 'cancelled')) {
@@ -423,9 +425,11 @@ export const useStore = create<AppState>()(persist((set, get) => ({
             notify('info', 'Supervisor Review Required', `All stops for Trip #${tripId.toUpperCase()} are done. Supervisor must verify proofs before completion.`);
         }
 
-        await request('/api/trips', {
+        void request('/api/trips', {
             method: 'PATCH',
             body: JSON.stringify({ id: tripId, updates: tripUpdates })
+        }).catch((error) => {
+            console.error('Trip drop persistence failed', error);
         });
 
         const hasProofGeoForThisDrop =
@@ -465,14 +469,12 @@ export const useStore = create<AppState>()(persist((set, get) => ({
                 ),
             }));
 
-            try {
-                await request('/api/drivers', {
-                    method: 'PATCH',
-                    body: JSON.stringify({ id: currentTrip.driverId, updates: driverUpdates }),
-                });
-            } catch (error) {
+            void request('/api/drivers', {
+                method: 'PATCH',
+                body: JSON.stringify({ id: currentTrip.driverId, updates: driverUpdates }),
+            }).catch((error) => {
                 console.error('Driver drop persistence failed', error);
-            }
+            });
         }
 
         if (currentTrip.vehicleId && hasProofGeoForThisDrop) {
