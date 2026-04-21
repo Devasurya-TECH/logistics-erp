@@ -118,6 +118,32 @@ const getDriverById = (drivers: Driver[], driverId?: string) =>
 const isDriverOnBreak = (drivers: Driver[], driverId?: string) =>
     Boolean(getDriverById(drivers, driverId)?.onBreak);
 
+const sanitizeTripForPersistence = (trip: Trip): Trip => ({
+    ...trip,
+    drops: trip.drops.map((drop) => ({
+        ...drop,
+        proofImage: undefined,
+    })),
+});
+
+const sanitizeDriverForPersistence = (driver: Driver): Driver => ({
+    ...driver,
+    dayStartProof: driver.dayStartProof
+        ? { ...driver.dayStartProof, image: undefined }
+        : driver.dayStartProof,
+    dayEndProof: driver.dayEndProof
+        ? { ...driver.dayEndProof, image: undefined }
+        : driver.dayEndProof,
+    lastDeliveryProof: driver.lastDeliveryProof
+        ? { ...driver.lastDeliveryProof, image: undefined }
+        : driver.lastDeliveryProof,
+});
+
+const sanitizeFuelEntryForPersistence = (entry: FuelEntry): FuelEntry => ({
+    ...entry,
+    receiptImage: undefined,
+});
+
 let lastSyncErrorAt = 0;
 
 export const useStore = create<AppState>()(persist((set, get) => ({
@@ -1072,10 +1098,10 @@ export const useStore = create<AppState>()(persist((set, get) => ({
     name: 'logitrace-app-store',
     storage: createJSONStorage(() => localStorage),
     partialize: (state) => ({
-        trips: state.trips,
+        trips: state.trips.map(sanitizeTripForPersistence),
         vehicles: state.vehicles,
-        drivers: state.drivers,
-        fuelEntries: state.fuelEntries,
+        drivers: state.drivers.map(sanitizeDriverForPersistence),
+        fuelEntries: state.fuelEntries.map(sanitizeFuelEntryForPersistence),
         alerts: state.alerts,
         isLoading: false,
     }),
