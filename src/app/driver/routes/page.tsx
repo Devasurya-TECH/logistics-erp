@@ -6,7 +6,7 @@ import { useStore } from "@/lib/store";
 import RouteMap from "@/components/maps/RouteMap";
 import { calculateTotalDistance, estimateTime, optimizeRoute } from "@/lib/utils/optimizer";
 import type { DropPoint, Trip } from "@/lib/types";
-import { buildDriverMediaPath, uploadDriverMedia } from "@/lib/media";
+import { buildDriverMediaPath, fileToDataUrl, uploadDriverMedia } from "@/lib/media";
 import {
     ArrowTopRightOnSquareIcon,
     ExclamationTriangleIcon,
@@ -225,18 +225,27 @@ export default function DriverRoutesPage() {
         setProofError("");
 
         try {
-            const upload = await uploadDriverMedia({
-                file: proofFile,
-                objectPath: buildDriverMediaPath({
-                    driverId: user.id,
-                    tripId: proofTarget.tripId,
-                    dropId: proofTarget.dropId,
-                    kind: "delivery-proof",
-                }),
-            });
+            let proofImage = "";
+            let proofImagePath: string | undefined;
+
+            try {
+                const upload = await uploadDriverMedia({
+                    file: proofFile,
+                    objectPath: buildDriverMediaPath({
+                        driverId: user.id,
+                        tripId: proofTarget.tripId,
+                        dropId: proofTarget.dropId,
+                        kind: "delivery-proof",
+                    }),
+                });
+                proofImage = upload.signedUrl;
+                proofImagePath = upload.objectPath;
+            } catch {
+                proofImage = await fileToDataUrl(proofFile);
+            }
             await updateDropStatus(proofTarget.tripId, proofTarget.dropId, "delivered", {
-                proofImage: upload.signedUrl,
-                proofImagePath: upload.objectPath,
+                proofImage,
+                proofImagePath,
                 proofCapturedAt: new Date().toISOString(),
                 proofLat,
                 proofLng,

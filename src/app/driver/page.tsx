@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useStore } from "@/lib/store";
 import TripStartProofModal from "@/components/driver/TripStartProofModal";
 import type { FuelEntry } from "@/lib/types";
-import { buildDriverMediaPath, uploadDriverMedia } from "@/lib/media";
+import { buildDriverMediaPath, fileToDataUrl, uploadDriverMedia } from "@/lib/media";
 import {
     ArrowRightIcon,
     ArrowTopRightOnSquareIcon,
@@ -309,18 +309,27 @@ export default function DriverDashboardPage() {
         setDeliveryProofError("");
 
         try {
-            const upload = await uploadDriverMedia({
-                file: deliveryProofFile,
-                objectPath: buildDriverMediaPath({
-                    driverId: me.id,
-                    tripId: proofTarget.tripId,
-                    dropId: proofTarget.dropId,
-                    kind: "delivery-proof",
-                }),
-            });
+            let proofImage = "";
+            let proofImagePath: string | undefined;
+
+            try {
+                const upload = await uploadDriverMedia({
+                    file: deliveryProofFile,
+                    objectPath: buildDriverMediaPath({
+                        driverId: me.id,
+                        tripId: proofTarget.tripId,
+                        dropId: proofTarget.dropId,
+                        kind: "delivery-proof",
+                    }),
+                });
+                proofImage = upload.signedUrl;
+                proofImagePath = upload.objectPath;
+            } catch {
+                proofImage = await fileToDataUrl(deliveryProofFile);
+            }
             await updateDropStatus(proofTarget.tripId, proofTarget.dropId, "delivered", {
-                proofImage: upload.signedUrl,
-                proofImagePath: upload.objectPath,
+                proofImage,
+                proofImagePath,
                 proofCapturedAt: new Date().toISOString(),
                 proofLat: deliveryProofLat,
                 proofLng: deliveryProofLng,
@@ -329,6 +338,12 @@ export default function DriverDashboardPage() {
             });
             await registerDriverActivity(me.id);
             closeDeliveryProofModal();
+        } catch (error) {
+            setDeliveryProofError(
+                error instanceof Error
+                    ? error.message
+                    : "Unable to submit proof right now. Please retry.",
+            );
         } finally {
             setDeliveryProofSubmitting(false);
         }
@@ -858,17 +873,21 @@ export default function DriverDashboardPage() {
                                 let receiptImagePath: string | undefined;
 
                                 if (fuelReceiptFile) {
-                                    const upload = await uploadDriverMedia({
-                                        file: fuelReceiptFile,
-                                        objectPath: buildDriverMediaPath({
-                                            driverId: user.id,
-                                            tripId: activeTrip.id,
-                                            fuelEntryId: `f-${Date.now()}`,
-                                            kind: "fuel-receipt",
-                                        }),
-                                    });
-                                    receiptImage = upload.signedUrl;
-                                    receiptImagePath = upload.objectPath;
+                                    try {
+                                        const upload = await uploadDriverMedia({
+                                            file: fuelReceiptFile,
+                                            objectPath: buildDriverMediaPath({
+                                                driverId: user.id,
+                                                tripId: activeTrip.id,
+                                                fuelEntryId: `f-${Date.now()}`,
+                                                kind: "fuel-receipt",
+                                            }),
+                                        });
+                                        receiptImage = upload.signedUrl;
+                                        receiptImagePath = upload.objectPath;
+                                    } catch {
+                                        receiptImage = await fileToDataUrl(fuelReceiptFile);
+                                    }
                                 }
 
                                 const newEntry: FuelEntry = {

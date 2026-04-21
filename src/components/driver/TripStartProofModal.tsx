@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { TripCheckpointProof } from "@/lib/types";
-import { buildDriverMediaPath, uploadDriverMedia } from "@/lib/media";
+import { buildDriverMediaPath, fileToDataUrl, uploadDriverMedia } from "@/lib/media";
 
 function getCurrentPosition() {
     return new Promise<GeolocationPosition>((resolve, reject) => {
@@ -134,21 +134,30 @@ export default function TripStartProofModal({
         setSubmitting(true);
         setError("");
         try {
-            const objectPath = buildDriverMediaPath({
-                driverId,
-                tripId,
-                kind: mode === "start-day" ? "day-start" : "day-end",
-            });
-            const upload = await uploadDriverMedia({
-                file: imageFile,
-                objectPath,
-            });
+            let image = "";
+            let imagePath: string | undefined;
+
+            try {
+                const objectPath = buildDriverMediaPath({
+                    driverId,
+                    tripId,
+                    kind: mode === "start-day" ? "day-start" : "day-end",
+                });
+                const upload = await uploadDriverMedia({
+                    file: imageFile,
+                    objectPath,
+                });
+                image = upload.signedUrl;
+                imagePath = upload.objectPath;
+            } catch {
+                image = await fileToDataUrl(imageFile);
+            }
 
             await onSubmit({
                 odometer: parsedOdometer,
                 fuelReading: parsedFuelReading,
-                image: upload.signedUrl,
-                imagePath: upload.objectPath,
+                image,
+                imagePath,
                 capturedAt: new Date().toISOString(),
                 lat,
                 lng,

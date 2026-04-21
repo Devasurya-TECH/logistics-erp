@@ -75,6 +75,15 @@ export async function compressImageFile(file: File, maxWidth = 1280, quality = 0
     return compressed;
 }
 
+export async function fileToDataUrl(file: File) {
+    return await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
+        reader.onerror = () => reject(new Error("Unable to read image file."));
+        reader.readAsDataURL(file);
+    });
+}
+
 export function buildDriverMediaPath(input: {
     driverId: string;
     kind: DriverMediaKind;

@@ -5,6 +5,16 @@ import { useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { createClient } from "@/utils/supabase/client";
 import type { Alert, Driver, FuelEntry, Trip, Vehicle } from "@/lib/types";
+import {
+    hydrateDriverMediaUrls,
+    hydrateFuelMediaUrls,
+    hydrateTripMediaUrls,
+    listAlerts,
+    listFuelEntries,
+    listProfiles,
+    listTrips,
+    listVehicles,
+} from "@/lib/supabase-data";
 
 export function StoreInitializer() {
     const { fetchInitialData, clearData } = useStore();
@@ -66,6 +76,57 @@ export function StoreInitializer() {
 
         const supabase = createClient();
 
+        const fetchDriverDataDirect = async () => {
+            const [drivers, activeTrips, recentTrips, fuelEntries, alerts] = await Promise.all([
+                listProfiles(supabase, { ids: [user.id], role: "driver" }),
+                listTrips(supabase, {
+                    statuses: ["assigned", "in-progress"],
+                    limit: 6,
+                    includeDrops: true,
+                }),
+                listTrips(supabase, {
+                    statuses: ["completed", "cancelled"],
+                    limit: 6,
+                    includeDrops: false,
+                }),
+                listFuelEntries(supabase, { limit: 20 }),
+                listAlerts(supabase, { limit: 20 }),
+            ]);
+
+            const trips = [...activeTrips, ...recentTrips];
+            const activeVehicleIds = Array.from(
+                new Set(
+                    trips
+                        .filter((trip) => trip.status === "assigned" || trip.status === "in-progress")
+                        .map((trip) => trip.vehicleId)
+                        .filter(Boolean) as string[],
+                ),
+            );
+
+            const [hydratedDrivers, hydratedTrips, hydratedFuelEntries, vehicles] = await Promise.all([
+                hydrateDriverMediaUrls(supabase, drivers.filter((item): item is Driver => item.role === "driver")),
+                hydrateTripMediaUrls(supabase, trips),
+                hydrateFuelMediaUrls(supabase, fuelEntries),
+                activeVehicleIds.length > 0 ? listVehicles(supabase, { ids: activeVehicleIds }) : Promise.resolve([]),
+            ]);
+
+            useStore.setState({
+                trips: hydratedTrips,
+                drivers: hydratedDrivers.map((driver) => ({
+                    ...driver,
+                    isLive: driver.isLive ?? true,
+                    dutyStatus: driver.dutyStatus ?? (driver.status === 'off-duty' ? 'off-duty' : 'on-duty'),
+                    onBreak: driver.onBreak ?? false,
+                    totalBreakMinutes: driver.totalBreakMinutes ?? 0,
+                    lastActivityAt: driver.lastActivityAt ?? driver.lastLocationUpdate ?? new Date().toISOString(),
+                })),
+                vehicles,
+                fuelEntries: hydratedFuelEntries,
+                alerts,
+                isLoading: false,
+            });
+        };
+
         const runSync = async () => {
             if (inFlightRef.current) {
                 pendingRef.current = true;
@@ -74,7 +135,11 @@ export function StoreInitializer() {
 
             inFlightRef.current = true;
             try {
-                await fetchInitialData();
+                if (user.role === "driver") {
+                    await fetchDriverDataDirect();
+                } else {
+                    await fetchInitialData();
+                }
             } finally {
                 inFlightRef.current = false;
                 if (pendingRef.current) {
