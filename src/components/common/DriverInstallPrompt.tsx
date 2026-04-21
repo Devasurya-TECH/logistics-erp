@@ -88,9 +88,9 @@ export default function DriverInstallPrompt() {
 
     return (
         <div className="md:hidden sticky top-0 z-30 -mx-1">
-            <div className="rounded-[24px] border border-blue-200 bg-gradient-to-r from-slate-950 via-blue-950 to-slate-900 p-4 text-white shadow-xl ring-1 ring-white/10">
+            <div className="rounded-[24px] border border-blue-100 bg-gradient-to-r from-slate-950 via-slate-900 to-blue-950 p-3.5 text-white shadow-lg ring-1 ring-white/10">
                 <div className="flex items-start gap-3">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/12 ring-1 ring-white/15">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/12 ring-1 ring-white/15">
                         {isIos && !installEvent ? (
                             <ShareIcon className="h-6 w-6" />
                         ) : (
@@ -98,30 +98,30 @@ export default function DriverInstallPrompt() {
                         )}
                     </div>
                     <div className="min-w-0 flex-1">
-                        <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-blue-200">Driver app</p>
-                        <h2 className="mt-1 text-base font-semibold leading-6">Install LogiTrace on your phone</h2>
-                        <p className="mt-1 text-sm leading-5 text-slate-200">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-blue-200">Driver app</p>
+                        <h2 className="mt-1 text-sm font-semibold leading-5">Install LogiTrace on your phone</h2>
+                        <p className="mt-1 text-[13px] leading-5 text-slate-200">
                             {isIos && !installEvent
                                 ? "Open Safari share menu, then tap Add to Home Screen to install the driver app."
                                 : "Install this driver app for faster launch, full-screen use, and app-style navigation on mobile."}
                         </p>
-                        <div className="mt-4 flex items-center gap-2">
+                        <div className="mt-3 flex items-center gap-2">
                             {installEvent ? (
                                 <button
                                     onClick={() => void install()}
                                     disabled={installing}
-                                    className="inline-flex min-h-12 flex-1 items-center justify-center rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-950 shadow-sm transition active:scale-[0.99] disabled:opacity-60"
+                                    className="inline-flex min-h-11 flex-1 items-center justify-center rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-950 shadow-sm transition active:scale-[0.99] disabled:opacity-60"
                                 >
                                     {installing ? "Installing..." : "Install driver app"}
                                 </button>
                             ) : (
-                                <div className="rounded-2xl border border-white/15 bg-white/8 px-4 py-3 text-sm font-medium text-slate-100">
+                                <div className="rounded-2xl border border-white/15 bg-white/8 px-4 py-3 text-[13px] font-medium text-slate-100">
                                     Share <span className="font-bold text-white">then Add to Home Screen</span>
                                 </div>
                             )}
                             <button
                                 onClick={dismiss}
-                                className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-white/15 bg-white/8 px-4 py-3 text-sm font-semibold text-slate-100"
+                                className="inline-flex min-h-11 items-center justify-center rounded-2xl border border-white/15 bg-white/8 px-4 py-3 text-sm font-semibold text-slate-100"
                                 aria-label="Dismiss install prompt"
                             >
                                 <XMarkIcon className="h-5 w-5" />

@@ -23,6 +23,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const supabase = createClient();
+const AUTH_CACHE_KEY = 'logitrace-auth-user';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
@@ -36,6 +37,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (!session?.user) {
             setUser(null);
+            if (typeof window !== 'undefined') {
+                window.localStorage.removeItem(AUTH_CACHE_KEY);
+            }
             return;
         }
 
@@ -47,21 +51,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (error || !profileRow) {
             setUser(null);
+            if (typeof window !== 'undefined') {
+                window.localStorage.removeItem(AUTH_CACHE_KEY);
+            }
             return;
         }
 
         const profile = mapProfileRow(profileRow);
-        setUser({
+        const nextUser = {
             id: profile.id,
             name: profile.name,
             email: profile.email,
             role: profile.role,
             avatar: profile.avatar,
-        });
+        };
+        setUser(nextUser);
+        if (typeof window !== 'undefined') {
+            window.localStorage.setItem(AUTH_CACHE_KEY, JSON.stringify(nextUser));
+        }
     };
 
     useEffect(() => {
         let active = true;
+
+        if (typeof window !== 'undefined') {
+            try {
+                const cached = window.localStorage.getItem(AUTH_CACHE_KEY);
+                if (cached) {
+                    setUser(JSON.parse(cached) as User);
+                    setIsLoading(false);
+                }
+            } catch {
+                window.localStorage.removeItem(AUTH_CACHE_KEY);
+            }
+        }
 
         const load = async () => {
             try {
@@ -124,6 +147,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             role: profile.role,
             avatar: profile.avatar,
         });
+        if (typeof window !== 'undefined') {
+            window.localStorage.setItem(AUTH_CACHE_KEY, JSON.stringify({
+                id: profile.id,
+                name: profile.name,
+                email: profile.email,
+                role: profile.role,
+                avatar: profile.avatar,
+            }));
+        }
 
         router.push(roleToPath(profile.role));
         return true;
@@ -169,6 +201,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const logout = async () => {
         await supabase.auth.signOut();
         setUser(null);
+        if (typeof window !== 'undefined') {
+            window.localStorage.removeItem(AUTH_CACHE_KEY);
+        }
         router.push('/login');
     };
 

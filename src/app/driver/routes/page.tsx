@@ -72,7 +72,7 @@ function getNavUrl(trip: Trip, currentDrop?: DropPoint | null) {
 
 export default function DriverRoutesPage() {
     const { user } = useAuth();
-    const { trips, drivers, acceptTrip, updateDropStatus, registerDriverActivity, endDriverBreak } = useStore();
+    const { trips, drivers, isLoading: storeLoading, acceptTrip, updateDropStatus, registerDriverActivity, endDriverBreak } = useStore();
     const me = drivers.find((driver) => driver.id === user?.id);
     const onBreak = Boolean(me?.onBreak);
     const dayStarted = me?.dutyStatus === "on-duty";
@@ -107,6 +107,7 @@ export default function DriverRoutesPage() {
             ? selectedTripId
             : activeTrips[0]?.id || null;
     const activeTrip = activeTrips.find((trip) => trip.id === resolvedTripId) || null;
+    const showBootSkeleton = storeLoading && !me && activeTrips.length === 0;
 
     useEffect(() => {
         if (!selectedTripId && activeTrips[0]?.id) {
@@ -254,6 +255,25 @@ export default function DriverRoutesPage() {
             setProofSubmitting(false);
         }
     };
+
+    if (showBootSkeleton) {
+        return (
+            <div className="space-y-4 pb-4">
+                <div className="h-24 animate-pulse rounded-[28px] bg-white shadow-sm ring-1 ring-slate-200/70" />
+                <div className="h-72 animate-pulse rounded-[28px] bg-white shadow-sm ring-1 ring-slate-200/70" />
+                <div className="grid grid-cols-3 gap-3">
+                    {[1, 2, 3].map((item) => (
+                        <div key={item} className="h-24 animate-pulse rounded-[24px] bg-white shadow-sm ring-1 ring-slate-200/70" />
+                    ))}
+                </div>
+                <div className="space-y-3">
+                    {[1, 2].map((item) => (
+                        <div key={item} className="h-36 animate-pulse rounded-[28px] bg-white shadow-sm ring-1 ring-slate-200/70" />
+                    ))}
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-4 pb-4">

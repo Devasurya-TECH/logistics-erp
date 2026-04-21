@@ -103,6 +103,7 @@ export default function DriverDashboardPage() {
         trips,
         drivers,
         fuelEntries,
+        isLoading: storeLoading,
         acceptTrip,
         updateDropStatus,
         triggerEmergency,
@@ -193,6 +194,7 @@ export default function DriverDashboardPage() {
         : activeTrip?.status !== "in-progress"
             ? "Start Delivery"
             : "Navigate to Stop";
+    const showBootSkeleton = storeLoading && !me && myTrips.length === 0;
 
     useEffect(() => {
         const timer = window.setInterval(() => setNowTick(Date.now()), 1000);
@@ -354,6 +356,29 @@ export default function DriverDashboardPage() {
             sosHoldTimerRef.current = null;
         }
     };
+
+    if (showBootSkeleton) {
+        return (
+            <div className="space-y-4 pb-20 md:pb-0">
+                <section className="rounded-[30px] bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 p-5 text-white shadow-xl">
+                    <div className="h-3 w-24 animate-pulse rounded-full bg-white/15" />
+                    <div className="mt-4 h-8 w-48 animate-pulse rounded-2xl bg-white/15" />
+                    <div className="mt-3 h-4 w-40 animate-pulse rounded-full bg-white/10" />
+                    <div className="mt-6 h-14 w-full animate-pulse rounded-2xl bg-white/15" />
+                </section>
+                <section className="grid gap-3 sm:grid-cols-3">
+                    {[1, 2, 3].map((item) => (
+                        <div key={item} className="h-24 animate-pulse rounded-[26px] bg-white shadow-sm ring-1 ring-slate-200/70" />
+                    ))}
+                </section>
+                <section className="space-y-3">
+                    {[1, 2, 3].map((item) => (
+                        <div key={item} className="h-28 animate-pulse rounded-[28px] bg-white shadow-sm ring-1 ring-slate-200/70" />
+                    ))}
+                </section>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-5 pb-20 md:pb-0">

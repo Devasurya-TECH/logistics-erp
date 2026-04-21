@@ -4,6 +4,7 @@ import { useStore } from "@/lib/store";
 import { useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { createClient } from "@/utils/supabase/client";
+import type { Alert, Driver, FuelEntry, Trip, Vehicle } from "@/lib/types";
 
 export function StoreInitializer() {
     const { fetchInitialData, clearData } = useStore();
@@ -12,6 +13,8 @@ export function StoreInitializer() {
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const inFlightRef = useRef(false);
     const pendingRef = useRef(false);
+
+    const getDriverCacheKey = (userId: string) => `driver-bootstrap-cache:${userId}`;
 
     useEffect(() => {
         if (isLoading) return;
@@ -27,6 +30,38 @@ export function StoreInitializer() {
             }
             clearData();
             return;
+        }
+
+        if (typeof window !== "undefined" && user.role === "driver") {
+            try {
+                const cached = window.localStorage.getItem(getDriverCacheKey(user.id));
+                if (cached) {
+                    const parsed = JSON.parse(cached) as {
+                        trips?: Trip[];
+                        drivers?: Driver[];
+                        vehicles?: Vehicle[];
+                        fuelEntries?: FuelEntry[];
+                        alerts?: Alert[];
+                    };
+                    const current = useStore.getState();
+                    if (
+                        current.trips.length === 0 &&
+                        current.drivers.length === 0 &&
+                        current.vehicles.length === 0
+                    ) {
+                        useStore.setState({
+                            trips: Array.isArray(parsed.trips) ? parsed.trips : [],
+                            drivers: Array.isArray(parsed.drivers) ? parsed.drivers : [],
+                            vehicles: Array.isArray(parsed.vehicles) ? parsed.vehicles : [],
+                            fuelEntries: Array.isArray(parsed.fuelEntries) ? parsed.fuelEntries : [],
+                            alerts: Array.isArray(parsed.alerts) ? parsed.alerts : [],
+                            isLoading: false,
+                        });
+                    }
+                }
+            } catch {
+                window.localStorage.removeItem(getDriverCacheKey(user.id));
+            }
         }
 
         const supabase = createClient();
@@ -79,6 +114,22 @@ export function StoreInitializer() {
 
         void runSync();
         startPolling();
+
+        const unsubscribe = useStore.subscribe((state) => {
+            if (typeof window === "undefined" || user.role !== "driver") return;
+            window.localStorage.setItem(
+                getDriverCacheKey(user.id),
+                JSON.stringify({
+                    trips: state.trips.filter((trip) => trip.driverId === user.id),
+                    drivers: state.drivers.filter((driver) => driver.id === user.id),
+                    vehicles: state.vehicles,
+                    fuelEntries: state.fuelEntries.filter((entry) => entry.driverId === user.id).slice(0, 20),
+                    alerts: state.alerts
+                        .filter((alert) => !alert.tripId || state.trips.some((trip) => trip.id === alert.tripId && trip.driverId === user.id))
+                        .slice(0, 20),
+                }),
+            );
+        });
 
         let channel = supabase.channel(`fleet-sync-${user.id}`);
 
@@ -153,6 +204,7 @@ export function StoreInitializer() {
             if (intervalRef.current) {
                 clearInterval(intervalRef.current);
             }
+            unsubscribe();
             if (debounceRef.current) {
                 clearTimeout(debounceRef.current);
             }

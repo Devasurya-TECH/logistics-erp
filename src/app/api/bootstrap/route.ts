@@ -23,12 +23,22 @@ export async function GET() {
             items.filter((item): item is Driver => item.role === "driver");
 
         if (profile.role === "driver") {
-            const [drivers, trips, fuelEntries, alerts] = await Promise.all([
+            const [drivers, activeTrips, recentTrips, fuelEntries, alerts] = await Promise.all([
                 listProfiles(supabase, { ids: [authUser.id], role: "driver" }),
-                listTrips(supabase, { limit: 12, includeDrops: true }),
+                listTrips(supabase, {
+                    statuses: ["assigned", "in-progress"],
+                    limit: 6,
+                    includeDrops: true,
+                }),
+                listTrips(supabase, {
+                    statuses: ["completed", "cancelled"],
+                    limit: 6,
+                    includeDrops: false,
+                }),
                 listFuelEntries(supabase, { limit: 20 }),
                 listAlerts(supabase, { limit: 20 }),
             ]);
+            const trips = [...activeTrips, ...recentTrips];
 
             const activeVehicleIds = Array.from(
                 new Set(

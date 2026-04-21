@@ -33,25 +33,26 @@ export default function Header() {
 
     const page = titleMap[pathname] || { title: 'Dashboard', subtitle: '' };
     const unreadAlerts = alerts.filter(a => !a.resolved).length;
+    const isDriver = user?.role === 'driver';
 
     return (
-        <header className="sticky top-0 z-40 bg-white border-b border-gray-200 px-4 md:px-6 py-3">
+        <header className={`sticky top-0 z-40 ${isDriver ? 'border-b border-blue-100/70 bg-white/92 px-4 py-3 backdrop-blur-xl' : 'border-b border-gray-200 bg-white px-4 py-3 md:px-6'}`}>
             <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                    <h2 className="text-lg font-bold text-slate-900 truncate">{page.title}</h2>
-                    <p className="text-xs text-slate-500 truncate hidden sm:block">{page.subtitle}</p>
+                    <h2 className={`truncate font-bold text-slate-900 ${isDriver ? 'text-base md:text-lg' : 'text-lg'}`}>{page.title}</h2>
+                    <p className={`truncate text-slate-500 ${isDriver ? 'text-[11px]' : 'hidden text-xs sm:block'}`}>{page.subtitle}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <div className="px-2.5 py-1 rounded-full bg-rose-50 border border-rose-200 text-[11px] font-semibold text-rose-700">
+                    <div className={`rounded-full border text-[11px] font-semibold ${isDriver ? 'px-2 py-1 bg-blue-50 border-blue-100 text-blue-700' : 'px-2.5 py-1 bg-rose-50 border-rose-200 text-rose-700'}`}>
                         {unreadAlerts} open alerts
                     </div>
                     <button
                         onClick={() => { void fetchInitialData(); }}
-                        className="inline-flex items-center gap-1 px-3 py-2 rounded-lg border border-gray-200 text-slate-700 hover:bg-slate-100 text-sm font-medium"
+                        className={`inline-flex items-center gap-1 border text-slate-700 hover:bg-slate-100 text-sm font-medium ${isDriver ? 'min-h-11 rounded-2xl border-slate-200 px-3 py-2' : 'rounded-lg border-gray-200 px-3 py-2'}`}
                         type="button"
                     >
                         <ArrowPathIcon className="w-4 h-4" />
-                        Refresh
+                        <span className={isDriver ? 'hidden sm:inline' : ''}>Refresh</span>
                     </button>
                     <div className="hidden md:flex items-center gap-3 pl-4 border-l border-gray-100">
                         <div className="text-right">

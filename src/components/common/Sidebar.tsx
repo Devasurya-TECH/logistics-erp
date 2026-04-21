@@ -4,36 +4,52 @@ import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserRole } from '@/lib/types';
+import {
+    ArrowLeftStartOnRectangleIcon,
+    ChartBarSquareIcon,
+    Cog6ToothIcon,
+    HomeIcon,
+    MapIcon,
+    TruckIcon,
+    UserGroupIcon,
+    FireIcon,
+    PresentationChartLineIcon,
+    ClipboardDocumentListIcon,
+    MapPinIcon,
+    CreditCardIcon,
+} from '@heroicons/react/24/outline';
+import type { ComponentType, SVGProps } from 'react';
 
+type NavIcon = ComponentType<SVGProps<SVGSVGElement>>;
 type NavItem = {
     name: string;
     href: string;
-    icon: string;
+    icon: NavIcon;
 };
 
 const navigationByRole: Record<UserRole, NavItem[]> = {
     manager: [
-        { name: 'Dashboard', href: '/manager', icon: '📊' },
-        { name: 'Trips', href: '/manager/trips', icon: '🚚' },
-        { name: 'Vehicles', href: '/manager/vehicles', icon: '🚛' },
-        { name: 'Fuel', href: '/manager/fuel', icon: '⛽' },
+        { name: 'Dashboard', href: '/manager', icon: ChartBarSquareIcon },
+        { name: 'Trips', href: '/manager/trips', icon: TruckIcon },
+        { name: 'Vehicles', href: '/manager/vehicles', icon: MapPinIcon },
+        { name: 'Fuel', href: '/manager/fuel', icon: FireIcon },
     ],
     supervisor: [
-        { name: 'Dashboard', href: '/supervisor', icon: '📊' },
-        { name: 'Drivers', href: '/supervisor/drivers', icon: '👤' },
-        { name: 'Deliveries', href: '/supervisor/deliveries', icon: '📦' },
-        { name: 'Trips', href: '/supervisor/trips', icon: '🚚' },
-        { name: 'Tracking', href: '/supervisor/tracking', icon: '📡' },
-        { name: 'Fuel', href: '/supervisor/fuel', icon: '⛽' },
-        { name: 'Reports', href: '/supervisor/reports', icon: '📈' },
-        { name: 'Activity', href: '/supervisor/activity', icon: '📋' },
-        { name: 'Settings', href: '/supervisor/settings', icon: '⚙️' },
+        { name: 'Dashboard', href: '/supervisor', icon: ChartBarSquareIcon },
+        { name: 'Drivers', href: '/supervisor/drivers', icon: UserGroupIcon },
+        { name: 'Deliveries', href: '/supervisor/deliveries', icon: ClipboardDocumentListIcon },
+        { name: 'Trips', href: '/supervisor/trips', icon: TruckIcon },
+        { name: 'Tracking', href: '/supervisor/tracking', icon: MapPinIcon },
+        { name: 'Fuel', href: '/supervisor/fuel', icon: FireIcon },
+        { name: 'Reports', href: '/supervisor/reports', icon: PresentationChartLineIcon },
+        { name: 'Activity', href: '/supervisor/activity', icon: ClipboardDocumentListIcon },
+        { name: 'Settings', href: '/supervisor/settings', icon: Cog6ToothIcon },
     ],
     driver: [
-        { name: 'Overview', href: '/driver?tab=overview', icon: '🏠' },
-        { name: 'Fuel', href: '/driver?tab=fuel', icon: '⛽' },
-        { name: 'Routes', href: '/driver/routes', icon: '🧭' },
-        { name: 'Settings', href: '/driver/settings', icon: '⚙️' },
+        { name: 'Home', href: '/driver?tab=overview', icon: HomeIcon },
+        { name: 'Fuel', href: '/driver?tab=fuel', icon: CreditCardIcon },
+        { name: 'Routes', href: '/driver/routes', icon: MapIcon },
+        { name: 'Settings', href: '/driver/settings', icon: Cog6ToothIcon },
     ],
 };
 
@@ -66,40 +82,42 @@ export default function Sidebar() {
 
     return (
         <>
-            <nav className={`fixed bottom-0 left-0 right-0 z-50 md:hidden px-3 pb-3 pt-2 ${user.role === 'driver' ? 'bg-transparent border-0' : 'bg-white border-t border-gray-200'}`}>
-                <div className={`flex overflow-x-auto custom-scrollbar ${user.role === 'driver' ? 'rounded-[28px] bg-white/90 p-2 shadow-lg ring-1 ring-slate-200/80 backdrop-blur-xl' : ''}`}>
+            <nav className={`fixed bottom-0 left-0 right-0 z-50 md:hidden ${user.role === 'driver' ? 'px-3 pb-[calc(env(safe-area-inset-bottom,0px)+10px)] pt-2' : 'border-t border-gray-200 bg-white px-3 pb-3 pt-2'}`}>
+                <div className={`grid grid-cols-5 gap-2 ${user.role === 'driver' ? 'rounded-[30px] border border-white/70 bg-white/92 p-2 shadow-[0_16px_40px_rgba(15,23,42,0.18)] backdrop-blur-xl' : ''}`}>
                     {navigation.map((item) => {
                         const isActive = isRouteActive(item.href);
+                        const Icon = item.icon;
                         return (
                             <Link
                                 key={item.name}
                                 href={item.href}
-                                className={`min-w-[84px] flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-3 text-xs font-semibold transition ${isActive
-                                    ? user.role === 'driver'
-                                        ? 'text-white bg-slate-900 shadow-sm'
-                                        : 'text-blue-600 bg-blue-50'
-                                    : 'text-slate-500'
-                                    }`}
+                                className={`flex min-h-[64px] flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-bold transition ${
+                                    isActive
+                                        ? user.role === 'driver'
+                                            ? 'bg-slate-950 text-white shadow-sm'
+                                            : 'bg-blue-50 text-blue-700'
+                                        : 'text-slate-500'
+                                }`}
                             >
-                                <span className="text-base">{item.icon}</span>
+                                <Icon className="h-5 w-5" />
                                 <span>{item.name}</span>
                             </Link>
                         );
                     })}
                     <button
                         onClick={logout}
-                        className={`min-w-[84px] flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-3 text-xs font-semibold text-rose-600 ${user.role === 'driver' ? 'bg-rose-50' : ''}`}
+                        className={`flex min-h-[64px] flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-bold text-rose-600 ${user.role === 'driver' ? 'bg-rose-50' : ''}`}
                     >
-                        <span className="text-base">🚪</span>
-                        <span>Logout</span>
+                        <ArrowLeftStartOnRectangleIcon className="h-5 w-5" />
+                        <span>Exit</span>
                     </button>
                 </div>
             </nav>
 
-            <aside className="hidden md:flex flex-col w-64 h-screen bg-white border-r border-gray-200 flex-shrink-0">
-                <div className="p-5 border-b border-gray-200">
+            <aside className="hidden md:flex h-screen w-64 flex-shrink-0 flex-col border-r border-gray-200 bg-white">
+                <div className="border-b border-gray-200 p-5">
                     <div className="flex items-center gap-3">
-                        <div className="h-9 w-9 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-950 text-sm font-black text-white">
                             LT
                         </div>
                         <div>
@@ -108,27 +126,29 @@ export default function Sidebar() {
                         </div>
                     </div>
                 </div>
-                <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+                <nav className="flex-1 space-y-1 overflow-y-auto p-3">
                     {navigation.map((item) => {
                         const isActive = isRouteActive(item.href);
+                        const Icon = item.icon;
                         return (
                             <Link
                                 key={item.name}
                                 href={item.href}
-                                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${isActive
-                                    ? 'bg-blue-50 text-blue-700 border border-blue-100'
-                                    : 'text-slate-600 hover:bg-slate-100'
-                                    }`}
+                                className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold transition-colors ${
+                                    isActive
+                                        ? 'border border-blue-100 bg-blue-50 text-blue-700'
+                                        : 'text-slate-600 hover:bg-slate-100'
+                                }`}
                             >
-                                <span className="text-base">{item.icon}</span>
+                                <Icon className="h-5 w-5" />
                                 <span>{item.name}</span>
                             </Link>
                         );
                     })}
                 </nav>
-                <div className="p-4 border-t border-gray-200">
-                    <div className="flex items-center gap-2 mb-3">
-                        <div className="h-8 w-8 rounded-lg bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-sm">
+                <div className="border-t border-gray-200 p-4">
+                    <div className="mb-3 flex items-center gap-2">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-200 text-sm font-bold text-slate-700">
                             {user.name.charAt(0)}
                         </div>
                         <div>
@@ -138,7 +158,7 @@ export default function Sidebar() {
                     </div>
                     <button
                         onClick={logout}
-                        className="w-full px-3 py-2.5 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 text-sm font-semibold"
+                        className="w-full rounded-xl bg-rose-50 px-3 py-2.5 text-sm font-semibold text-rose-700 hover:bg-rose-100"
                     >
                         Sign Out
                     </button>
