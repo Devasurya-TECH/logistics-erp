@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { Trip, Vehicle, Driver, FuelEntry, Alert, TripCheckpointProof } from './types';
 import { useNotifications } from './notifications';
+import { createClient } from '@/utils/supabase/client';
+import { mapDriverUpdatesToRow, mapTripInputToRow } from './supabase-data';
 
 interface AppState {
     trips: Trip[];
@@ -145,6 +147,7 @@ const sanitizeFuelEntryForPersistence = (entry: FuelEntry): FuelEntry => ({
 });
 
 let lastSyncErrorAt = 0;
+const supabase = typeof window !== 'undefined' ? createClient() : null;
 
 export const useStore = create<AppState>()(persist((set, get) => ({
     trips: [],
@@ -328,12 +331,25 @@ export const useStore = create<AppState>()(persist((set, get) => ({
             statusMessages[status] || `Status updated to ${status}`
         );
 
-        void request('/api/trips', {
-            method: 'PATCH',
-            body: JSON.stringify({ id: tripId, updates: tripUpdates })
-        }).catch((error) => {
-            console.error('Trip drop persistence failed', error);
-        });
+        if (supabase) {
+            const rowUpdates = mapTripInputToRow(tripUpdates);
+            void (async () => {
+                const { error } = await supabase
+                    .from('trips')
+                    .update(rowUpdates)
+                    .eq('id', tripId);
+                if (error) {
+                    console.error('Trip drop persistence failed', error);
+                }
+            })();
+        } else {
+            void request('/api/trips', {
+                method: 'PATCH',
+                body: JSON.stringify({ id: tripId, updates: tripUpdates })
+            }).catch((error) => {
+                console.error('Trip drop persistence failed', error);
+            });
+        }
 
         if (trip.driverId && (status === 'completed' || status === 'cancelled')) {
             const currentDriver = get().drivers.find((driver) => driver.id === trip.driverId);
@@ -469,12 +485,29 @@ export const useStore = create<AppState>()(persist((set, get) => ({
                 ),
             }));
 
-            void request('/api/drivers', {
-                method: 'PATCH',
-                body: JSON.stringify({ id: currentTrip.driverId, updates: driverUpdates }),
-            }).catch((error) => {
-                console.error('Driver drop persistence failed', error);
-            });
+            if (supabase) {
+                const currentDriver = get().drivers.find((driver) => driver.id === currentTrip.driverId);
+                const rowUpdates = mapDriverUpdatesToRow(
+                    driverUpdates,
+                    currentDriver?.currentLocation as Record<string, unknown> | null | undefined,
+                );
+                void (async () => {
+                    const { error } = await supabase
+                        .from('profiles')
+                        .update(rowUpdates)
+                        .eq('id', currentTrip.driverId);
+                    if (error) {
+                        console.error('Driver drop persistence failed', error);
+                    }
+                })();
+            } else {
+                void request('/api/drivers', {
+                    method: 'PATCH',
+                    body: JSON.stringify({ id: currentTrip.driverId, updates: driverUpdates }),
+                }).catch((error) => {
+                    console.error('Driver drop persistence failed', error);
+                });
+            }
         }
 
         if (currentTrip.vehicleId && hasProofGeoForThisDrop) {
