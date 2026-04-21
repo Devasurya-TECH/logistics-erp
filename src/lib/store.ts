@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
 import { Trip, Vehicle, Driver, FuelEntry, Alert, TripCheckpointProof } from './types';
 import { useNotifications } from './notifications';
 
@@ -119,7 +120,7 @@ const isDriverOnBreak = (drivers: Driver[], driverId?: string) =>
 
 let lastSyncErrorAt = 0;
 
-export const useStore = create<AppState>((set, get) => ({
+export const useStore = create<AppState>()(persist((set, get) => ({
     trips: [],
     vehicles: [],
     drivers: [],
@@ -1067,4 +1068,15 @@ export const useStore = create<AppState>((set, get) => ({
             console.error('Alert resolve persistence failed', error);
         }
     }
+}), {
+    name: 'logitrace-app-store',
+    storage: createJSONStorage(() => localStorage),
+    partialize: (state) => ({
+        trips: state.trips,
+        vehicles: state.vehicles,
+        drivers: state.drivers,
+        fuelEntries: state.fuelEntries,
+        alerts: state.alerts,
+        isLoading: false,
+    }),
 }));
